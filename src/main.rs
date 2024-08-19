@@ -17,8 +17,9 @@ mod graph_construction {
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct NodeId {  //0 = "untyped"    1 = "arrival"   2 = "transfer"  3 = "departure"
         pub node_type: i8, 
-        pub station_id: i64,
-        pub time: u64
+        pub station_id: u64,
+        pub time: u64,
+        pub trip_id: u64
     }
 
     pub fn read_from_gtfs_zip(path: &str) -> Gtfs {
@@ -60,15 +61,16 @@ mod graph_construction {
     }
 
     impl TimeExpandedGraph {
-        pub fn new(gfts: Gtfs, mut given_weekday: String, transfer_buffer: u64) -> Self {
+        pub fn new(gtfs: Gtfs, mut given_weekday: String, transfer_buffer: u64) -> Self {
             given_weekday = given_weekday.to_lowercase();
             //init new transit network graph based on results from reading GTFS zip
             let mut nodes: HashMap<NodeId, Node> = HashMap::new(); //maps GTFS stop id string to sequential numeric stop id
             let mut edges: HashMap<NodeId, HashMap<NodeId, (u64, bool)>> = HashMap::new();
-            let mut node_mapping: HashMap<&String, i64> = HashMap::new();
+            let mut node_mapping: HashMap<&String, u64> = HashMap::new();
+            let mut routes_mapping: HashMap<&String, u64> = HashMap::new();
             let mut nodes_per_station: Vec<Vec<(u64, NodeId)>> = Vec::new(); // <time, node_id>, # of stations and # of times
 
-            let service_ids_of_given_day: HashSet<String> = gfts
+            let service_ids_of_given_day: HashSet<String> = gtfs
                 .calendar
                 .iter()
                 .filter_map(|(service_id, calendar)| {
@@ -76,7 +78,7 @@ mod graph_construction {
                 })
                 .collect();
 
-            let trip_ids_of_given_day: HashSet<String> = gfts
+            let trip_ids_of_given_day: HashSet<String> = gtfs
                 .trips
                 .iter()
                 .filter(|(_, trip)| service_ids_of_given_day.contains(&trip.service_id))
@@ -87,15 +89,15 @@ mod graph_construction {
             //println!("# of trip ids {}", trip_ids_of_given_day.len());
             //TODO: add repetitions of trip_id for frequencies.txt if it exists
 
-            let mut iterator = 0;
-            for stop_id in gfts.stops.iter() {
+            let mut iterator: u64 = 0;
+            for stop_id in gtfs.stops.iter() {
                 node_mapping.insert(stop_id.0, iterator);
                 iterator += 1;
             }
 
-            println!("# of stations: {}", node_mapping.len());
+            let mut trip_id: u64 = 0; //custom counter like with stop_id
 
-            for (_, trip) in gfts.trips.iter() {
+            for (_, trip) in gtfs.trips.iter() {
                 if !trip_ids_of_given_day.contains(&trip.id) {
                     continue;
                 }
@@ -112,9 +114,9 @@ mod graph_construction {
                     let arrival_time: u64 = stoptime.arrival_time.unwrap().try_into().unwrap();
                     let departure_time: u64 = stoptime.departure_time.unwrap().try_into().unwrap();
 
-                    let arrival_node = NodeId { node_type: 1, station_id: id, time: arrival_time }; //2b01
-                    let transfer_node = NodeId { node_type: 2, station_id: id, time: arrival_time + transfer_buffer }; //2b10
-                    let departure_node = NodeId { node_type: 3, station_id: id, time: departure_time }; //2b11
+                    let arrival_node = NodeId { node_type: 1, station_id: id, time: arrival_time, trip_id}; //2b01
+                    let transfer_node = NodeId { node_type: 2, station_id: id, time: arrival_time + transfer_buffer, trip_id}; //2b10
+                    let departure_node = NodeId { node_type: 3, station_id: id, time: departure_time, trip_id}; //2b11
 
                     nodes.insert(
                         arrival_node,
@@ -122,24 +124,21 @@ mod graph_construction {
                             id: arrival_node,
                             lat,
                             lon,
-                        },
-                    );
+                        });
                     nodes.insert(
                         transfer_node,
                         Node {
                             id: transfer_node,
                             lat,
                             lon,
-                        },
-                    );
+                        });
                     nodes.insert(
                         departure_node,
                         Node {
                             id: departure_node,
                             lat,
                             lon,
-                        },
-                    );
+                        });
 
                     if let Some((prev_arr, prev_arr_time)) = prev_arrival {
                         edges //travelling arc for previous arrival to current departure
@@ -191,6 +190,7 @@ mod graph_construction {
                 }
                 //nodes_by_time.sort(|a, b| a.0.cmp(&b.0));
                 nodes_per_station.push(nodes_by_time);
+                trip_id += 1;
             }
 
             for mut station in nodes_per_station {
@@ -603,15 +603,22 @@ mod tests {
     use crate::graph_construction::*;
     //use crate::routing::*;
     //use std::collections::HashMap;
-    //use std::time::Instant;
+    use std::time::Instant;
 
     #[test]
     fn test() {
+        let now = Instant::now();
         let gtfs = read_from_gtfs_zip("manhattan.gtfs.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 300);
+        let time = now.elapsed().as_secs_f32();
 
+        println!("time {}", time);
         println!("# of nodes: {}", graph.nodes.len());
-        println!("# of edges: {}", graph.edges.len());
+        println!("# of edges: {}", graph.edges
+        .iter()
+        .map(|(_, edges)| edges.len())
+        .sum::<usize>()
+        / 2);
 
         //1,831 / 830,100 / 1,371,298     2s     5ms     2h12m35s
 
