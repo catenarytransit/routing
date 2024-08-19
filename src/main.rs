@@ -1,167 +1,270 @@
 #[allow(unused)]
 mod graph_construction {
     //constructs and preprocesses the graph struct from OSM data
-    use crate::routing::*;
-    use core::num;
-    use osmpbfreader::objects::OsmObj;
-    use std::{collections::HashMap, ops::Index};
+    //use crate::routing::*;
+    use core::time;
+    use gtfs_structures::*;
+    use std::collections::{HashMap, HashSet};
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct Node {
         //nodes from OSM, each with unique ID and coordinate position
-        pub id: i64,
+        pub id: NodeId, //2b00 for node type + station id
         pub lat: i64,
         pub lon: i64,
     }
 
-    #[derive(Debug, PartialEq, Hash, Eq, Clone)]
-    pub struct Way {
-        //ways from OSM, each with unique ID, speed from highway type, and referenced nodes that it connects
-        pub id: i64,
-        pub speed: u64,
-        pub refs: Vec<i64>,
+    #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
+    pub struct NodeId {  //0 = "untyped"    1 = "arrival"   2 = "transfer"  3 = "departure"
+        pub node_type: i8, 
+        pub station_id: i64,
+        pub time: u64
+    }
+
+    pub fn read_from_gtfs_zip(path: &str) -> Gtfs {
+        let gtfs = gtfs_structures::GtfsReader::default()
+            .read_shapes(false) // Won’t read shapes to save time and memory
+            .read(path)
+            .ok();
+        gtfs.unwrap()
+    }
+
+    pub fn calendar_date_filter(
+        given_weekday: &str,
+        service_id: &String,
+        calendar: &Calendar,
+    ) -> Option<String> {
+        let day_is_valid = match given_weekday {
+            "monday" => calendar.monday,
+            "tuesday" => calendar.tuesday,
+            "wednesday" => calendar.wednesday,
+            "thursday" => calendar.thursday,
+            "friday" => calendar.friday,
+            "saturday" => calendar.saturday,
+            "sunday" => calendar.saturday,
+            _ => false,
+        };
+
+        if day_is_valid {
+            Some(service_id.clone())
+        } else {
+            None
+        }
     }
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct RoadNetwork {
+    pub struct TimeExpandedGraph {
         //graph struct that will be used to route
-        pub nodes: HashMap<i64, Node>, // <node.id, node>
-        pub edges: HashMap<i64, HashMap<i64, (u64, bool)>>, // tail.id, <head.id, (cost, arcflag)>
-        pub raw_ways: Vec<Way>,
-        pub raw_nodes: Vec<i64>,
+        pub nodes: HashMap<NodeId, Node>, // <(node.id, time), node>
+        pub edges: HashMap<NodeId, HashMap<NodeId, (u64, bool)>>, // tail.id, <head.id, (starttime, trip_id, route_name)>
     }
 
-    fn speed_calc(highway: &str) -> Option<u64> {
-        //calculates speed of highway based on given values
-        match highway {
-            "motorway" => Some(110),
-            "trunk" => Some(110),
-            "primary" => Some(70),
-            "secondary" => Some(60),
-            "tertiary" => Some(50),
-            "motorway_link" => Some(50),
-            "trunk_link" => Some(50),
-            "primary_link" => Some(50),
-            "secondary_link" => Some(50),
-            "road" => Some(40),
-            "unclassified" => Some(40),
-            "residential" => Some(30),
-            "unsurfaced" => Some(30),
-            "living_street" => Some(10),
-            "service" => Some(5),
-            _ => None,
-        }
-    }
+    impl TimeExpandedGraph {
+        pub fn new(gfts: Gtfs, mut given_weekday: String, transfer_buffer: u64) -> Self {
+            given_weekday = given_weekday.to_lowercase();
+            //init new transit network graph based on results from reading GTFS zip
+            let mut nodes: HashMap<NodeId, Node> = HashMap::new(); //maps GTFS stop id string to sequential numeric stop id
+            let mut edges: HashMap<NodeId, HashMap<NodeId, (u64, bool)>> = HashMap::new();
+            let mut node_mapping: HashMap<&String, i64> = HashMap::new();
+            let mut nodes_per_station: Vec<Vec<(u64, NodeId)>> = Vec::new(); // <time, node_id>, # of stations and # of times
 
-    impl RoadNetwork {
-        pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {
-            //init new RoadNetwork based on results from reading .pbf file
-            let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();
-            for way in ways.clone() {
-                let mut previous_head_node_now_tail: Option<&Node> = None;
-                let mut previous_head_node_index: usize = 0;
-                for i in 0..way.refs.len() - 1 {
-                    let tail_id = way.refs[i];
-                    let tail: Option<&Node> = match previous_head_node_now_tail {
-                        Some(previous_head_node_now_tail) => match previous_head_node_index == i {
-                            true => Some(previous_head_node_now_tail),
-                            false => nodes.get(&tail_id),
-                        },
-                        None => nodes.get(&tail_id),
-                    };
-
-                    let head_id = way.refs[i + 1];
-                    let head = nodes.get(&head_id);
-                    if let (Some(tail), Some(head)) = (tail, head) {
-                        //following math converts lon/lat into distance of segment
-                        let a = i128::pow(((head.lat - tail.lat) * 111229).into(), 2) as f64
-                            / f64::powi(10.0, 14);
-                        let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
-                            / f64::powi(10.0, 14);
-                        let c = (a + b).sqrt();
-                        let cost = (c as u64) / ((way.speed as f64) * 5.0 / 18.0) as u64; //seconds needed to traverse segment based on road type
-                        let flag = false;
-                        edges
-                            .entry(tail_id)
-                            .and_modify(|inner| {
-                                inner.insert(head_id, (cost, flag));
-                            })
-                            .or_insert({
-                                let mut a = HashMap::new();
-                                a.insert(head_id, (cost, flag));
-                                a
-                            });
-                        edges
-                            .entry(head.id)
-                            .and_modify(|inner| {
-                                inner.insert(tail_id, (cost, flag));
-                            })
-                            .or_insert({
-                                let mut a = HashMap::new();
-                                a.insert(tail_id, (cost, flag));
-                                a
-                            });
-                        previous_head_node_now_tail = Some(head);
-                        previous_head_node_index = i + 1;
-                    }
-                }
-            }
-            let node_to_remove = nodes
+            let service_ids_of_given_day: HashSet<String> = gfts
+                .calendar
                 .iter()
-                .filter(|(node, _)| !edges.contains_key(node))
-                .map(|(x, _)| *x)
-                .collect::<Vec<i64>>();
-            for node in &node_to_remove {
-                nodes.remove(node);
+                .filter_map(|(service_id, calendar)| {
+                    calendar_date_filter(given_weekday.as_str(), service_id, calendar)
+                })
+                .collect();
+
+            let trip_ids_of_given_day: HashSet<String> = gfts
+                .trips
+                .iter()
+                .filter(|(_, trip)| service_ids_of_given_day.contains(&trip.service_id))
+                .map(|(trip_id, _)| trip_id.to_owned())
+                .collect();
+
+            //println!("{:?}", service_ids_of_given_day);
+            //println!("# of trip ids {}", trip_ids_of_given_day.len());
+            //TODO: add repetitions of trip_id for frequencies.txt if it exists
+
+            let mut iterator = 0;
+            for stop_id in gfts.stops.iter() {
+                node_mapping.insert(stop_id.0, iterator);
+                iterator += 1;
             }
 
-            Self {
-                raw_ways: ways,
-                edges,
-                raw_nodes: nodes.clone().iter().map(|(&id, _)| id).collect(),
-                nodes,
-            }
-        }
+            println!("# of stations: {}", node_mapping.len());
 
-        pub fn read_from_osm_file(path: &str) -> Option<(HashMap<i64, Node>, Vec<Way>)> {
-            //reads osm.pbf file, values are used to make RoadNetwork
-            let mut nodes = HashMap::new();
-            let mut ways = Vec::new();
-            let path_cleaned = std::path::Path::new(&path);
-            let r = std::fs::File::open(path_cleaned).unwrap();
-            let mut reader = osmpbfreader::OsmPbfReader::new(r);
-            for obj in reader.iter().map(Result::unwrap) {
-                match obj {
-                    OsmObj::Node(e) => {
-                        nodes.insert(
-                            e.id.0,
-                            Node {
-                                id: e.id.0,
-                                lat: (e.lat() * f64::powi(10.0, 7)) as i64,
-                                lon: (e.lon() * f64::powi(10.0, 7)) as i64,
-                            },
-                        );
+            for (_, trip) in gfts.trips.iter() {
+                if !trip_ids_of_given_day.contains(&trip.id) {
+                    continue;
+                }
+                let mut nodes_by_time = Vec::new();
+
+                let mut prev_arrival: Option<(NodeId, u64)> = None;
+                let mut prev_departure: Option<(NodeId, u64)> = None;
+
+                for stoptime in trip.stop_times.iter() {
+                    let &id = node_mapping.get(&stoptime.stop.id).unwrap();
+                    let lat = (stoptime.stop.latitude.unwrap() * f64::powi(10.0, 7)) as i64;
+                    let lon = (stoptime.stop.longitude.unwrap() * f64::powi(10.0, 7)) as i64;
+
+                    let arrival_time: u64 = stoptime.arrival_time.unwrap().try_into().unwrap();
+                    let departure_time: u64 = stoptime.departure_time.unwrap().try_into().unwrap();
+
+                    let arrival_node = NodeId { node_type: 1, station_id: id, time: arrival_time }; //2b01
+                    let transfer_node = NodeId { node_type: 2, station_id: id, time: arrival_time + transfer_buffer }; //2b10
+                    let departure_node = NodeId { node_type: 3, station_id: id, time: departure_time }; //2b11
+
+                    nodes.insert(
+                        arrival_node,
+                        Node {
+                            id: arrival_node,
+                            lat,
+                            lon,
+                        },
+                    );
+                    nodes.insert(
+                        transfer_node,
+                        Node {
+                            id: transfer_node,
+                            lat,
+                            lon,
+                        },
+                    );
+                    nodes.insert(
+                        departure_node,
+                        Node {
+                            id: departure_node,
+                            lat,
+                            lon,
+                        },
+                    );
+
+                    if let Some((prev_arr, prev_arr_time)) = prev_arrival {
+                        edges //travelling arc for previous arrival to current departure
+                            .entry(prev_arr) //tail
+                            .and_modify(|inner| {
+                                inner
+                                    .insert(departure_node, (departure_time - prev_arr_time, true));
+                                //head
+                            })
+                            .or_insert({
+                                let mut a = HashMap::new();
+                                a.insert(departure_node, (departure_time - prev_arr_time, true)); //head
+                                a
+                            });
                     }
-                    OsmObj::Way(e) => {
-                        if let Some(road_type) =
-                            e.tags.clone().iter().find(|(k, _)| k.eq(&"highway"))
-                        {
-                            if let Some(speed) = speed_calc(road_type.1.as_str()) {
-                                ways.push(Way {
-                                    id: e.id.0,
-                                    speed,
-                                    refs: e.nodes.into_iter().map(|x| x.0).collect(),
-                                });
+
+                    if let Some((prev_dep, prev_dep_time)) = prev_departure {
+                        edges //travelling arc for previous departure to current arrival
+                            .entry(prev_dep) //tail
+                            .and_modify(|inner| {
+                                inner.insert(arrival_node, (arrival_time - prev_dep_time, true));
+                                //head
+                            })
+                            .or_insert({
+                                let mut a = HashMap::new();
+                                a.insert(arrival_node, (arrival_time - prev_dep_time, true)); //head
+                                a
+                            });
+                    }
+
+                    edges //alighting arc (arrival to transfer)
+                        .entry(arrival_node) //tail
+                        .and_modify(|inner| {
+                            inner.insert(transfer_node, (transfer_buffer, true));
+                            //head
+                        })
+                        .or_insert({
+                            let mut a = HashMap::new();
+                            a.insert(transfer_node, (transfer_buffer, true)); //head
+                            a
+                        });
+
+                    nodes_by_time.push((arrival_time, arrival_node));
+                    nodes_by_time.push((arrival_time + transfer_buffer, transfer_node));
+                    nodes_by_time.push((departure_time, departure_node));
+
+                    prev_arrival = Some((arrival_node, arrival_time));
+                    prev_departure = Some((departure_node, departure_time));
+                }
+                //nodes_by_time.sort(|a, b| a.0.cmp(&b.0));
+                nodes_per_station.push(nodes_by_time);
+            }
+
+            for mut station in nodes_per_station {
+                station.sort_by(|a, b| a.0.cmp(&b.0));
+                let time_chunks = station.chunk_by_mut(|a, b| a.0 == b.0);
+
+                let mut station_nodes_by_time: Vec<(u64, NodeId)> = Vec::new();
+                for chunk in time_chunks {
+                    chunk.sort_by(|a, b| a.1.node_type.cmp(&b.1.node_type));
+                    station_nodes_by_time.append(&mut chunk.to_vec().to_owned())
+                }
+
+                let mut prev_transfer_node: Option<(u64, NodeId)> = None;
+                let mut current_index: usize = 0;
+                for node in station_nodes_by_time.iter() {
+                    if let Some((prev_tranfer_time, prev_transfer_id)) = prev_transfer_node {
+                        current_index += 1;
+                        if node.1.node_type == 2 {
+                            if let Some((prev_tranfer_time, prev_transfer_id)) = prev_transfer_node
+                            {
+                                edges //waiting arc (arrival to transfer)
+                                    .entry(prev_transfer_id) //tail
+                                    .and_modify(|inner| {
+                                        inner.insert(node.1, (node.0 - prev_tranfer_time, true));
+                                        //head
+                                    })
+                                    .or_insert({
+                                        let mut a = HashMap::new();
+                                        a.insert(node.1, (node.0 - prev_tranfer_time, true)); //head
+                                        a
+                                    });
+                            }
+
+                            prev_transfer_node = Some(*node);
+
+                            for index in current_index..station_nodes_by_time.len() {
+                                let node = station_nodes_by_time.get(index).unwrap();
+
+                                if node.1.node_type == 1 {
+                                    break;
+                                }
+
+                                if node.1.node_type == 3 {
+                                    if let Some((prev_tranfer_time, prev_transfer_id)) =
+                                        prev_transfer_node
+                                    {
+                                        edges //boarding arc (arrival to transfer)
+                                            .entry(prev_transfer_id) //tail
+                                            .and_modify(|inner| {
+                                                inner
+                                                    .insert(node.1, (node.0 - prev_tranfer_time, true));
+                                                //head
+                                            })
+                                            .or_insert({
+                                                let mut a = HashMap::new();
+                                                a.insert(node.1, (node.0 - prev_tranfer_time, true)); //head
+                                                a
+                                            });
+                                        prev_transfer_node = Some(*node)
+                                    }
+                                }
                             }
                         }
                     }
-                    _ => {}
                 }
             }
-            Some((nodes, ways))
+
+            //println!("{:?}", service_ids_of_given_day);
+            //println!("{:?}", trip_ids_of_given_day);
+
+            Self { nodes, edges }
         }
 
-        pub fn reduce_to_largest_connected_component(self) -> Self {
+        /*pub fn reduce_to_largest_connected_component(self) -> Self {
             //reduces graph to largest connected component through nodes visited with dijkstra
             let mut counter = 0;
             let mut number_times_node_visted: HashMap<i64, i32> = HashMap::new();
@@ -204,10 +307,11 @@ mod graph_construction {
                 .collect::<HashMap<i64, Node>>();
 
             RoadNetwork::new(lcc_nodes, self.raw_ways)
-        }
+        }*/
     }
 }
 
+/*
 #[allow(unused)]
 mod routing {
     //routing algorithms and helper functiions
@@ -488,158 +592,36 @@ mod routing {
                 }
             }
         }
-
-        pub fn backtrace_dijkstra(
-            &mut self,
-            source_id: i64,
-            target_id: i64,
-            heuristics: &Option<HashMap<i64, u64>>,
-            consider_arc_flags: bool,
-        ) -> HashSet<PathedNode> {
-            //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
-            let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
-            let mut v_nodes: HashSet<PathedNode> = HashSet::new();
-
-            //set target (-1) for all-node-settle rather than just target settle or smth
-            self.visited_nodes.clear();
-
-            let source = *self
-                .graph
-                .nodes
-                .get(&source_id)
-                .unwrap_or_else(|| panic!("source node not found"));
-
-            let source_node: PathedNode = PathedNode {
-                node_self: (source),
-                distance_from_start: 0,
-                parent_node: (None),
-            };
-
-            let mut gscore: HashMap<i64, u64> = HashMap::new();
-            gscore.insert(source_id, 0);
-
-            priority_queue.push(Reverse((0, source_node.clone())));
-
-            let mut target: Node = Node {
-                id: 0,
-                lon: 0,
-                lat: 0,
-            };
-            if target_id > 0 {
-                target = *self
-                    .graph
-                    .nodes
-                    .get(&target_id)
-                    .unwrap_or_else(|| panic!("target node not found"));
-            }
-
-            let mut counter = 1;
-            let mut cost = 0;
-            while !priority_queue.is_empty() {
-                let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
-                cost = pathed_current_node.distance_from_start;
-                let idx = pathed_current_node.node_self.id;
-
-                self.visited_nodes.insert(idx, cost);
-
-                //found target node
-                if idx.eq(&target_id) {
-                    return v_nodes;
-                }
-
-                let neighbors = self.get_neighbors(&pathed_current_node, consider_arc_flags);
-                for neighbor in neighbors {
-                    let temp_distance = pathed_current_node.distance_from_start + neighbor.1;
-                    let next_distance = *gscore.get(&neighbor.0.id).unwrap_or(&u64::MAX);
-
-                    if temp_distance < next_distance {
-                        gscore.insert(neighbor.0.id, temp_distance);
-                        let prev_node: Rc<PathedNode> = Rc::new(pathed_current_node.clone());
-                        let tentative_new_node = PathedNode {
-                            node_self: neighbor.0,
-                            distance_from_start: temp_distance,
-                            parent_node: Some(prev_node),
-                        };
-                        v_nodes.insert(tentative_new_node.clone());
-
-                        let h;
-                        if let Some(heuristic) = heuristics {
-                            h = heuristic.get(&neighbor.0.id).unwrap_or(&0);
-                        } else {
-                            h = &0;
-                        }
-
-                        //fscore = temp_distance (gscore) + h (hscore)
-                        priority_queue.push(Reverse((temp_distance + h, tentative_new_node)));
-                    }
-                }
-                counter += 1;
-            }
-            v_nodes
-        }
     }
 }
+*/
 
 fn main() {}
 
 #[cfg(test)]
 mod tests {
-    //use crate::graph_construction::*;
+    use crate::graph_construction::*;
     //use crate::routing::*;
     //use std::collections::HashMap;
     //use std::time::Instant;
 
-    /*
     #[test]
-    fn tnr_test_custom() {
-        let node0 = Node { id: 0, lat: 0, lon: 0 };
-        let node1 = Node { id: 1, lat: 0, lon: 0 };
-        let node2 = Node { id: 2, lat: 0, lon: 0 };
-        let node3 = Node { id: 3, lat: 0, lon: 0 };
-        let node4 = Node { id: 4, lat: 0, lon: 0 };
-        let node5 = Node { id: 5, lat: 0, lon: 0 };
-        let node6 = Node { id: 6, lat: 0, lon: 0 };
-        let node7 = Node { id: 7, lat: 0, lon: 0 };
-        let node8 = Node { id: 8, lat: 0, lon: 0 };
-        let node9 = Node { id: 9, lat: 0, lon: 0 };
+    fn test() {
+        let gtfs = read_from_gtfs_zip("manhattan.gtfs.zip");
+        let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 300);
 
-        let roads = RoadNetwork {
-            nodes: HashMap::from([ (0, node0), (1, node1), (2, node2), (3, node3), (4, node4), (5, node5), (6, node6), (7, node7), (8, node8), (9, node9)]),
-            edges: HashMap::from([
-                (0, HashMap::from([ (1, (3, false)) ])),
-                (1, HashMap::from([ (2, (3, false)), (3, (3, false)), (8, (3, false)), (0, (3, false)) ])),
-                (2, HashMap::from([ (1, (3, false)), (4, (3, false)), (5, (3, false)) ])),
-                (3, HashMap::from([ (1, (3, false)), (6, (3, false)), (7, (3, false)) ])),
-                (4, HashMap::from([ (2, (3, false)) ])),
-                (5, HashMap::from([ (2, (3, false)) ])),
-                (6, HashMap::from([ (3, (3, false)) ])),
-                (7, HashMap::from([ (3, (3, false)) ])),
-                (8, HashMap::from([ (1, (3, false)), (9, (3, false)) ])),
-                (9, HashMap::from([ (8, (3, false)) ]))
-            ]),
-            raw_ways: vec![Way{id:0,speed:0, refs:vec![0,0]}],
-            raw_nodes: vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        };
+        println!("# of nodes: {}", graph.nodes.len());
+        println!("# of edges: {}", graph.edges.len());
 
-        let mut graph = Dijkstra::new(&roads);
+        //1,831 / 830,100 / 1,371,298     2s     5ms     2h12m35s
 
-        graph.reset_all_flags(true);
-        let transit_nodes = ch_based_precompute(&mut graph, 3);
-        //let transit_nodes = HashSet::from([2, 3, 8]);
-        println!("{:?}", transit_nodes);
-
-        for _ in 0..1 {
+        /*for _ in 0..1 {
             let source_id = graph.get_random_node_id().unwrap();
             let target_id = graph.get_random_node_id().unwrap();
-            println!("s: {}, t: {}", source_id, target_id);
-            let access_nodes = compute_access_nodes(source_id, &mut graph, &transit_nodes);
-            print!("n:  {:?}\t", access_nodes);
-            let distance_sets = access_node_distance_generator(source_id, target_id, access_nodes, &mut graph);
-            let result = compute_shortest_path_tnr(distance_sets);
 
-            println!("{}", result)
+
+         println!("{}")
         }
-
+        */
     }
-    */
 }
