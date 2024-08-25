@@ -67,16 +67,20 @@ mod graph_construction {
         //node that references parent nodes, used to create path from goal node to start node
         pub route_id: String,
         pub times_from_start: HashMap<u64, (u64, u16)>, //<stationid, (time from start, sequence number)>
-        pub start_times: Vec<u64>,                  //start times for vehicle from first station
+        pub start_times: Vec<u64>,                      //start times for vehicle from first station
     }
 
     pub struct DirectConnections {
-        pub route_tables: HashMap<String, LineConnectionTable>,
-        pub lines_per_station: HashMap<u64, HashMap<u64, u16>>, //<stationid, <routeid, stop sequence#>>
+        pub route_tables: HashMap<String, LineConnectionTable>, //route_id, table
+        pub lines_per_station: HashMap<u64, HashMap<String, u16>>, //<stationid, <routeid, stop sequence#>>
     }
 
     impl TimeExpandedGraph {
-        pub fn new(mut gtfs: Gtfs, mut day_of_week: String, transfer_buffer: u64) -> (Self, DirectConnections) {
+        pub fn new(
+            mut gtfs: Gtfs,
+            mut day_of_week: String,
+            transfer_buffer: u64,
+        ) -> (Self, DirectConnections) {
             //, HashMap<String, DirectConnectionTable>) {
             day_of_week = day_of_week.to_lowercase();
             //init new transit network graph based on results from reading GTFS zip
@@ -87,7 +91,7 @@ mod graph_construction {
             let mut nodes_per_station: HashMap<u64, Vec<(u64, NodeId)>> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
             let mut connection_table_per_line: HashMap<String, LineConnectionTable> =
                 HashMap::new();
-            let mut lines_per_station: HashMap<u64, HashMap<u64, u16>> = HashMap::new();
+            let mut lines_per_station: HashMap<u64, HashMap<String, u16>> = HashMap::new();
 
             let service_ids_of_given_day: HashSet<String> = gtfs
                 .calendar
@@ -314,33 +318,36 @@ mod graph_construction {
                     }
                 }
 
-                for (_, line) in connection_table_per_line.iter() {
-                    if let Some ((time_from_start, sequence_number)) =
-                        line.times_from_start.get(&station_id) {
-                    lines_per_station
-                        .entry(station_id)
-                        .and_modify(|map| {
-                            map.insert(*time_from_start, *sequence_number);
-                        })
-                        .or_insert({
-                            let mut map = HashMap::new();
-                            map.insert(*time_from_start, *sequence_number);
-                            map
-                        });
+                for (route_id, line) in connection_table_per_line.iter() {
+                    if let Some((time_from_start, sequence_number)) =
+                        line.times_from_start.get(&station_id)
+                    {
+                        lines_per_station
+                            .entry(station_id)
+                            .and_modify(|map| {
+                                map.insert(route_id.clone(), *sequence_number);
+                            })
+                            .or_insert({
+                                let mut map = HashMap::new();
+                                map.insert(route_id.clone(), *sequence_number);
+                                map
+                            });
                     }
                 }
             }
 
-            (Self {
-                day_of_week,
-                transfer_buffer,
-                nodes,
-                edges,
-            },
-            DirectConnections {
-                route_tables: connection_table_per_line, 
-                lines_per_station
-            })
+            (
+                Self {
+                    day_of_week,
+                    transfer_buffer,
+                    nodes,
+                    edges,
+                },
+                DirectConnections {
+                    route_tables: connection_table_per_line,
+                    lines_per_station,
+                },
+            )
         }
 
         pub fn reduce_to_largest_connected_component(self) -> Self {
@@ -417,22 +424,40 @@ mod graph_construction {
     //find (first start time) after given time - (hashmap find start)
     //compute arrival time from (first start time) + (hashmap find end)
 
-    pub fn direct_connection_query (connections: DirectConnections, start_station: u64, end_station: u64, time: u64) {//-> (u64, u64) { //departure, arrival times
+    pub fn direct_connection_query(
+        connections: DirectConnections,
+        start_station: u64,
+        end_station: u64,
+        time: u64,
+    ) -> Option<(u64, u64)> {
+        //departure, arrival times
         let start = connections.lines_per_station.get(&start_station).unwrap();
         let end = connections.lines_per_station.get(&end_station).unwrap();
-        
-        let mut route;
+
+        let mut route = "";
         for (s_route, s_seq) in start {
             for (e_route, e_seq) in end {
                 if s_route == e_route && s_seq < e_seq {
                     route = s_route;
+                    break;
                 }
             }
         }
 
         let table = connections.route_tables.get(route).unwrap();
-        let first_valid_start_time = table.start_times.get(value)
-
+        let mut start_times = table.start_times.clone();
+        let time_to_start = table.times_from_start.get(&start_station).unwrap().0;
+        let time_to_end = table.times_from_start.get(&end_station).unwrap().0;
+        start_times.sort();
+        if let Some(first_valid_start_time) =
+            start_times.iter().find(|&&s| s > (time - time_to_start))
+        {
+            let departure = first_valid_start_time + time_to_start;
+            let arrival = departure + time_to_end;
+            return Some((arrival, departure));
+        } else {
+            None
+        }
     }
 }
 
@@ -775,9 +800,9 @@ fn main() {}
 #[cfg(test)]
 mod tests {
     //use crate::routing::*;
-    use crate::{graph_construction::*, routing::Dijkstra};
-    //use std::collections::HashMap;
-    use std::time::Instant;
+    use crate::graph_construction::*;
+    use std::collections::HashMap;
+    //use std::time::Instant};
 
     #[test]
     fn test() {
@@ -817,7 +842,22 @@ mod tests {
         println!("{:?}", set);
         */
 
-        let now = Instant::now();
+        /*let connections = DirectConnections {
+            route_tables: HashMap::from([("L17".to_string(), LineConnectionTable {
+                route_id: "L17".to_string(),
+                times_from_start: HashMap::from([(154, (0, 0)), (97, (420, 1)), (987, (720, 2)), (111, (1260, 3))]),
+                start_times: Vec::from([297000,33300, 36900, 40800, 44400])
+            })]),
+            lines_per_station: HashMap::from([(97, HashMap::from([
+                    ("L8".to_string(), 4), ("L17".to_string(), 2),("L34".to_string(), 5), ("L87".to_string(), 17)])),
+                (111, HashMap::from([
+                    ("L9".to_string(), 1), ("L13".to_string(), 5),("L17".to_string(), 4), ("L55".to_string(), 16)
+                ]))])
+        };
+
+        let query = direct_connection_query(connections, 97, 111, 37200);
+        println!("{:?}", query);*/
+        /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip"); //manhattan
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
@@ -853,7 +893,7 @@ mod tests {
         let mut shortest_path_costs = Vec::new();
 
         let mut routing_graph = Dijkstra::new(&graph);
-        for _ in 0..1000 {
+        for _ in 0..10 {
             let source_id = routing_graph.get_random_start().unwrap();
             let target_id = Some(routing_graph.get_random_end(source_id.time).unwrap());
             let now = Instant::now();
@@ -880,6 +920,7 @@ mod tests {
             shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 3600 / 60,
             shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 60,
         );
+        */
 
         /*let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();
         let mut station = vec![
