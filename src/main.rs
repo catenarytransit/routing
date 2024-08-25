@@ -451,10 +451,11 @@ mod graph_construction {
         start_times.sort();
         if let Some(first_valid_start_time) =
             start_times.iter().find(|&&s| s > (time - time_to_start))
-        {
+        {   
+            print!("fvst {}", first_valid_start_time);
             let departure = first_valid_start_time + time_to_start;
-            let arrival = departure + time_to_end;
-            return Some((arrival, departure));
+            let arrival = first_valid_start_time + time_to_end;
+            return Some((departure, arrival));
         } else {
             None
         }
@@ -842,10 +843,11 @@ mod tests {
         println!("{:?}", set);
         */
 
+        //Direct-Connection Query Test
         /*let connections = DirectConnections {
             route_tables: HashMap::from([("L17".to_string(), LineConnectionTable {
                 route_id: "L17".to_string(),
-                times_from_start: HashMap::from([(154, (0, 0)), (97, (420, 1)), (987, (720, 2)), (111, (1260, 3))]),
+                times_from_start: HashMap::from([(154, (0, 1)), (97, (420, 2)), (987, (720, 3)), (111, (1260, 4))]),
                 start_times: Vec::from([297000,33300, 36900, 40800, 44400])
             })]),
             lines_per_station: HashMap::from([(97, HashMap::from([
@@ -854,9 +856,9 @@ mod tests {
                     ("L9".to_string(), 1), ("L13".to_string(), 5),("L17".to_string(), 4), ("L55".to_string(), 16)
                 ]))])
         };
-
         let query = direct_connection_query(connections, 97, 111, 37200);
         println!("{:?}", query);*/
+
         /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip"); //manhattan
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
