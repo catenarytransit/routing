@@ -787,7 +787,7 @@ mod transfer_patterns {
 
             let paths = self.router.visited_nodes.clone();
 
-            println!("visted {:?}", paths.keys());
+            //println!("visted {:?}", paths.keys());
 
             let visted_stations: HashSet<i64> = self
                 .router
@@ -859,7 +859,7 @@ mod transfer_patterns {
                         (node, path)
                     })
                     .collect();
-            println!("arrivals {:?}", arrival_nodes);
+            //println!("arrivals {:?}", arrival_nodes);
             Self::arrival_loop(&mut arrival_nodes);
             //println!("looped {:?}", arrival_nodes);
 
@@ -1015,7 +1015,7 @@ mod tests {
     use crate::routing::*;
     use crate::transfer_patterns::*;
     //use std::collections::HashMap;
-    use std::time::Instant;
+    //use std::time::Instant;
 
     #[test]
     fn test() {
@@ -1152,7 +1152,7 @@ mod tests {
             histogram_tp
         );*/
 
-        let now = Instant::now();
+        /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("manhattan.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
@@ -1218,7 +1218,7 @@ mod tests {
             shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 3600,
             shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 3600 / 60,
             shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 60,
-        );
+        );*/
 
         /*let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();
         let mut station = vec![
@@ -1313,10 +1313,14 @@ mod tests {
                 .sum::<usize>()
         );
 
-        println!("stations {:?}", router.graph.station_mapping);
+        println!("stations {:?}\n", router.graph.station_mapping);
 
-        let &source_id = router.graph.station_mapping.get("G").unwrap();
-        let &target_id = router.graph.station_mapping.get("B").unwrap();
+        println!("graph nodes {:?}\n", router.graph.nodes);
+
+        println!("graph edges {:?}\n", router.graph.edges);
+
+        let &source_id = router.graph.station_mapping.get("F").unwrap();
+        let &target_id = router.graph.station_mapping.get("A").unwrap();
 
         let result =
             transfer_patterns.num_global_transfer_patterns_from_source(source_id, Some(target_id));
@@ -1324,7 +1328,7 @@ mod tests {
 
         let path = transfer_patterns.transfer_patterns.get(&(target_id, source_id));
 
-        println!("result {:?} \n path test {:?}", result, path);
+        println!("path test {:?}", path);
         
     }
 }
