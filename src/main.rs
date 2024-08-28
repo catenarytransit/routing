@@ -259,6 +259,7 @@ mod graph_construction {
                                     a.insert(future_node.1, (future_node.0 - node.0, true)); //head
                                     a
                                 });
+                            break;
                         }
 
                         if future_node.1.node_type == 3 {
@@ -1144,7 +1145,7 @@ mod tests {
             histogram_tp
         );*/
 
-        /*let now = Instant::now();
+        let now = Instant::now();
         let gtfs = read_from_gtfs_zip("manhattan.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
@@ -1210,7 +1211,7 @@ mod tests {
             shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 3600,
             shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 3600 / 60,
             shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 60,
-        );*/
+        );
 
         /*let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();
         let mut station = vec![
