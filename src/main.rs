@@ -242,43 +242,50 @@ mod graph_construction {
                     chunk.sort_by(|a, b| a.1.node_type.cmp(&b.1.node_type));
                     station_nodes_by_time.append(&mut chunk.to_vec().to_owned())
                 }
+
+                let mut prev_transfer_node: Option<(u64, NodeId)> = None;
                 let mut current_index: usize = 0;
                 for node in station_nodes_by_time.iter() {
-                    for index in current_index..station_nodes_by_time.len() {
-                        let future_node = station_nodes_by_time.get(index).unwrap();
-
-                        if future_node.1.node_type == 2 {
+                    current_index += 1;
+                    if node.1.node_type == 2 {
+                        if let Some((prev_tranfer_time, prev_transfer_id)) = prev_transfer_node {
                             edges //waiting arc (transfer to transfer)
-                                .entry(node.1) //tail
+                                .entry(prev_transfer_id) //tail
                                 .and_modify(|inner| {
-                                    inner.insert(future_node.1, (future_node.0 - node.0, true));
+                                    inner.insert(node.1, (node.0 - prev_tranfer_time, true));
                                     //head
                                 })
                                 .or_insert({
                                     let mut a = HashMap::new();
-                                    a.insert(future_node.1, (future_node.0 - node.0, true)); //head
+                                    a.insert(node.1, (node.0 - prev_tranfer_time, true)); //head
                                     a
                                 });
-                            break;
                         }
 
-                        if future_node.1.node_type == 3 {
-                            edges //boarding arc (transfer to departure)
-                                .entry(node.1) //tail
-                                .and_modify(|inner| {
-                                    inner.insert(future_node.1, (future_node.0 - node.0, true));
-                                    //head
-                                })
-                                .or_insert({
-                                    let mut a = HashMap::new();
-                                    a.insert(future_node.1, (future_node.0 - node.0, true)); //head
-                                    a
-                                });
+                        for index in current_index..station_nodes_by_time.len() {
+                            let future_node = station_nodes_by_time.get(index).unwrap();
+
+                            if future_node.1.node_type == 2 {
+                                break;
+                            }
+
+                            if future_node.1.node_type == 3 {
+                                edges //boarding arc (transfer to departure)
+                                    .entry(node.1) //tail
+                                    .and_modify(|inner| {
+                                        inner.insert(future_node.1, (future_node.0 - node.0, true));
+                                        //head
+                                    })
+                                    .or_insert({
+                                        let mut a = HashMap::new();
+                                        a.insert(future_node.1, (future_node.0 - node.0, true)); //head
+                                        a
+                                    });
+                            }
                         }
+                        prev_transfer_node = Some(*node);
                     }
-                    
                 }
-
                 for (route_id, line) in connection_table_per_line.iter() {
                     if let Some((_, sequence_number)) = line.times_from_start.get(&station_id) {
                         lines_per_station
