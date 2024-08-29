@@ -1,3 +1,4 @@
+#![allow(unused)]
 mod graph_construction {
     //constructs and preprocesses the graph struct from OSM data
     use crate::routing::*;
@@ -544,6 +545,7 @@ mod routing {
                 if consider_arc_flags && !path.1 .1 {
                     continue;
                 }
+                println!("{:?}", path.0);
                 paths.push((*self.graph.nodes.get(&path.0).unwrap(), path.1 .0));
             }
             paths
@@ -842,26 +844,33 @@ mod transfer_patterns {
 
             let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, (u64, bool)>> =
                 HashMap::new();
+            
+            let mut time_independent_nodes = HashSet::new();
+
             for (tail, edge) in router.graph.edges.iter() {
+                let ti_tail = NodeId {
+                    node_type: 0,
+                    station_id: tail.station_id,
+                    time: None,
+                    trip_id: tail.trip_id,
+                };
+                time_independent_nodes.insert(ti_tail);
                 for (head, (cost, _)) in edge {
+                    let ti_head = NodeId {
+                        node_type: 0,
+                        station_id: head.station_id,
+                        time: None,
+                        trip_id: head.trip_id,
+                    };
+                    time_independent_nodes.insert(ti_head);
                     time_independent_edges
-                        .entry(NodeId {
-                            node_type: 0,
-                            station_id: tail.station_id,
-                            time: None,
-                            trip_id: tail.trip_id,
-                        })
+                        .entry(ti_tail)
                         .and_modify(|map| {
                             //update graph if found edge (u, v) with smaller cost than existing edge (u, v)
                             if let Some((previous_cost, _)) = map.get(head) {
                                 if cost < previous_cost {
                                     map.insert(
-                                        NodeId {
-                                            node_type: 0,
-                                            station_id: head.station_id,
-                                            time: None,
-                                            trip_id: head.trip_id,
-                                        },
+                                        ti_head,
                                         (*cost, true),
                                     );
                                 }
@@ -871,41 +880,13 @@ mod transfer_patterns {
                         })
                         .or_insert({
                             let mut map: HashMap<NodeId, (u64, bool)> = HashMap::new();
-                            if let Some((previous_cost, _)) = map.get(head) {
-                                if cost < previous_cost {
-                                    map.insert(
-                                        NodeId {
-                                            node_type: 0,
-                                            station_id: head.station_id,
-                                            time: None,
-                                            trip_id: head.trip_id,
-                                        },
-                                        (*cost, true),
-                                    );
-                                }
-                            } else {
-                                map.insert(
-                                    NodeId {
-                                        node_type: 0,
-                                        station_id: head.station_id,
-                                        time: None,
-                                        trip_id: head.trip_id,
-                                    },
-                                    (*cost, true),
-                                );
-                            }
+                            map.insert(
+                                ti_head,
+                                (*cost, true),
+                            );
                             map
                         });
                 }
-            }
-            let mut time_independent_nodes = HashSet::new();
-            for node_id in router.graph.nodes.iter() {
-                time_independent_nodes.insert(NodeId {
-                    node_type: 0,
-                    station_id: node_id.station_id,
-                    time: None,
-                    trip_id: node_id.trip_id,
-                });
             }
 
             let time_independent_graph = TimeExpandedGraph {
@@ -1096,7 +1077,7 @@ mod tests {
         let query = direct_connection_query(connections, 97, 111, 37200);
         println!("{:?}", query);*/
 
-        let now = Instant::now();
+        /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
@@ -1166,7 +1147,7 @@ mod tests {
         println!(
             "number of transfer patterns histogram percent {:?}",
             histogram_tp
-        );
+        );*/
 
         /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("manhattan.zip");
@@ -1339,8 +1320,8 @@ mod tests {
         let _ = transfer_patterns.num_global_transfer_patterns_from_source(source_id, &mut router);
         //let now = Instant::now();
 
-        let path = transfer_patterns.transfer_patterns;
+        transfer_patterns.hub_selection(&mut router, 4);
 
-        println!("path test \n{:?}", path);
+        println!("path test \n{:?}", transfer_patterns.hubs);
     }
 }
