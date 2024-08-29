@@ -829,7 +829,7 @@ mod transfer_patterns {
                 for i in 0..path.len() {
                     let node = path.get(i).unwrap();
                     if let Some(prev) = previous_node {
-                        if prev.node_type == 2 && node.node_type == 1 {
+                        if prev.node_type == 3 && node.node_type == 2 {
                             transfers.push(prev);
                         }
                     }
@@ -1341,6 +1341,8 @@ mod tests {
                 .map(|(_, edges)| edges.len())
                 .sum::<usize>()
         );
+
+        println!("edges {:?}\n", router.graph.edges);
 
         println!("stations {:?}\n", router.graph.station_mapping);
 
