@@ -772,14 +772,13 @@ mod transfer_patterns {
         // Arrival loop for a given station. That is, for each node from that station,
         // see whether its label can be improved by simply waiting from an earlier
         // node at that station.
-        pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {//-> Vec<(NodeId, Vec<NodeId>, u64)>{
+        pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
+            //-> Vec<(NodeId, Vec<NodeId>, u64)>{
             //let mut new_arrival_list = Vec::new();
             arrival_nodes.sort_by(|a, b| a.0.station_id.cmp(&b.0.station_id));
-
             let time_chunks = arrival_nodes.chunk_by_mut(|a, b| a.0.station_id == b.0.station_id);
             for chunk in time_chunks {
                 chunk.sort_by(|a, b| a.0.time.cmp(&b.0.time));
-                println!("chunk: \n{:?}", chunk.iter().map(|x| x.0).collect::<Vec<NodeId>>());
                 let mut previous_arrival: Option<(NodeId, u64)> = None;
                 for (node, path, cost) in chunk.iter_mut() {
                     if let Some((prev_node, prev_cost)) = previous_arrival {
@@ -787,7 +786,6 @@ mod transfer_patterns {
                         if new_cost <= *cost {
                             *cost = new_cost;
                             path.insert(1, prev_node);
-                            println!("added: \n{:?} to path of {:?}", prev_node, node);
                         }
                     }
                     previous_arrival = Some((*node, *cost));
@@ -800,10 +798,7 @@ mod transfer_patterns {
         // Backtrace all paths from a given station pair wrt to the last Dijkstra
         // computation. For each such path, determine its transfer pattern. Return the
         // set of distinct transfer patterns that occurred.
-        pub fn global_transfer_patterns_to_target(
-            &mut self,
-            router: &mut Dijkstra,
-        ) {
+        pub fn global_transfer_patterns_to_target(&mut self, router: &mut Dijkstra) {
             //let mut transfer_patterns = &mut self.transfer_patterns;
 
             let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = router
@@ -816,29 +811,21 @@ mod transfer_patterns {
                 })
                 .collect();
 
-            
             Self::arrival_loop(&mut arrival_nodes);
-
-            println!("\n\narrival nodes: \n{:?}\n\n", arrival_nodes);
 
             for (target, path, _) in arrival_nodes.iter() {
                 //let source = path.get(path.len() - 1).unwrap();
                 let mut transfers = Vec::new();
                 transfers.push(*target);
-                let mut previous_node: Option<NodeId> = None;
-                for i in 0..path.len() {
+                let mut previous_node: NodeId = *target;
+                for i in 1..path.len() - 1 {
                     let node = path.get(i).unwrap();
-                    if let Some(prev) = previous_node {
-                        if prev.node_type == 3 && node.node_type == 2 {
-                            transfers.push(prev);
-                        }
-                    }
-                    if i == path.len()-1 {
+                    if previous_node.node_type == 3 && node.node_type == 2 {
                         transfers.push(*node);
                     }
-                    previous_node = Some(*node);
+                    previous_node = *node;
                 }
-                //transfers.push(source_station_id);
+                transfers.push(*path.get(path.len() - 1).unwrap());
 
                 transfers.reverse();
 
@@ -1109,7 +1096,7 @@ mod tests {
         let query = direct_connection_query(connections, 97, 111, 37200);
         println!("{:?}", query);*/
 
-        /*let now = Instant::now();
+        let now = Instant::now();
         let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
@@ -1179,7 +1166,7 @@ mod tests {
         println!(
             "number of transfer patterns histogram percent {:?}",
             histogram_tp
-        );*/
+        );
 
         /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("manhattan.zip");
@@ -1342,15 +1329,14 @@ mod tests {
                 .sum::<usize>()
         );
 
-        println!("edges {:?}\n", router.graph.edges);
+        //println!("edges {:?}\n", router.graph.edges);
 
         println!("stations {:?}\n", router.graph.station_mapping);
 
         let &source_id = router.graph.station_mapping.get("A").unwrap();
         //let &target_id = router.graph.station_mapping.get("F").unwrap();
 
-        let _ =
-            transfer_patterns.num_global_transfer_patterns_from_source(source_id, &mut router);
+        let _ = transfer_patterns.num_global_transfer_patterns_from_source(source_id, &mut router);
         //let now = Instant::now();
 
         let path = transfer_patterns.transfer_patterns;
