@@ -425,7 +425,7 @@ mod graph_construction {
         if let Some(first_valid_start_time) =
             start_times.iter().find(|&&s| s > (time - time_to_start))
         {
-            print!("fvst {}", first_valid_start_time);
+            //print!("fvst {}", first_valid_start_time);
             let departure = first_valid_start_time + time_to_start;
             let arrival = first_valid_start_time + time_to_end;
             Some((departure, arrival))
@@ -442,12 +442,13 @@ mod routing {
     use std::collections::{BinaryHeap, HashMap, HashSet};
     use std::hash::Hash;
     use std::rc::Rc;
+    use rand::Rng;
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct Dijkstra {
         //handle dijkstra calculations
         pub graph: TimeExpandedGraph,
-        pub visited_nodes: HashMap<NodeId, (PathedNode, u16)>,
+        pub visited_nodes: HashMap<NodeId, PathedNode>,
         cost_upper_bound: u64,
         max_settled_nodes: u64,
     }
@@ -545,7 +546,6 @@ mod routing {
                 if consider_arc_flags && !path.1 .1 {
                     continue;
                 }
-                println!("{:?}", path.0);
                 paths.push((*self.graph.nodes.get(&path.0).unwrap(), path.1 .0));
             }
             paths
@@ -591,7 +591,6 @@ mod routing {
                 }
             }
 
-            let mut visited_count = 0;
             let mut current_cost;
 
             while !priority_queue.is_empty() {
@@ -599,10 +598,10 @@ mod routing {
                 current_cost = pathed_current_node.cost_from_start;
                 let idx = pathed_current_node.node_self;
 
-                visited_count += 1;
                 self.visited_nodes
-                    .insert(idx, (pathed_current_node.clone(), visited_count));
+                    .insert(idx, pathed_current_node.clone());
 
+                    
                 //found target node
                 if let Some(target_id) = target_id {
                     if idx.eq(&target_id) {
@@ -651,27 +650,29 @@ mod routing {
 
         pub fn get_random_node_id(&self) -> Option<NodeId> {
             //returns ID of a random valid node from a graph
-            let node_id = self.graph.nodes.iter().next().unwrap();
-            Some(*node_id)
+            let mut full_node_list = self.graph.nodes.iter().copied().collect::<Vec<NodeId>>();
+            let mut rng = rand::thread_rng();
+            let mut random: usize = rng.gen_range(0..full_node_list.len());
+            full_node_list.get(random).copied()
         }
 
         pub fn get_random_start(&self) -> Option<NodeId> {
             //returns ID of a random valid node from a graph
-            let full_node_list: HashSet<_> = self
+            let full_node_list: Vec<_> = self
                 .graph
                 .nodes
                 .iter()
                 .filter(|id| id.node_type == 3 && id.time > Some(21600) && id.time < Some(75600))
                 .copied()
                 .collect();
-            let node_id = full_node_list.iter().next().unwrap();
-
-            Some(*node_id)
+            let mut rng = rand::thread_rng();
+            let mut random: usize = rng.gen_range(0..full_node_list.len());
+            full_node_list.get(random).copied()
         }
 
         pub fn get_random_end(&self, start_time: u64) -> Option<NodeId> {
             //returns ID of a random valid node from a graph
-            let full_node_list: HashSet<_> = self
+            let full_node_list: Vec<_> = self
                 .graph
                 .nodes
                 .iter()
@@ -680,15 +681,15 @@ mod routing {
                 })
                 .copied()
                 .collect();
-            let node_id = full_node_list.iter().next().unwrap();
-
-            Some(*node_id)
+            let mut rng = rand::thread_rng();
+            let mut random: usize = rng.gen_range(0..full_node_list.len());
+            full_node_list.get(random).copied()
         }
 
         //returns the first unvisted node that function parses upon (used to find largest connected component)
         pub fn get_unvisted_node_id(&self, found_nodes: &HashMap<NodeId, i32>) -> Option<NodeId> {
             if found_nodes.len() == self.graph.nodes.len() {
-                println!("all nodes visted");
+                print!("all nodes visted\t");
                 return None;
             }
             let found_nodes = found_nodes
@@ -758,9 +759,7 @@ mod transfer_patterns {
             //note: multilabel dijkstras are always slower due to label set maintenance
             router.dijkstra(None, source_transfer_nodes, None, &None, false);
 
-            //let now = Instant::now();
             self.global_transfer_patterns_to_target(router);
-            //println!("c: {}", now.elapsed().as_secs_f32());
 
             let results = self
                 .transfer_patterns
@@ -807,7 +806,7 @@ mod transfer_patterns {
                 .visited_nodes
                 .iter()
                 .filter(|(node, _)| node.node_type == 1)
-                .map(|(node, (pathed_node, _))| {
+                .map(|(node, pathed_node)| {
                     let (path, cost) = pathed_node.clone().get_path();
                     (*node, path, cost)
                 })
@@ -837,9 +836,9 @@ mod transfer_patterns {
         }
 
         //only calculate global dijkstra from hubs (important stations) to save complexity
-        pub fn hub_selection(&mut self, router: &mut Dijkstra, random_samples: u32) {
+        pub fn hub_selection(&mut self, router: &mut Dijkstra, random_samples: u32, cost_limit: u64) {
             //station ids
-            let num_stations = (router.graph.station_mapping.len() as u32) / 100;
+            let num_stations = 1.max((router.graph.station_mapping.len() as u32) / 100);
             let mut selected_hubs = HashSet::new();
 
             let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, (u64, bool)>> =
@@ -852,7 +851,7 @@ mod transfer_patterns {
                     node_type: 0,
                     station_id: tail.station_id,
                     time: None,
-                    trip_id: tail.trip_id,
+                    trip_id: 0,
                 };
                 time_independent_nodes.insert(ti_tail);
                 for (head, (cost, _)) in edge {
@@ -860,7 +859,7 @@ mod transfer_patterns {
                         node_type: 0,
                         station_id: head.station_id,
                         time: None,
-                        trip_id: head.trip_id,
+                        trip_id: 0,
                     };
                     time_independent_nodes.insert(ti_head);
                     time_independent_edges
@@ -875,7 +874,7 @@ mod transfer_patterns {
                                     );
                                 }
                             } else {
-                                map.insert(*head, (*cost, true));
+                                map.insert(ti_head, (*cost, true));
                             };
                         })
                         .or_insert({
@@ -898,33 +897,34 @@ mod transfer_patterns {
                 nodes_per_station: router.graph.nodes_per_station.clone(),
             };
 
-            let mut routing = Dijkstra::new(&time_independent_graph);
+            let mut time_independent_router = Dijkstra::new(&time_independent_graph);
+            time_independent_router.set_cost_upper_bound(cost_limit);
+
+            //println!("nodelist\n{:?}\nnodelist end\n", routing.graph.nodes);
 
             let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
 
             for _ in 0..random_samples {
-                let current_node = routing.get_random_node_id();
-                routing.dijkstra(current_node, None, None, &None, false);
-                let _ = routing
-                    .visited_nodes
-                    .clone()
-                    .into_iter()
-                    .map(|(node, (_, count))| {
-                        match hub_list.entry(node) {
-                            Entry::Occupied(mut o) => {
-                                let counter = o.get_mut();
-                                *counter += count;
-                            }
-                            Entry::Vacant(v) => {
-                                v.insert(count);
-                            }
+                let current_node = time_independent_router.get_random_node_id();
+                time_independent_router.dijkstra(current_node, None, None, &None, false);
+                for (node, _) in time_independent_router.visited_nodes.iter(){
+                    match hub_list.entry(*node) {
+                        Entry::Occupied(mut o) => {
+                            let counter = o.get_mut();
+                            *counter += 1;
                         }
-                        (node, count)
-                    });
+                        Entry::Vacant(v) => {
+                            v.insert(1);
+                        }
+                    }
+                }
             }
+            
+            println!("hub list {:?}", hub_list);
 
             let mut sorted_hubs: BinaryHeap<(u16, NodeId)> =
                 hub_list.into_iter().map(|(n, c)| (c, n)).collect();
+            
             for _ in 0..num_stations {
                 let hub = sorted_hubs.pop().unwrap();
                 selected_hubs.insert(hub.1.station_id);
@@ -970,7 +970,7 @@ fn main() {
 
     let mut router = Dijkstra::new(&graph);
     let mut transfer_patterns = TransferPatterns::new();
-    transfer_patterns.hub_selection(&mut router, 1000);
+    transfer_patterns.hub_selection(&mut router, 1000, 54000);
     let mut total_pairs_considered = 0;
 
     for i in 0..2 {
@@ -1108,7 +1108,7 @@ mod tests {
         //transfer_patterns.hub_selection(&mut router, 1000); //panic call none 547 ln
         let mut total_pairs_considered = 0;
 
-        for i in 0..10 {
+        for i in 0..5 {
             println!("{}", i);
             let source_id = router.get_random_start().unwrap();
             let now = Instant::now();
@@ -1295,7 +1295,7 @@ mod tests {
         }
         println!("{:?}", edges); */
 
-        let gtfs = read_from_gtfs_zip("test.zip");
+        let gtfs = read_from_gtfs_zip("test 3.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let mut router = Dijkstra::new(&graph);
         let mut transfer_patterns = TransferPatterns::new();
@@ -1314,14 +1314,14 @@ mod tests {
 
         println!("stations {:?}\n", router.graph.station_mapping);
 
-        let &source_id = router.graph.station_mapping.get("A").unwrap();
+        //let &source_id = router.graph.station_mapping.get("A").unwrap();
         //let &target_id = router.graph.station_mapping.get("F").unwrap();
 
-        let _ = transfer_patterns.num_global_transfer_patterns_from_source(source_id, &mut router);
+        //let _ = transfer_patterns.num_global_transfer_patterns_from_source(source_id, &mut router);
         //let now = Instant::now();
 
-        transfer_patterns.hub_selection(&mut router, 4);
+        transfer_patterns.hub_selection(&mut router, 500, u64::MAX);
 
-        println!("path test \n{:?}", transfer_patterns.hubs);
+        println!("hubs \n{:?}", transfer_patterns.hubs);
     }
 }
