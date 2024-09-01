@@ -191,7 +191,7 @@ pub mod road_graph_construction {
             let mut largest_node_set = Vec::new();
             let mut prev_set_size = 0;
 
-            while let Some(node_set) = connected_components.next() {
+            for node_set in connected_components.by_ref() {
                 if node_set.len() > prev_set_size {
                     largest_node_set = node_set.to_vec();
                     prev_set_size = node_set.len();

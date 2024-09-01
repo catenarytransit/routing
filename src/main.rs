@@ -15,7 +15,7 @@ mod graph_construction {
         pub time: Option<u64>,
         pub trip_id: u64,
         pub lat: i64, //f64 * f64::powi(10.0, 14) as i64
-        pub lon: i64  //f64 * f64::powi(10.0, 14) as i64
+        pub lon: i64, //f64 * f64::powi(10.0, 14) as i64
     }
 
     pub fn read_from_gtfs_zip(path: &str) -> Gtfs {
@@ -160,7 +160,7 @@ mod graph_construction {
                         time: Some(arrival_time),
                         trip_id,
                         lat,
-                        lon
+                        lon,
                     };
                     let transfer_node = NodeId {
                         node_type: 2,
@@ -168,15 +168,15 @@ mod graph_construction {
                         time: Some(arrival_time + transfer_buffer),
                         trip_id,
                         lat,
-                        lon
+                        lon,
                     };
                     let departure_node = NodeId {
                         node_type: 3,
                         station_id: id,
                         time: Some(departure_time),
                         trip_id,
-                        lat, 
-                        lon
+                        lat,
+                        lon,
                     };
 
                     nodes.insert(arrival_node);
@@ -671,7 +671,6 @@ mod routing {
             None //(None, node_path_tracker)
         }
 
-
         pub fn get_random_node_id(&self) -> Option<NodeId> {
             //returns ID of a random valid node from a graph
             let full_node_list = self.graph.nodes.iter().copied().collect::<Vec<NodeId>>();
@@ -735,15 +734,15 @@ mod routing {
 mod transfer_patterns {
     //THE FINAL BOSS
     use crate::{graph_construction::*, routing::*};
-    use std::collections::hash_map::Entry;
-    use std::collections::{BinaryHeap, HashMap, HashSet};
+    use bast_homework::road_graph_construction::*;
+    use bast_homework::road_routing::*;
     use geo::algorithm::haversine_distance::*;
     use geo::point;
-    use std::cmp::Reverse;
-    use std::rc::Rc;
     use geo::Point;
-    use bast_homework::road_routing::*;
-    use bast_homework::road_graph_construction::*;
+    use std::cmp::Reverse;
+    use std::collections::hash_map::Entry;
+    use std::collections::{BinaryHeap, HashMap, HashSet};
+    use std::rc::Rc;
 
     pub struct TransferPatterns {
         pub hubs: HashSet<i64>,
@@ -761,12 +760,7 @@ mod transfer_patterns {
         }
 
         //only calculate global time_expanded_dijkstra from hubs (important stations) to save complexity
-        pub fn hub_selection(
-            &mut self,
-            router: &Dijkstra,
-            random_samples: u32,
-            cost_limit: u64,
-        ) {
+        pub fn hub_selection(&mut self, router: &Dijkstra, random_samples: u32, cost_limit: u64) {
             //station ids
             let num_stations = 1.max((router.graph.station_mapping.len() as u32) / 100);
             let mut selected_hubs = HashSet::new();
@@ -782,7 +776,7 @@ mod transfer_patterns {
                     time: None,
                     trip_id: 0,
                     lat: tail.lat,
-                    lon: tail.lon
+                    lon: tail.lon,
                 };
                 time_independent_nodes.insert(ti_tail);
                 for (head, cost) in edge {
@@ -792,7 +786,7 @@ mod transfer_patterns {
                         time: None,
                         trip_id: 0,
                         lat: head.lat,
-                        lon: head.lon
+                        lon: head.lon,
                     };
                     time_independent_nodes.insert(ti_head);
                     time_independent_edges
@@ -855,7 +849,7 @@ mod transfer_patterns {
             for _ in 0..num_stations {
                 let hub = sorted_hubs.pop().unwrap();
                 selected_hubs.insert(hub.1.station_id);
-            }   
+            }
 
             self.hubs = selected_hubs;
         }
@@ -866,8 +860,8 @@ mod transfer_patterns {
             &self,
             source_station_id: i64,
             router: &mut Dijkstra,
-            hubs: &Option<HashSet<i64>>
-        ) -> HashMap<(NodeId, NodeId), Vec<NodeId>>{
+            hubs: &Option<HashSet<i64>>,
+        ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
             let source_transfer_nodes: Option<Vec<NodeId>> = Some(
                 router
                     .graph
@@ -884,13 +878,15 @@ mod transfer_patterns {
             router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs);
 
             self.transfer_patterns_to_target(router)
-
         }
 
         // Backtrace all paths from a given station pair wrt to the last Dijkstra
         // computation. For each such path, determine its transfer pattern. Return the
         // set of distinct transfer patterns that occurred.
-        pub fn transfer_patterns_to_target(&self, router: &mut Dijkstra) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+        pub fn transfer_patterns_to_target(
+            &self,
+            router: &mut Dijkstra,
+        ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
             let mut transfer_patterns = HashMap::new();
 
             let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = router
@@ -921,13 +917,11 @@ mod transfer_patterns {
 
                 transfers.reverse();
 
-                transfer_patterns
-                    .insert((*transfers.first().unwrap(), *target), transfers);
+                transfer_patterns.insert((*transfers.first().unwrap(), *target), transfers);
             }
             transfer_patterns
         }
 
-        
         // Arrival loop for a given station. That is, for each node from that station,
         // see whether its label can be improved by simply waiting from an earlier
         // node at that station.
@@ -954,40 +948,51 @@ mod transfer_patterns {
             //new_arrival_list
         }
 
-        pub fn make_points_from_coords (
+        pub fn make_points_from_coords(
             source_lat: f64,
             source_lon: f64,
             target_lat: f64,
-            target_lon: f64,) -> (Point, Point){
-                let source = point!(x:source_lat, y:source_lon);
-                let target = point!(x: target_lat, y: target_lon);
+            target_lon: f64,
+        ) -> (Point, Point) {
+            let source = point!(x:source_lat, y:source_lon);
+            let target = point!(x: target_lat, y: target_lon);
             (source, target)
-            
         }
-       
+
         pub fn query_graph_construction_from_geodesic_points(
             &mut self,
             router: &mut Dijkstra,
-            source: Point, 
+            source: Point,
             target: Point,
             time: u64,
-            preset_distance: f64 //in meters
-        ) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) { //source nodes, target nodes, edges
- 
+            preset_distance: f64, //in meters
+        ) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) {
+            //source nodes, target nodes, edges
+
             //compute sets of N(source) and N(target) of stations N= near
             //distance from actual coords to stations will be queried with RoadNetwork code from part 1 (a* or arc flags?)
-            let sources: Vec<_> = router.graph.nodes.iter().filter(|node| {
-                let node_coord = point!(x: node.lat as f64 / f64::powi(10.0, 14) 
-                    , y: node.lon as f64 / f64::powi(10.0, 14));
-                source.haversine_distance(&node_coord) <= preset_distance &&
-                node.time >= Some(time)
-            }).map(|node| *node).collect();
+            let sources: Vec<_> = router
+                .graph
+                .nodes
+                .iter()
+                .filter(|node| {
+                    let node_coord = point!(x: node.lat as f64 / f64::powi(10.0, 14), y: node.lon as f64 / f64::powi(10.0, 14));
+                    source.haversine_distance(&node_coord) <= preset_distance
+                        && node.time >= Some(time)
+                })
+                .copied()
+                .collect();
 
-            let targets: Vec<_> = router.graph.nodes.iter().filter(|node| {
-                let node_coord = point!(x: node.lat as f64 / f64::powi(10.0, 14) 
-                    , y: node.lon as f64 / f64::powi(10.0, 14));
-                target.haversine_distance(&node_coord) <= preset_distance
-            }).map(|node| *node).collect();
+            let targets: Vec<_> = router
+                .graph
+                .nodes
+                .iter()
+                .filter(|node| {
+                    let node_coord = point!(x: node.lat as f64 / f64::powi(10.0, 14), y: node.lon as f64 / f64::powi(10.0, 14));
+                    target.haversine_distance(&node_coord) <= preset_distance
+                })
+                .copied()
+                .collect();
 
             //get hubs of important stations I(hubs)
             self.hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
@@ -1003,64 +1008,85 @@ mod transfer_patterns {
                 let tps = self.num_transfer_patterns_from_source(*hub_station, router, &None);
                 self.transfer_patterns.extend(tps.into_iter());
             }
-            
+
             let mut raw_edges = HashMap::new();
-            let _ = self.transfer_patterns.iter().filter(|((source, target), _)| 
-                sources.contains(&source) && targets.contains(&target)
-            ).map(|(_, path)| {
-                let mut prev = None;
-                for node in path {
-                    if let Some(prev) = prev {
-                        match raw_edges.entry(prev) {
-                            Entry::Occupied(mut o) => {
-                                let tails: &mut Vec<NodeId> = o.get_mut();
-                                tails.push(*node);                                
-                            }
-                            Entry::Vacant(v) => {
-                                let tails = Vec::from([*node]);
-                                v.insert(tails);
+            let _ = self
+                .transfer_patterns
+                .iter()
+                .filter(|((source, target), _)| {
+                    sources.contains(source) && targets.contains(target)
+                })
+                .map(|(_, path)| {
+                    let mut prev = None;
+                    for node in path {
+                        if let Some(prev) = prev {
+                            match raw_edges.entry(prev) {
+                                Entry::Occupied(mut o) => {
+                                    let tails: &mut Vec<NodeId> = o.get_mut();
+                                    tails.push(*node);
+                                }
+                                Entry::Vacant(v) => {
+                                    let tails = Vec::from([*node]);
+                                    v.insert(tails);
+                                }
                             }
                         }
-
+                        prev = Some(*node);
                     }
-                    prev = Some(*node);
-                }
-            }); 
-            
-            (sources, targets, raw_edges)
+                });
 
+            (sources, targets, raw_edges)
         }
 
-        pub fn query_graph_search(roads:RoadNetwork, connections: DirectConnections, edges: HashMap<NodeId, Vec<NodeId>>, start: Point, end: Point, sources: Vec<NodeId>, targets: Vec<NodeId>) {
+        pub fn query_graph_search(
+            roads: RoadNetwork,
+            connections: DirectConnections,
+            edges: HashMap<NodeId, Vec<NodeId>>,
+            start: Point,
+            end: Point,
+            sources: Vec<NodeId>,
+            targets: Vec<NodeId>,
+        ) {
             let mut router = TDDijkstra::new(connections, edges);
 
             let mut source_paths: HashMap<&NodeId, Option<RoadPathedNode>> = HashMap::new();
             //note: remember to write a function that returns the closest approx point from road network if cannot find a point!
-            if let Some(start_road_node) = roads.nodes.values().find(|n| n.lat == (start.0.x * f64::powi(10.0, 14) ) as i64 
-            && n.lon == (start.0.y * f64::powi(10.0, 14) )as i64) {
+            if let Some(start_road_node) = roads.nodes.values().find(|n| {
+                n.lat == (start.0.x * f64::powi(10.0, 14)) as i64
+                    && n.lon == (start.0.y * f64::powi(10.0, 14)) as i64
+            }) {
                 for source in sources.iter() {
                     let mut graph = RoadDijkstra::new(&roads);
-                    if let Some(station_sought) = roads.nodes.values().find(|n| n.lat == source.lat && n.lon == source.lon) {
-                        let result = graph.dijkstra(start_road_node.id, station_sought.id, &None, true);
+                    if let Some(station_sought) = roads
+                        .nodes
+                        .values()
+                        .find(|n| n.lat == source.lat && n.lon == source.lon)
+                    {
+                        let result =
+                            graph.dijkstra(start_road_node.id, station_sought.id, &None, true);
                         source_paths.insert(source, result.0);
                     }
                 }
-
             }
 
             let mut target_paths: HashMap<&NodeId, Option<RoadPathedNode>> = HashMap::new();
             //note: remember to write a function that returns the closest approx point from road network if cannot find a point!
-            if let Some(end_road_node) = roads.nodes.values().find(|n| n.lat == (end.0.x * f64::powi(10.0, 14) ) as i64 
-            && n.lon == (end.0.y * f64::powi(10.0, 14) )as i64) {
-                
+            if let Some(end_road_node) = roads.nodes.values().find(|n| {
+                n.lat == (end.0.x * f64::powi(10.0, 14)) as i64
+                    && n.lon == (end.0.y * f64::powi(10.0, 14)) as i64
+            }) {
                 for target in targets.iter() {
                     let mut graph = RoadDijkstra::new(&roads);
-                    if let Some(station_sought) = roads.nodes.values().find(|n| n.lat == target.lat && n.lon == target.lon) {
-                        let result = graph.dijkstra(end_road_node.id, station_sought.id, &None, true);
+                    if let Some(station_sought) = roads
+                        .nodes
+                        .values()
+                        .find(|n| n.lat == target.lat && n.lon == target.lon)
+                    {
+                        let result =
+                            graph.dijkstra(end_road_node.id, station_sought.id, &None, true);
                         target_paths.insert(target, result.0);
                     }
                 }
-
             }
 
             let mut transit_paths = HashMap::new();
@@ -1070,19 +1096,21 @@ mod transfer_patterns {
                     let target_path = target_paths.get(target_id).unwrap().as_ref().unwrap();
                     let path = router.time_expanded_dijkstra(*source_id, *target_id);
                     let transit_cost = path.as_ref().unwrap().cost_from_start;
-                    
-                    transit_paths.insert((source_id, target_id), ((source_path, path, target_path), 
-                    transit_cost + source_path.distance_from_start + target_path.distance_from_start));
+
+                    transit_paths.insert(
+                        (source_id, target_id),
+                        (
+                            (source_path, path, target_path),
+                            transit_cost
+                                + source_path.distance_from_start
+                                + target_path.distance_from_start,
+                        ),
+                    );
                 }
             }
-
-                        
-            
-
         }
-
     }
-    
+
     #[derive(Debug, PartialEq, Clone)]
     pub struct TDDijkstra {
         //handle time_expanded_dijkstra calculations
@@ -1105,7 +1133,7 @@ mod transfer_patterns {
         pub fn get_neighbors(
             &self,
             current: &PathedNode,
-            connections: &DirectConnections
+            connections: &DirectConnections,
         ) -> Vec<(NodeId, u64)> {
             //return node id of neighbors
             let mut paths = Vec::new();
@@ -1113,14 +1141,19 @@ mod transfer_patterns {
             //need some case to handle neighbor to parent instead of just parent to neighbor
             if let Some(arcs) = self.edges.get(&current.node_self) {
                 for next_node in arcs {
-                    if let Some((dept, arr)) = direct_connection_query(connections, current.node_self.station_id, next_node.station_id, current.node_self.time.unwrap()) {
-let cost = arr - dept;
-                    next_node_edges.insert(next_node, cost);
+                    if let Some((dept, arr)) = direct_connection_query(
+                        connections,
+                        current.node_self.station_id,
+                        next_node.station_id,
+                        current.node_self.time.unwrap(),
+                    ) {
+                        let cost = arr - dept;
+                        next_node_edges.insert(next_node, cost);
                     }
                 }
             }
             for (next_node_id, cost) in next_node_edges {
-                if self.visited_nodes.contains_key(&next_node_id) {
+                if self.visited_nodes.contains_key(next_node_id) {
                     continue;
                 }
 
@@ -1152,7 +1185,6 @@ let cost = arr - dept;
             gscore.insert(source_id, 0);
 
             priority_queue.push(Reverse((0, source_node)));
-
 
             let mut current_cost;
 
@@ -1199,42 +1231,36 @@ let cost = arr - dept;
             None //(None, node_path_tracker)
         }
     }
-
 }
 
 fn main() {
     use crate::graph_construction::*;
     use crate::routing::*;
     use crate::transfer_patterns::*;
-    use std::time::Instant;
     use bast_homework::road_graph_construction::*;
+    use std::time::Instant;
 
     let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip");
     let (graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
- 
+
     let path = "hawaii.pbf"; //no i dont have this file yet sorry
-        let data = RoadNetwork::read_from_osm_file(path).unwrap();
-        let mut roads = RoadNetwork::new(data.0, data.1);
-        print!(
-            "{} Base Graph Nodes: {}, Edges: {}\t\t",
-            path,
-            roads.nodes.len(),
-            roads.edges.len()
-        );
-        let now = Instant::now();
-        roads = roads.reduce_to_largest_connected_component();
-        let time = now.elapsed().as_millis() as f32 * 0.001;
-        println!(
-            "time: {}, reduced map nodes: {}, edges: {}",
-            time,
-            roads.nodes.len(),
-            roads
-                .edges
-                .iter()
-                .map(|(_, edges)| edges.len())
-                .sum::<usize>()
-                / 2
-        );
+    let data = RoadNetwork::read_from_osm_file(path).unwrap();
+    let mut roads = RoadNetwork::new(data.0, data.1);
+    print!(
+        "{} Base Graph Nodes: {}, Edges: {}\t\t",
+        path,
+        roads.nodes.len(),
+        roads.edges.len()
+    );
+    let now = Instant::now();
+    roads = roads.reduce_to_largest_connected_component();
+    let time = now.elapsed().as_millis() as f32 * 0.001;
+    println!(
+        "time: {}, reduced map nodes: {}, edges: {}",
+        time,
+        roads.nodes.len(),
+        roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
+    );
 
     println!("time {}", time);
     println!("# of nodes: {}", graph.nodes.len());
@@ -1259,12 +1285,27 @@ fn main() {
 
     let now = Instant::now();
 
-    
-    let (source, target) = transfer_patterns::TransferPatterns::make_points_from_coords(21.3732,-157.9201, 21.3727,-157.9172);
-    
-    //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996)
-    let graph = transfer_patterns.query_graph_construction_from_geodesic_points(&mut router, source, target, 24400, 1000.0);
-    transfer_patterns::TransferPatterns::query_graph_search(roads, connections, graph.2, source, target, graph.0, graph.1);
+    let (source, target) = transfer_patterns::TransferPatterns::make_points_from_coords(
+        21.3732, -157.9201, 21.3727, -157.9172,
+    );
+
+    //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
+    let graph = transfer_patterns.query_graph_construction_from_geodesic_points(
+        &mut router,
+        source,
+        target,
+        24400,
+        1000.0,
+    );
+    transfer_patterns::TransferPatterns::query_graph_search(
+        roads,
+        connections,
+        graph.2,
+        source,
+        target,
+        graph.0,
+        graph.1,
+    );
 
     println!("time: {:?}", now);
 }
