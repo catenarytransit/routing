@@ -516,7 +516,7 @@ pub mod transit_network {
             .read_shapes(false) // Won’t read shapes to save time and memory
             .read(path)
             .ok();
-        gtfs.unwrap()
+        gtfs.   unwrap()
     }
 
     pub fn calendar_date_filter(
@@ -969,50 +969,22 @@ pub mod transit_dijkstras {
     }
 
     impl PathedNode {
-        pub fn extract_parent<PathedNode: std::clone::Clone>(
-            //returns parent of a pathed node
-            last_elem: Rc<PathedNode>,
-        ) -> PathedNode {
-            let inner: PathedNode = Rc::unwrap_or_clone(last_elem);
-            inner
-        }
 
         pub fn get_path(self) -> (Vec<NodeId>, u64) {
             //path, cost
             //uses reference to find the source node with parent_node == None
             //vec.get(0) = target node
-            let mut shortest_path: Vec<NodeId> = Vec::new();
+            let mut shortest_path = Vec::new();
             let total_distance: u64 = self.cost_from_start;
-            let mut current = self;
-            while let Some(previous_node) = current.parent_node {
-                shortest_path.push(current.node_self);
-                current = PathedNode::extract_parent(previous_node);
+            let mut current_path = &Some(Rc::new(self));
+            while let Some(current) = current_path {
+                shortest_path.push(current.node_self); //current.node_self
+                current_path = &current.parent_node; //current = current.parent_node
             }
-            shortest_path.push(current.node_self);
+            //shortest_path.push(current_path.unwrap()));
             (shortest_path, total_distance)
         }
     }
-
-    /*pub fn a_star_heuristic(graph: &TimeExpandedGraph, target: NodeId) -> HashMap<NodeId, u64> {
-        let tail = *graph.nodes.get(&target).unwrap();
-        //for each current i64 id, enter euciladan distance from current to target, divided by max speed on that path
-        let heuristics = graph
-            .nodes
-            .iter()
-            .map(|(id, head)| {
-                (
-                    *id,
-                    ((i128::pow(((head.lat - tail.lat) * 111229).into(), 2) as f64
-                        / f64::powi(10.0, 14)
-                        + i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
-                            / f64::powi(10.0, 14))
-                    .sqrt() as u64)
-                        / ((110_f64) * 5.0 / 18.0) as u64, //110 is motorway speed --> max speed possible on road network
-                )
-            })
-            .collect::<HashMap<NodeId, u64>>();
-        heuristics
-    }*/
 
     impl Dijkstra {
         //implementation of time_expanded_dijkstra's shortest path algorithm
@@ -1151,13 +1123,7 @@ pub mod transit_dijkstras {
                             parent_node: Some(prev_node),
                         };
 
-                        /*let mut h = &0;
-                        if let Some(heuristic) = heuristics {
-                            h = heuristic.get(&neighbor.0).unwrap_or(&0);
-                        } */
-                        //fscore = temp_distance + h (which is the gscore + hscore)
-
-                        priority_queue.push(Reverse((temp_distance, tentative_new_node.clone())));
+                        priority_queue.push(Reverse((temp_distance, tentative_new_node)));
                     }
                 }
             }
@@ -1172,7 +1138,7 @@ pub mod transit_dijkstras {
             full_node_list.get(random).copied()
         }
 
-        /*pub fn get_random_start(&self) -> Option<NodeId> {
+        pub fn get_random_start(&self) -> Option<NodeId> {
             //returns ID of a random valid node from a graph
             let full_node_list: Vec<_> = self
                 .graph
@@ -1186,7 +1152,7 @@ pub mod transit_dijkstras {
             full_node_list.get(random).copied()
         }
 
-        pub fn get_random_end(&self, start_time: u64) -> Option<NodeId> {
+        /*pub fn get_random_end(&self, start_time: u64) -> Option<NodeId> {
             //returns ID of a random valid node from a graph
             let full_node_list: Vec<_> = self
                 .graph
@@ -1234,6 +1200,128 @@ pub mod transfer_patterns {
     use std::collections::hash_map::Entry;
     use std::collections::{BinaryHeap, HashMap, HashSet};
     use std::rc::Rc;
+    use std::time::Instant;
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub struct TDDijkstra {
+        //handle time_expanded_dijkstra calculations
+        pub connections: DirectConnections,
+        pub edges: HashMap<NodeId, Vec<NodeId>>,
+        pub visited_nodes: HashMap<NodeId, PathedNode>,
+    }
+
+    impl TDDijkstra {
+        //implementation of time_expanded_dijkstra's shortest path algorithm
+        pub fn new(connections: DirectConnections, edges: HashMap<NodeId, Vec<NodeId>>) -> Self {
+            let visited_nodes = HashMap::new();
+            Self {
+                connections,
+                edges,
+                visited_nodes,
+            }
+        }
+
+        pub fn get_neighbors(
+            &self,
+            current: &PathedNode,
+            connections: &DirectConnections,
+        ) -> Vec<(NodeId, u64)> {
+            //return node id of neighbors
+            let mut paths = Vec::new();
+            let mut next_node_edges = HashMap::new();
+            //need some case to handle neighbor to parent instead of just parent to neighbor
+            if let Some(arcs) = self.edges.get(&current.node_self) {
+                for next_node in arcs {
+                    if let Some((dept, arr)) = direct_connection_query(
+                        connections,
+                        current.node_self.station_id,
+                        next_node.station_id,
+                        current.node_self.time.unwrap(),
+                    ) {
+                        let cost = arr - dept;
+                        next_node_edges.insert(next_node, cost);
+                    }
+                }
+            }
+            for (next_node_id, cost) in next_node_edges {
+                if self.visited_nodes.contains_key(next_node_id) {
+                    continue;
+                }
+
+                paths.push((*next_node_id, cost));
+            }
+            paths
+        }
+
+        pub fn time_expanded_dijkstra(
+            &mut self,
+            source_id: NodeId,
+            target_id: NodeId, //if target == None, settles all reachable nodes
+        ) -> Option<PathedNode> {
+            //returns path from the source to target if exists, also path from every node to source
+            //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
+            let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
+
+            //stores distances of node relative to target
+            let mut gscore: HashMap<NodeId, u64> = HashMap::new();
+
+            self.visited_nodes.clear();
+
+            let source_node: PathedNode = PathedNode {
+                node_self: (source_id),
+                cost_from_start: 0,
+                parent_node: (None),
+            };
+
+            gscore.insert(source_id, 0);
+
+            priority_queue.push(Reverse((0, source_node)));
+
+            let mut current_cost;
+
+            while !priority_queue.is_empty() {
+                let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
+                current_cost = pathed_current_node.cost_from_start;
+                let idx = pathed_current_node.node_self;
+
+                self.visited_nodes.insert(idx, pathed_current_node.clone());
+
+                //found target node
+                if idx.eq(&target_id) {
+                    return Some(pathed_current_node);
+                }
+
+                //cost is higher than current path (not optimal)
+                if current_cost > *gscore.get(&idx).unwrap_or(&u64::MAX) {
+                    continue;
+                }
+
+                for neighbor in self.get_neighbors(&pathed_current_node, &self.connections) {
+                    let temp_distance = current_cost + neighbor.1;
+                    let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
+
+                    if temp_distance < next_distance {
+                        gscore.insert(neighbor.0, temp_distance);
+                        let prev_node: Rc<PathedNode> = Rc::new(pathed_current_node.clone());
+                        let tentative_new_node = PathedNode {
+                            node_self: neighbor.0,
+                            cost_from_start: temp_distance,
+                            parent_node: Some(prev_node),
+                        };
+
+                        /*let mut h = &0;
+                        if let Some(heuristic) = heuristics {
+                            h = heuristic.get(&neighbor.0).unwrap_or(&0);
+                        } */
+                        //fscore = temp_distance + h (which is the gscore + hscore)
+
+                        priority_queue.push(Reverse((temp_distance, tentative_new_node)));
+                    }
+                }
+            }
+            None //(None, node_path_tracker)
+        }
+    }
 
     pub struct TransferPatterns {
         pub hubs: HashSet<i64>,
@@ -1332,7 +1420,7 @@ pub mod transfer_patterns {
                 }
             }
 
-            println!("hub list {:?}", hub_list);
+            //println!("hub list {:?}", hub_list);
 
             let mut sorted_hubs: BinaryHeap<(u16, NodeId)> =
                 hub_list.into_iter().map(|(n, c)| (c, n)).collect();
@@ -1360,7 +1448,8 @@ pub mod transfer_patterns {
                     .get(&source_station_id)
                     .unwrap()
                     .iter()
-                    .filter(|(_, node)| node.node_type == 2)
+                    .filter(|(_, node)| node.node_type == 2) 
+                    //paper says transfer nodes only, slides say all nodes, i followed paper
                     .map(|(_, node)| *node)
                     .collect(),
             );
@@ -1368,7 +1457,7 @@ pub mod transfer_patterns {
             //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
             router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs);
 
-            self.transfer_patterns_to_target(router)
+           self.transfer_patterns_to_target(router)
         }
 
         // Backtrace all paths from a given station pair wrt to the last Dijkstra
@@ -1393,23 +1482,21 @@ pub mod transfer_patterns {
             Self::arrival_loop(&mut arrival_nodes);
 
             for (target, path, _) in arrival_nodes.iter() {
-                //let source = path.get(path.len() - 1).unwrap();
                 let mut transfers = Vec::new();
                 transfers.push(*target);
                 let mut previous_node: NodeId = *target;
-                for i in 1..path.len() - 1 {
-                    let node = path.get(i).unwrap();
+                for &node in path {
                     if previous_node.node_type == 3 && node.node_type == 2 {
-                        transfers.push(*node);
+                        transfers.push(node);
                     }
-                    previous_node = *node;
+                    previous_node = node;
                 }
-                transfers.push(*path.last().unwrap());
 
                 transfers.reverse();
 
                 transfer_patterns.insert((*transfers.first().unwrap(), *target), transfers);
             }
+
             transfer_patterns
         }
 
@@ -1419,8 +1506,8 @@ pub mod transfer_patterns {
         pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
             //-> Vec<(NodeId, Vec<NodeId>, u64)>{
             //let mut new_arrival_list = Vec::new();
-            arrival_nodes.sort_by(|a, b| a.0.station_id.cmp(&b.0.station_id));
-            let time_chunks = arrival_nodes.chunk_by_mut(|a, b| a.0.station_id == b.0.station_id);
+            //arrival_nodes.sort_by(|a, b| a.0.station_id.cmp(&b.0.station_id));
+            let time_chunks = arrival_nodes.chunk_by_mut(|a, b| a.0.station_id <= b.0.station_id);
             for chunk in time_chunks {
                 chunk.sort_by(|a, b| a.0.time.cmp(&b.0.time));
                 let mut previous_arrival: Option<(NodeId, u64)> = None;
@@ -1601,124 +1688,4 @@ pub mod transfer_patterns {
         }
     }
 
-    #[derive(Debug, PartialEq, Clone)]
-    pub struct TDDijkstra {
-        //handle time_expanded_dijkstra calculations
-        pub connections: DirectConnections,
-        pub edges: HashMap<NodeId, Vec<NodeId>>,
-        pub visited_nodes: HashMap<NodeId, PathedNode>,
-    }
-
-    impl TDDijkstra {
-        //implementation of time_expanded_dijkstra's shortest path algorithm
-        pub fn new(connections: DirectConnections, edges: HashMap<NodeId, Vec<NodeId>>) -> Self {
-            let visited_nodes = HashMap::new();
-            Self {
-                connections,
-                edges,
-                visited_nodes,
-            }
-        }
-
-        pub fn get_neighbors(
-            &self,
-            current: &PathedNode,
-            connections: &DirectConnections,
-        ) -> Vec<(NodeId, u64)> {
-            //return node id of neighbors
-            let mut paths = Vec::new();
-            let mut next_node_edges = HashMap::new();
-            //need some case to handle neighbor to parent instead of just parent to neighbor
-            if let Some(arcs) = self.edges.get(&current.node_self) {
-                for next_node in arcs {
-                    if let Some((dept, arr)) = direct_connection_query(
-                        connections,
-                        current.node_self.station_id,
-                        next_node.station_id,
-                        current.node_self.time.unwrap(),
-                    ) {
-                        let cost = arr - dept;
-                        next_node_edges.insert(next_node, cost);
-                    }
-                }
-            }
-            for (next_node_id, cost) in next_node_edges {
-                if self.visited_nodes.contains_key(next_node_id) {
-                    continue;
-                }
-
-                paths.push((*next_node_id, cost));
-            }
-            paths
-        }
-
-        pub fn time_expanded_dijkstra(
-            &mut self,
-            source_id: NodeId,
-            target_id: NodeId, //if target == None, settles all reachable nodes
-        ) -> Option<PathedNode> {
-            //returns path from the source to target if exists, also path from every node to source
-            //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
-            let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
-
-            //stores distances of node relative to target
-            let mut gscore: HashMap<NodeId, u64> = HashMap::new();
-
-            self.visited_nodes.clear();
-
-            let source_node: PathedNode = PathedNode {
-                node_self: (source_id),
-                cost_from_start: 0,
-                parent_node: (None),
-            };
-
-            gscore.insert(source_id, 0);
-
-            priority_queue.push(Reverse((0, source_node)));
-
-            let mut current_cost;
-
-            while !priority_queue.is_empty() {
-                let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
-                current_cost = pathed_current_node.cost_from_start;
-                let idx = pathed_current_node.node_self;
-
-                self.visited_nodes.insert(idx, pathed_current_node.clone());
-
-                //found target node
-                if idx.eq(&target_id) {
-                    return Some(pathed_current_node);
-                }
-
-                //cost is higher than current path (not optimal)
-                if current_cost > *gscore.get(&idx).unwrap_or(&u64::MAX) {
-                    continue;
-                }
-
-                for neighbor in self.get_neighbors(&pathed_current_node, &self.connections) {
-                    let temp_distance = current_cost + neighbor.1;
-                    let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
-
-                    if temp_distance < next_distance {
-                        gscore.insert(neighbor.0, temp_distance);
-                        let prev_node: Rc<PathedNode> = Rc::new(pathed_current_node.clone());
-                        let tentative_new_node = PathedNode {
-                            node_self: neighbor.0,
-                            cost_from_start: temp_distance,
-                            parent_node: Some(prev_node),
-                        };
-
-                        /*let mut h = &0;
-                        if let Some(heuristic) = heuristics {
-                            h = heuristic.get(&neighbor.0).unwrap_or(&0);
-                        } */
-                        //fscore = temp_distance + h (which is the gscore + hscore)
-
-                        priority_queue.push(Reverse((temp_distance, tentative_new_node.clone())));
-                    }
-                }
-            }
-            None //(None, node_path_tracker)
-        }
-    }
-}
+   }

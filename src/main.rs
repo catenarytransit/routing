@@ -4,8 +4,27 @@ fn main() {
         road_network::*, transfer_patterns::*, transit_dijkstras::*, transit_network::*,
     };
 
-    let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip");
-    let (graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
+    let now = Instant::now();
+    let gtfs = read_from_gtfs_zip("hawaii.zip");
+    let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
+    let time = now.elapsed().as_secs_f32();
+    println!("time {}", time);
+    println!("# of nodes: {}", transit_graph.nodes.len());
+    println!(
+        "# of edges: {}",
+        transit_graph.edges.values().map(|edges| edges.len()).sum::<usize>()
+    );
+
+    let now = Instant::now();
+    let graph = transit_graph.reduce_to_largest_connected_component();
+    let time = now.elapsed().as_secs_f32();
+
+    println!("time {}", time);
+    println!("# of nodes: {}", graph.nodes.len());
+    println!(
+        "# of edges: {}",
+        graph.edges.values().map(|edges| edges.len()).sum::<usize>()
+    );
 
     let path = "hawaii.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
@@ -24,24 +43,6 @@ fn main() {
         time,
         roads.nodes.len(),
         roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
-    );
-
-    println!("time {}", time);
-    println!("# of nodes: {}", graph.nodes.len());
-    println!(
-        "# of edges: {}",
-        graph.edges.values().map(|edges| edges.len()).sum::<usize>()
-    );
-
-    let now = Instant::now();
-    let graph = graph.reduce_to_largest_connected_component();
-    let time = now.elapsed().as_secs_f32();
-
-    println!("time {}", time);
-    println!("# of nodes: {}", graph.nodes.len());
-    println!(
-        "# of edges: {}",
-        graph.edges.values().map(|edges| edges.len()).sum::<usize>()
     );
 
     let mut router = Dijkstra::new(&graph);
@@ -133,8 +134,8 @@ mod tests {
         let query = direct_connection_query(connections, 97, 111, 37200);
         println!("{:?}", query);*/
 
-        /*let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip");
+        let now = Instant::now();
+        let gtfs = read_from_gtfs_zip("hawaii.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
 
@@ -160,31 +161,31 @@ mod tests {
         let mut histogram_tp: Vec<i32> = vec![0, 0, 0, 0, 0, 0];
 
         let mut router = Dijkstra::new(&graph);
-        let mut transfer_patterns = TransferPatterns::new();
+        let transfer_patterns = TransferPatterns::new();
         //transfer_patterns.hub_selection(&mut router, 1000); //panic call none 547 ln
         let mut total_pairs_considered = 0;
 
-        for i in 0..5 {
+        for i in 0..10 {
             println!("{}", i);
             let source_id = router.get_random_start().unwrap();
             let now = Instant::now();
             let result = transfer_patterns
-                .num_global_transfer_patterns_from_source(source_id.station_id, &mut router);
+                .num_transfer_patterns_from_source(source_id.station_id, &mut router, &None);
             let time = now.elapsed().as_secs_f32();
             precomp_time_per_station.push(time);
 
-            for (_, &tp_num) in result.iter() {
-                if tp_num == 0 {
+            for (_, &ref tp_num) in result.iter() {
+                if tp_num.len() == 0 {
                     histogram_tp[0] += 1;
-                } else if (1..=4).contains(&tp_num) {
+                } else if (1..=4).contains(&tp_num.len()) {
                     histogram_tp[1] += 1;
-                } else if (5..=9).contains(&tp_num) {
+                } else if (5..=9).contains(&tp_num.len()) {
                     histogram_tp[2] += 1;
-                } else if (10..=19).contains(&tp_num) {
+                } else if (10..=19).contains(&tp_num.len()) {
                     histogram_tp[3] += 1;
-                } else if (20..=49).contains(&tp_num) {
+                } else if (20..=49).contains(&tp_num.len()) {
                     histogram_tp[4] += 1;
-                } else if tp_num >= 50 {
+                } else if tp_num.len() >= 50 {
                     histogram_tp[5] += 1;
                 }
             }
@@ -203,7 +204,7 @@ mod tests {
         println!(
             "number of transfer patterns histogram percent {:?}",
             histogram_tp
-        );*/
+        );
 
         /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("manhattan.zip");
@@ -351,11 +352,11 @@ mod tests {
         }
         println!("{:?}", edges); */
 
-        let now = Instant::now();
+        /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("test.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let mut router = Dijkstra::new(&graph);
-        let mut transfer_patterns = TransferPatterns::new();
+        let transfer_patterns = TransferPatterns::new();
 
         println!("{:?}\n# of nodes: {}", now, graph.nodes.len());
         println!(
@@ -371,14 +372,16 @@ mod tests {
 
         println!("stations {:?}\n", router.graph.station_mapping);
 
-        //let &source_id = router.graph.station_mapping.get("A").unwrap();
+        let &source_id = router.graph.station_mapping.get("A").unwrap();
         //let &target_id = router.graph.station_mapping.get("F").unwrap();
 
-        //let _ = transfer_patterns.num_global_transfer_patterns_from_source(source_id, &mut router);
+        let result = transfer_patterns.num_transfer_patterns_from_source(source_id, &mut router, &None);
+
+        println!("aa{:?}", result);
         //let now = Instant::now();
 
-        transfer_patterns.hub_selection(&mut router, 500, u64::MAX);
+        //transfer_patterns.hub_selection(&mut router, 500, u64::MAX);
 
-        println!("hubs \n{:?}", transfer_patterns.hubs);
+        //println!("hubs \n{:?}", transfer_patterns.hubs);*/
     }
 }
