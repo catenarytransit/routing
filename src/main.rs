@@ -1,13 +1,13 @@
-
-
 fn main() {
-    use transit_router::{road_network::*, transit_network::*, transit_dijkstras::*, transfer_patterns::*};
     use std::time::Instant;
+    use transit_router::{
+        road_network::*, transfer_patterns::*, transit_dijkstras::*, transit_network::*,
+    };
 
     let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip");
     let (graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
 
-    let path = "hawaii.pbf"; //no i dont have this file yet sorry
+    let path = "hawaii.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
     print!(
@@ -49,9 +49,8 @@ fn main() {
 
     let now = Instant::now();
 
-    let (source, target) = TransferPatterns::make_points_from_coords(
-        21.3732, -157.9201, 21.3727, -157.9172,
-    );
+    let (source, target) =
+        TransferPatterns::make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
 
     //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
     let graph = transfer_patterns.query_graph_construction_from_geodesic_points(
@@ -76,7 +75,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use transit_router::{transit_network::*, transit_dijkstras::*, transfer_patterns::*};
+    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
     //use std::collections::HashMap;
     use std::time::Instant;
 
@@ -353,7 +352,7 @@ mod tests {
         println!("{:?}", edges); */
 
         let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("test 3.zip");
+        let gtfs = read_from_gtfs_zip("test.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let mut router = Dijkstra::new(&graph);
         let mut transfer_patterns = TransferPatterns::new();

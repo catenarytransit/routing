@@ -79,7 +79,7 @@ pub mod road_network {
                         let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
                             / f64::powi(10.0, 14);
                         let c = (a + b).sqrt();
-                        let cost = (c as u64) / ((way.speed as f64) * 5.0 / 18.0) as u64; //seconds needed to traverse segment based on road type
+                        let cost = (c as u64) / ((way.speed as f64) * 5.0 / 18.0) as u64; //seconds to traverse segment based on road type
                         let flag = false;
                         edges
                             .entry(tail_id)
@@ -1226,7 +1226,7 @@ pub mod transit_dijkstras {
 
 pub mod transfer_patterns {
     //THE FINAL BOSS
-    use crate::{transit_network::*, transit_dijkstras::*, road_network::*, road_dijkstras::*};
+    use crate::{road_dijkstras::*, road_network::*, transit_dijkstras::*, transit_network::*};
     use geo::algorithm::haversine_distance::*;
     use geo::point;
     use geo::Point;
@@ -1461,7 +1461,6 @@ pub mod transfer_patterns {
             //source nodes, target nodes, edges
 
             //compute sets of N(source) and N(target) of stations N= near
-            //distance from actual coords to stations will be queried with RoadNetwork code from part 1 (a* or arc flags?)
             let sources: Vec<_> = router
                 .graph
                 .nodes
