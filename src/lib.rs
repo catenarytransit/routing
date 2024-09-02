@@ -1,7 +1,7 @@
 #[allow(unused)]
-pub mod road_graph_construction {
+pub mod road_network {
     //constructs and preprocesses the graph struct from OSM data
-    use crate::road_routing::*;
+    use crate::road_dijkstras::*;
     use core::num;
     use osmpbfreader::objects::OsmObj;
     use std::{collections::HashMap, ops::Index};
@@ -209,9 +209,9 @@ pub mod road_graph_construction {
 }
 
 #[allow(unused)]
-pub mod road_routing {
+pub mod road_dijkstras {
     //routing algorithms and helper functiions
-    use crate::road_graph_construction::*;
+    use crate::road_network::*;
     use rand::Rng;
     use std::cmp::Reverse;
     use std::collections::{BinaryHeap, HashMap, HashSet};

@@ -1,6 +1,6 @@
-mod graph_construction {
+mod transit_network {
     //constructs and preprocesses the graph struct from OSM data
-    use crate::routing::*;
+    use crate::transit_dijkstras::*;
     use gtfs_structures::*;
     use std::{
         collections::{HashMap, HashSet},
@@ -449,9 +449,9 @@ mod graph_construction {
     }
 }
 
-mod routing {
-    //routing algorithms and helper functiions
-    use crate::graph_construction::*;
+mod transit_dijkstras {
+    //transit_dijkstras algorithms and helper functiions
+    use crate::transit_network::*;
     use rand::Rng;
     use std::cmp::Reverse;
     use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -733,9 +733,9 @@ mod routing {
 
 mod transfer_patterns {
     //THE FINAL BOSS
-    use crate::{graph_construction::*, routing::*};
-    use bast_homework::road_graph_construction::*;
-    use bast_homework::road_routing::*;
+    use crate::{transit_network::*, transit_dijkstras::*};
+    use transit_router::road_network::*;
+    use transit_router::road_dijkstras::*;
     use geo::algorithm::haversine_distance::*;
     use geo::point;
     use geo::Point;
@@ -821,7 +821,7 @@ mod transfer_patterns {
             let mut time_independent_router = Dijkstra::new(&time_independent_graph);
             time_independent_router.set_cost_upper_bound(cost_limit);
 
-            //println!("nodelist\n{:?}\nnodelist end\n", routing.graph.nodes);
+            //println!("nodelist\n{:?}\nnodelist end\n", transit_dijkstras.graph.nodes);
 
             let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
 
@@ -1234,10 +1234,10 @@ mod transfer_patterns {
 }
 
 fn main() {
-    use crate::graph_construction::*;
-    use crate::routing::*;
+    use crate::transit_network::*;
+    use crate::transit_dijkstras::*;
     use crate::transfer_patterns::*;
-    use bast_homework::road_graph_construction::*;
+    use transit_router::road_network::*;
     use std::time::Instant;
 
     let gtfs = read_from_gtfs_zip("hawaii.gtfs.zip");
@@ -1312,8 +1312,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::graph_construction::*;
-    use crate::routing::*;
+    use crate::transit_network::*;
+    use crate::transit_dijkstras::*;
     use crate::transfer_patterns::*;
     //use std::collections::HashMap;
     use std::time::Instant;
