@@ -12,7 +12,11 @@ fn main() {
     println!("# of nodes: {}", transit_graph.nodes.len());
     println!(
         "# of edges: {}",
-        transit_graph.edges.values().map(|edges| edges.len()).sum::<usize>()
+        transit_graph
+            .edges
+            .values()
+            .map(|edges| edges.len())
+            .sum::<usize>()
     );
 
     let now = Instant::now();
@@ -169,8 +173,11 @@ mod tests {
             println!("{}", i);
             let source_id = router.get_random_start().unwrap();
             let now = Instant::now();
-            let result = transfer_patterns
-                .num_transfer_patterns_from_source(source_id.station_id, &mut router, &None);
+            let result = transfer_patterns.num_transfer_patterns_from_source(
+                source_id.station_id,
+                &mut router,
+                &None,
+            );
             let time = now.elapsed().as_secs_f32();
             precomp_time_per_station.push(time);
 

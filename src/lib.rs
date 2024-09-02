@@ -516,7 +516,7 @@ pub mod transit_network {
             .read_shapes(false) // Won’t read shapes to save time and memory
             .read(path)
             .ok();
-        gtfs.   unwrap()
+        gtfs.unwrap()
     }
 
     pub fn calendar_date_filter(
@@ -969,7 +969,6 @@ pub mod transit_dijkstras {
     }
 
     impl PathedNode {
-
         pub fn get_path(self) -> (Vec<NodeId>, u64) {
             //path, cost
             //uses reference to find the source node with parent_node == None
@@ -1200,7 +1199,6 @@ pub mod transfer_patterns {
     use std::collections::hash_map::Entry;
     use std::collections::{BinaryHeap, HashMap, HashSet};
     use std::rc::Rc;
-    use std::time::Instant;
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct TDDijkstra {
@@ -1448,7 +1446,7 @@ pub mod transfer_patterns {
                     .get(&source_station_id)
                     .unwrap()
                     .iter()
-                    .filter(|(_, node)| node.node_type == 2) 
+                    .filter(|(_, node)| node.node_type == 2)
                     //paper says transfer nodes only, slides say all nodes, i followed paper
                     .map(|(_, node)| *node)
                     .collect(),
@@ -1457,7 +1455,7 @@ pub mod transfer_patterns {
             //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
             router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs);
 
-           self.transfer_patterns_to_target(router)
+            self.transfer_patterns_to_target(router)
         }
 
         // Backtrace all paths from a given station pair wrt to the last Dijkstra
@@ -1687,5 +1685,4 @@ pub mod transfer_patterns {
             }
         }
     }
-
-   }
+}
