@@ -932,7 +932,7 @@ pub mod transit_network {
         if let Some(first_valid_start_time) =
             start_times.iter().find(|&&s| s > (time - time_to_start))
         {
-            //print!("fvst {}", first_valid_start_time);
+
             let departure = first_valid_start_time + time_to_start;
             let arrival = first_valid_start_time + time_to_end;
             Some((departure, arrival))
@@ -1058,9 +1058,9 @@ pub mod transit_dijkstras {
             } else if let Some(source_id_set) = source_id_set {
                 for source_id in source_id_set {
                     let source_node: PathedNode = PathedNode {
-                        node_self: (source_id),
+                        node_self: source_id,
                         cost_from_start: 0,
-                        parent_node: (None),
+                        parent_node: None
                     };
 
                     gscore.insert(source_id, 0);
@@ -1199,6 +1199,7 @@ pub mod transfer_patterns {
     use std::collections::hash_map::Entry;
     use std::collections::{BinaryHeap, HashMap, HashSet};
     use std::rc::Rc;
+    use std::time::Instant;
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct TDDijkstra {
@@ -1398,8 +1399,6 @@ pub mod transfer_patterns {
             let mut time_independent_router = Dijkstra::new(&time_independent_graph);
             time_independent_router.set_cost_upper_bound(cost_limit);
 
-            //println!("nodelist\n{:?}\nnodelist end\n", transit_dijkstras.graph.nodes);
-
             let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
 
             for _ in 0..random_samples {
@@ -1439,6 +1438,7 @@ pub mod transfer_patterns {
             router: &mut Dijkstra,
             hubs: &Option<HashSet<i64>>,
         ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+
             let source_transfer_nodes: Option<Vec<NodeId>> = Some(
                 router
                     .graph
@@ -1451,11 +1451,12 @@ pub mod transfer_patterns {
                     .map(|(_, node)| *node)
                     .collect(),
             );
-
+            
             //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
             router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs);
+            let result = self.transfer_patterns_to_target(router);
 
-            self.transfer_patterns_to_target(router)
+            result
         }
 
         // Backtrace all paths from a given station pair wrt to the last Dijkstra
@@ -1465,7 +1466,9 @@ pub mod transfer_patterns {
             &self,
             router: &mut Dijkstra,
         ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+            
             let mut transfer_patterns = HashMap::new();
+
 
             let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = router
                 .visited_nodes
@@ -1502,12 +1505,10 @@ pub mod transfer_patterns {
         // see whether its label can be improved by simply waiting from an earlier
         // node at that station.
         pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
-            //-> Vec<(NodeId, Vec<NodeId>, u64)>{
-            //let mut new_arrival_list = Vec::new();
-            //arrival_nodes.sort_by(|a, b| a.0.station_id.cmp(&b.0.station_id));
+            arrival_nodes.sort_unstable_by(|a, b| a.0.station_id.cmp(&b.0.station_id));
             let time_chunks = arrival_nodes.chunk_by_mut(|a, b| a.0.station_id <= b.0.station_id);
             for chunk in time_chunks {
-                chunk.sort_by(|a, b| a.0.time.cmp(&b.0.time));
+                chunk.sort_unstable_by(|a, b| a.0.time.cmp(&b.0.time));
                 let mut previous_arrival: Option<(NodeId, u64)> = None;
                 for (node, path, cost) in chunk.iter_mut() {
                     if let Some((prev_node, prev_cost)) = previous_arrival {

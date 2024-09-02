@@ -169,7 +169,7 @@ mod tests {
         //transfer_patterns.hub_selection(&mut router, 1000); //panic call none 547 ln
         let mut total_pairs_considered = 0;
 
-        for i in 0..10 {
+        for i in 0..1 {
             println!("{}", i);
             let source_id = router.get_random_start().unwrap();
             let now = Instant::now();
@@ -182,17 +182,17 @@ mod tests {
             precomp_time_per_station.push(time);
 
             for (_, &ref tp_num) in result.iter() {
-                if tp_num.len() == 0 {
+                if tp_num.len() == 2 {
                     histogram_tp[0] += 1;
-                } else if (1..=4).contains(&tp_num.len()) {
+                } else if (3..=6).contains(&tp_num.len()) {
                     histogram_tp[1] += 1;
-                } else if (5..=9).contains(&tp_num.len()) {
+                } else if (7..=11).contains(&tp_num.len()) {
                     histogram_tp[2] += 1;
-                } else if (10..=19).contains(&tp_num.len()) {
+                } else if (12..=21).contains(&tp_num.len()) {
                     histogram_tp[3] += 1;
-                } else if (20..=49).contains(&tp_num.len()) {
+                } else if (22..=51).contains(&tp_num.len()) {
                     histogram_tp[4] += 1;
-                } else if tp_num.len() >= 50 {
+                } else if tp_num.len() >= 52 {
                     histogram_tp[5] += 1;
                 }
             }
@@ -359,7 +359,7 @@ mod tests {
         }
         println!("{:?}", edges); */
 
-        /*let now = Instant::now();
+        let now = Instant::now();
         let gtfs = read_from_gtfs_zip("test.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let mut router = Dijkstra::new(&graph);
@@ -389,6 +389,6 @@ mod tests {
 
         //transfer_patterns.hub_selection(&mut router, 500, u64::MAX);
 
-        //println!("hubs \n{:?}", transfer_patterns.hubs);*/
+        //println!("hubs \n{:?}", transfer_patterns.hubs);
     }
 }
