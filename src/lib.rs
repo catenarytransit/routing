@@ -1315,7 +1315,7 @@ pub mod transfer_patterns {
                         } */
                         //fscore = temp_distance + h (which is the gscore + hscore)
 
-                        priority_queue.push(Reverse((temp_distance, tentative_new_node)));
+                        priority_queue.push(Reverse((temp_distance, tentative_new_node.clone())));
                     }
                 }
             }
