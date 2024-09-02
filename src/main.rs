@@ -4,6 +4,8 @@ fn main() {
         road_network::*, transfer_patterns::*, transit_dijkstras::*, transit_network::*,
     };
 
+    use transit_router::RoadNetwork;
+
     let now = Instant::now();
     let gtfs = read_from_gtfs_zip("hawaii.zip");
     let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
