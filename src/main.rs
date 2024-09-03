@@ -82,7 +82,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*, road_network::*};
+    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
+    use transit_router::RoadNetwork;
     //use std::collections::HashMap;
     use std::time::Instant;
 

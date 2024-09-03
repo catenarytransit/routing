@@ -3,16 +3,13 @@ pub mod road_network;
 pub use crate::road_network::road_network::RoadNetwork;
 
 pub mod road_dijkstras {
-    use crate::road_network;
     //routing algorithms and helper functiions
-    use crate::road_network::*;
     use crate::RoadNetwork;
     use rand::Rng;
     use std::cmp::Reverse;
     use std::collections::{BinaryHeap, HashMap};
     use std::hash::Hash;
     use std::rc::Rc;
-    use std::time::Instant;
     
     use crate::road_network::road_network::Node;
 
@@ -972,7 +969,7 @@ pub mod transit_dijkstras {
 
 pub mod transfer_patterns {
     //THE FINAL BOSS
-    use crate::{road_dijkstras::*, road_network::*, transit_dijkstras::*, transit_network::*};
+    use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
     use geo::algorithm::haversine_distance::*;
     use geo::point;
     use geo::Point;
