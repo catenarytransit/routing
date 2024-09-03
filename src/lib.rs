@@ -1,6 +1,6 @@
 pub mod road_network;
 
-pub use crate::road_network::road_network::RoadNetwork;
+pub use crate::road_network::road_graph_construction::RoadNetwork;
 
 pub mod road_dijkstras {
     //routing algorithms and helper functiions
@@ -10,8 +10,8 @@ pub mod road_dijkstras {
     use std::collections::{BinaryHeap, HashMap};
     use std::hash::Hash;
     use std::rc::Rc;
-    
-    use crate::road_network::road_network::Node;
+
+    use crate::road_network::road_graph_construction::Node;
 
     pub struct RoadDijkstra {
         //handle dijkstra calculations
@@ -620,7 +620,7 @@ pub mod transit_network {
             {
                 counter += 1;
                 let mut shortest_path_graph = TransitDijkstra::new(&self);
-                shortest_path_graph.time_expanded_dijkstra(Some(source_id), None, None, &None);
+                shortest_path_graph.time_expanded_dijkstra(Some(source_id), None, None, None);
                 for node in shortest_path_graph.visited_nodes.keys() {
                     number_times_node_visted.insert(*node, counter);
                 }
@@ -710,7 +710,6 @@ pub mod transit_network {
         if let Some(first_valid_start_time) =
             start_times.iter().find(|&&s| s > (time - time_to_start))
         {
-
             let departure = first_valid_start_time + time_to_start;
             let arrival = first_valid_start_time + time_to_end;
             Some((departure, arrival))
@@ -727,7 +726,7 @@ pub mod transit_dijkstras {
     use std::cmp::Reverse;
     use std::collections::{BinaryHeap, HashMap, HashSet};
     use std::hash::Hash;
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct TransitDijkstra {
@@ -736,6 +735,7 @@ pub mod transit_dijkstras {
         pub visited_nodes: HashMap<NodeId, PathedNode>,
         cost_upper_bound: u64,
         inactive_nodes: HashSet<NodeId>,
+        transfer_count: u8,
     }
 
     #[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
@@ -743,7 +743,8 @@ pub mod transit_dijkstras {
         //node that references parent nodes, used to create path from goal node to start node
         pub node_self: NodeId,
         pub cost_from_start: u64,
-        pub parent_node: Option<Rc<PathedNode>>,
+        pub parent_node: Option<Arc<PathedNode>>,
+        pub transfer_cost: u8
     }
 
     impl PathedNode {
@@ -753,7 +754,7 @@ pub mod transit_dijkstras {
             //vec.get(0) = target node
             let mut shortest_path = Vec::new();
             let total_distance: u64 = self.cost_from_start;
-            let mut current_path = &Some(Rc::new(self));
+            let mut current_path = &Some(Arc::new(self));
             while let Some(current) = current_path {
                 shortest_path.push(current.node_self); //current.node_self
                 current_path = &current.parent_node; //current = current.parent_node
@@ -773,6 +774,7 @@ pub mod transit_dijkstras {
                 visited_nodes,
                 cost_upper_bound: u64::MAX,
                 inactive_nodes,
+                transfer_count: 0,
             }
         }
 
@@ -780,15 +782,10 @@ pub mod transit_dijkstras {
             self.cost_upper_bound = upper_bound;
         }
 
-        pub fn get_neighbors(
-            &mut self,
-            current: &PathedNode,
-            hubs: &Option<HashSet<i64>>,
-        ) -> Vec<(NodeId, u64)> {
+        pub fn get_neighbors(&mut self, current: &PathedNode) -> Vec<(NodeId, u64)> {
             //return node id of neighbors
             let mut paths = Vec::new();
             let mut next_node_edges = HashMap::new();
-            //need some case to handle neighbor to parent instead of just parent to neighbor
             if let Some(connections) = self.graph.edges.get(&current.node_self) {
                 next_node_edges.clone_from(connections);
             }
@@ -796,10 +793,9 @@ pub mod transit_dijkstras {
                 if self.visited_nodes.contains_key(&next_node_id) {
                     continue;
                 }
-                if let Some(hub_list) = hubs {
-                    if next_node_id.node_type == 2 && hub_list.contains(&next_node_id.station_id) {
-                        self.inactive_nodes.insert(current.node_self);
-                    }
+
+                if current.transfer_cost >= 2 && current.node_self.node_type == 2 && next_node_id.node_type == 3 {
+                    continue;
                 }
 
                 paths.push((next_node_id, cost));
@@ -807,12 +803,28 @@ pub mod transit_dijkstras {
             paths
         }
 
+        pub fn node_deactivator(&mut self, hubs: &HashSet<i64>) {
+            for (u, edges) in self.graph.edges.iter() {
+                if u.node_type == 2 && hubs.contains(&u.station_id) {
+                    for v in edges.keys() {
+                        self.inactive_nodes.insert(*v);
+                    }
+                } else {
+                    for v in edges.keys() {
+                        if v.node_type == 2 && hubs.contains(&v.station_id) {
+                            self.inactive_nodes.insert(*u);
+                        }
+                    }
+                }
+            }
+        }
+
         pub fn time_expanded_dijkstra(
             &mut self,
             source_id: Option<NodeId>,
             source_id_set: Option<Vec<NodeId>>,
             target_id: Option<NodeId>, //if target == None, settles all reachable nodes
-            hubs: &Option<HashSet<i64>>,
+            hubs: Option<&HashSet<i64>>,
         ) -> Option<PathedNode> {
             //returns path from the source to target if exists, also path from every node to source
             //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
@@ -821,13 +833,16 @@ pub mod transit_dijkstras {
             //stores distances of node relative to target
             let mut gscore: HashMap<NodeId, u64> = HashMap::new();
 
+            //resets list of settled nodes for new computation
             self.visited_nodes.clear();
+            self.transfer_count = 0;
 
             if let Some(source_id) = source_id {
                 let source_node: PathedNode = PathedNode {
                     node_self: (source_id),
                     cost_from_start: 0,
                     parent_node: (None),
+                    transfer_cost: 0
                 };
 
                 gscore.insert(source_id, 0);
@@ -838,7 +853,8 @@ pub mod transit_dijkstras {
                     let source_node: PathedNode = PathedNode {
                         node_self: source_id,
                         cost_from_start: 0,
-                        parent_node: None
+                        parent_node: None,
+                        transfer_cost: 0
                     };
 
                     gscore.insert(source_id, 0);
@@ -847,12 +863,16 @@ pub mod transit_dijkstras {
             }
 
             let mut current_cost;
+            let mut num_visited_inactive = 0;
 
             while !priority_queue.is_empty() {
                 let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
                 current_cost = pathed_current_node.cost_from_start;
                 let idx = pathed_current_node.node_self;
 
+                if self.inactive_nodes.contains(&pathed_current_node.node_self) {
+                    num_visited_inactive += 1
+                }
                 self.visited_nodes.insert(idx, pathed_current_node.clone());
 
                 //found target node
@@ -862,18 +882,16 @@ pub mod transit_dijkstras {
                     }
                 }
 
-                //stop search for local TP if all unsettled NodeIds are inactive --> all unvisited nodes is subset of inactive nodes
-                if hubs.is_some() {
-                    let visted_as_set = &self
-                        .visited_nodes
-                        .keys()
-                        .copied()
-                        .collect::<HashSet<NodeId>>();
-                    let unsettled_nodes: HashSet<_> =
-                        self.graph.nodes.difference(visted_as_set).collect();
-                    if unsettled_nodes.is_subset(&self.inactive_nodes.iter().collect()) {
-                        return None;
-                    }
+                //stop search for local TP if all unsettled NodeIds are inactive -->
+                //all unvisited nodes should become subset of inactive nodes
+                //this cool math solution was thought of by a server-mate on Discord, thank you!
+                if hubs.is_some()
+                    && (self.graph.nodes.len()
+                        - self.visited_nodes.len()
+                        - (self.inactive_nodes.len() - num_visited_inactive)
+                        == 0)
+                {
+                    return None;
                 }
 
                 //stop conditions
@@ -887,18 +905,25 @@ pub mod transit_dijkstras {
                     continue;
                 }
 
-                for neighbor in self.get_neighbors(&pathed_current_node, hubs) {
+                for neighbor in self.get_neighbors(&pathed_current_node) {
                     let temp_distance = current_cost + neighbor.1;
                     let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
 
                     if temp_distance < next_distance {
                         gscore.insert(neighbor.0, temp_distance);
-                        let prev_node: Rc<PathedNode> = Rc::new(pathed_current_node.clone());
+                        let prev_node: Arc<PathedNode> = Arc::new(pathed_current_node.clone());
+                        let mut transfer_cost = pathed_current_node.transfer_cost;
+                        if pathed_current_node.node_self.node_type == 2 && neighbor.0.node_type == 3
+                        {
+                            transfer_cost += 1;
+                        }
                         let tentative_new_node = PathedNode {
                             node_self: neighbor.0,
                             cost_from_start: temp_distance,
                             parent_node: Some(prev_node),
+                            transfer_cost
                         };
+                        
 
                         priority_queue.push(Reverse((temp_distance, tentative_new_node)));
                     }
@@ -976,7 +1001,10 @@ pub mod transfer_patterns {
     use std::cmp::Reverse;
     use std::collections::hash_map::Entry;
     use std::collections::{BinaryHeap, HashMap, HashSet};
-    use std::rc::Rc;
+    use std::time::Instant;
+
+    use std::sync::{Arc, Mutex};
+    use std::thread;
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct TDDijkstra {
@@ -1047,6 +1075,7 @@ pub mod transfer_patterns {
                 node_self: (source_id),
                 cost_from_start: 0,
                 parent_node: (None),
+                transfer_cost: 0
             };
 
             gscore.insert(source_id, 0);
@@ -1078,11 +1107,12 @@ pub mod transfer_patterns {
 
                     if temp_distance < next_distance {
                         gscore.insert(neighbor.0, temp_distance);
-                        let prev_node: Rc<PathedNode> = Rc::new(pathed_current_node.clone());
+                        let prev_node: Arc<PathedNode> = Arc::new(pathed_current_node.clone());
                         let tentative_new_node = PathedNode {
                             node_self: neighbor.0,
                             cost_from_start: temp_distance,
                             parent_node: Some(prev_node),
+                            transfer_cost: 0
                         };
 
                         /*let mut h = &0;
@@ -1099,232 +1129,213 @@ pub mod transfer_patterns {
         }
     }
 
-    pub struct TransferPatterns {
-        pub hubs: HashSet<i64>,
-        pub transfer_patterns: HashMap<(NodeId, NodeId), Vec<NodeId>>,
-    }
-
     use crate::RoadNetwork;
 
-    impl TransferPatterns {
-        pub fn new() -> Self {
-            let transfer_patterns = HashMap::new();
-            let hubs = HashSet::new();
-            TransferPatterns {
-                hubs,
-                transfer_patterns,
-            }
-        }
+    //only calculate global time_expanded_dijkstra from hubs (important stations) to save complexity
+    //picks important hubs if they are more often visted from Dijkstras-until-all-nodes-settled
+    pub fn hub_selection(
+        router: &TransitDijkstra,
+        random_samples: u32,
+        cost_limit: u64,
+    ) -> HashSet<i64> {
+        //station ids
+        let num_stations = 1.max((router.graph.station_mapping.len() as u32) / 100);
+        let mut selected_hubs: HashSet<i64> = HashSet::new();
 
-        //only calculate global time_expanded_dijkstra from hubs (important stations) to save complexity
-        pub fn hub_selection(&mut self, router: &TransitDijkstra, random_samples: u32, cost_limit: u64) {
-            //station ids
-            let num_stations = 1.max((router.graph.station_mapping.len() as u32) / 100);
-            let mut selected_hubs = HashSet::new();
+        let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, u64>> = HashMap::new();
 
-            let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, u64>> = HashMap::new();
+        let mut time_independent_nodes = HashSet::new();
 
-            let mut time_independent_nodes = HashSet::new();
-
-            for (tail, edge) in router.graph.edges.iter() {
-                let ti_tail = NodeId {
+        for (tail, edge) in router.graph.edges.iter() {
+            let ti_tail = NodeId {
+                node_type: 0,
+                station_id: tail.station_id,
+                time: None,
+                trip_id: 0,
+                lat: tail.lat,
+                lon: tail.lon,
+            };
+            time_independent_nodes.insert(ti_tail);
+            for (head, cost) in edge {
+                let ti_head = NodeId {
                     node_type: 0,
-                    station_id: tail.station_id,
+                    station_id: head.station_id,
                     time: None,
                     trip_id: 0,
-                    lat: tail.lat,
-                    lon: tail.lon,
+                    lat: head.lat,
+                    lon: head.lon,
                 };
-                time_independent_nodes.insert(ti_tail);
-                for (head, cost) in edge {
-                    let ti_head = NodeId {
-                        node_type: 0,
-                        station_id: head.station_id,
-                        time: None,
-                        trip_id: 0,
-                        lat: head.lat,
-                        lon: head.lon,
-                    };
-                    time_independent_nodes.insert(ti_head);
-                    time_independent_edges
-                        .entry(ti_tail)
-                        .and_modify(|map| {
-                            //update graph if found edge (u, v) with smaller cost than existing edge (u, v)
-                            if let Some(previous_cost) = map.get(head) {
-                                if cost < previous_cost {
-                                    map.insert(ti_head, *cost);
-                                }
+                time_independent_nodes.insert(ti_head);
+                time_independent_edges
+                    .entry(ti_tail)
+                    .and_modify(|map| {
+                        //update graph if found edge (u, v) with smaller cost than existing edge (u, v)
+                        if let Some(previous_cost) = map.get(head) {
+                            if cost < previous_cost {
+                                map.insert(ti_head, *cost);
                             }
-                        })
-                        .or_insert({
-                            let mut map: HashMap<NodeId, u64> = HashMap::new();
-                            map.insert(ti_head, *cost);
-                            map
-                        });
-                } 
+                        }
+                    })
+                    .or_insert({
+                        let mut map: HashMap<NodeId, u64> = HashMap::new();
+                        map.insert(ti_head, *cost);
+                        map
+                    });
             }
+        }
 
-            let time_independent_graph = TimeExpandedGraph {
-                day_of_week: router.graph.day_of_week.clone(),
-                transfer_buffer: router.graph.transfer_buffer,
-                nodes: time_independent_nodes,
-                edges: time_independent_edges,
-                station_mapping: router.graph.station_mapping.clone(),
-                nodes_per_station: router.graph.nodes_per_station.clone(),
-            };
+        let time_independent_graph = TimeExpandedGraph {
+            day_of_week: router.graph.day_of_week.clone(),
+            transfer_buffer: router.graph.transfer_buffer,
+            nodes: time_independent_nodes,
+            edges: time_independent_edges,
+            station_mapping: router.graph.station_mapping.clone(),
+            nodes_per_station: router.graph.nodes_per_station.clone(),
+        };
 
-            let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
-            time_independent_router.set_cost_upper_bound(cost_limit);
+        let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
+        time_independent_router.set_cost_upper_bound(cost_limit);
 
-            let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
+        let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
 
-            for _ in 0..random_samples {
-                let current_node = time_independent_router.get_random_node_id();
-                time_independent_router.time_expanded_dijkstra(current_node, None, None, &None);
-                for (node, _) in time_independent_router.visited_nodes.iter() {
-                    match hub_list.entry(*node) {
-                        Entry::Occupied(mut o) => {
-                            let counter = o.get_mut();
-                            *counter += 1;
-                        }
-                        Entry::Vacant(v) => {
-                            v.insert(1);
-                        }
+        for _ in 0..random_samples {
+            let current_node = time_independent_router.get_random_node_id();
+            time_independent_router.time_expanded_dijkstra(current_node, None, None, None);
+            for (node, _) in time_independent_router.visited_nodes.iter() {
+                match hub_list.entry(*node) {
+                    Entry::Occupied(mut o) => {
+                        let counter = o.get_mut();
+                        *counter += 1;
+                    }
+                    Entry::Vacant(v) => {
+                        v.insert(1);
                     }
                 }
             }
-
-            //println!("hub list {:?}", hub_list);
-
-            let mut sorted_hubs: BinaryHeap<(u16, NodeId)> =
-                hub_list.into_iter().map(|(n, c)| (c, n)).collect();
-
-            for _ in 0..num_stations {
-                let hub = sorted_hubs.pop().unwrap();
-                selected_hubs.insert(hub.1.station_id);
-            }
-
-            self.hubs = selected_hubs;
         }
 
-        // Precompute transfer patterns from a given station to all other stations.
-        // Return the transfer patterns & numbers of ybetween each station pair.
-        pub fn num_transfer_patterns_from_source(
-            &self,
-            source_station_id: i64,
-            router: &mut TransitDijkstra,
-            hubs: &Option<HashSet<i64>>,
-        ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+        let mut sorted_hubs: BinaryHeap<(u16, NodeId)> =
+            hub_list.into_iter().map(|(n, c)| (c, n)).collect();
 
-            let source_transfer_nodes: Option<Vec<NodeId>> = Some(
-                router
-                    .graph
-                    .nodes_per_station
-                    .get(&source_station_id)
-                    .unwrap()
-                    .iter()
-                    .filter(|(_, node)| node.node_type == 2)
-                    //paper says transfer nodes only, slides say all nodes, i followed paper
-                    .map(|(_, node)| *node)
-                    .collect(),
-            );
-            
-            //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
-            router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs);
-            let result = self.transfer_patterns_to_target(router);
-
-            result
+        for _ in 0..num_stations {
+            let hub = sorted_hubs.pop().unwrap();
+            selected_hubs.insert(hub.1.station_id);
         }
+        selected_hubs
+    }
 
-        // Backtrace all paths from a given station pair wrt to the last Dijkstra
-        // computation. For each such path, determine its transfer pattern. Return the
-        // set of distinct transfer patterns that occurred.
-        pub fn transfer_patterns_to_target(
-            &self,
-            router: &mut TransitDijkstra,
-        ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
-            
-            let mut transfer_patterns = HashMap::new();
-
-
-            let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = router
-                .visited_nodes
+    // Precompute transfer patterns from a given station to all other stations.
+    // Return the transfer patterns & numbers of ybetween each station pair.
+    pub fn num_transfer_patterns_from_source(
+        source_station_id: i64,
+        router: &mut TransitDijkstra,
+        hubs: Option<&HashSet<i64>>,
+    ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+        let source_transfer_nodes: Option<Vec<NodeId>> = Some(
+            router
+                .graph
+                .nodes_per_station
+                .get(&source_station_id)
+                .unwrap()
                 .iter()
-                .filter(|(node, _)| node.node_type == 1)
-                .map(|(node, pathed_node)| {
-                    let (path, cost) = pathed_node.clone().get_path();
-                    (*node, path, cost)
-                })
-                .collect();
+                .filter(|(_, node)| node.node_type == 2 )// || node.node_type == 1
+                //must check for transfer nodes, but checking for arrival nodes may improve query time at expense of longer precompute
+                .map(|(_, node)| *node)
+                .collect(),
+        );
 
-            Self::arrival_loop(&mut arrival_nodes);
+        let now = Instant::now();
+        //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
+        router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs);
+        if hubs.is_none(){
+        println!("dijkstra {:?}", now.elapsed());}
 
-            for (target, path, _) in arrival_nodes.iter() {
-                let mut transfers = Vec::new();
-                transfers.push(*target);
-                let mut previous_node: NodeId = *target;
-                for &node in path {
-                    if previous_node.node_type == 3 && node.node_type == 2 {
-                        transfers.push(node);
-                    }
-                    previous_node = node;
+        transfer_patterns_to_target(router)
+    }
+
+    // Backtrace all paths from a given station pair with respect to last Dijkstra
+    // computation. Return distinct set of the pair's transfer patterns
+    pub fn transfer_patterns_to_target(
+        router: &mut TransitDijkstra,
+    ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+        let mut transfer_patterns = HashMap::new();
+
+        let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = router
+            .visited_nodes
+            .iter()
+            .filter(|(node, _)| node.node_type == 1)
+            .map(|(node, pathed_node)| {
+                let (path, cost) = pathed_node.clone().get_path();
+                (*node, path, cost)
+            })
+            .collect();
+
+        arrival_loop(&mut arrival_nodes);
+
+        for (target, path, _) in arrival_nodes.iter() {
+            let mut transfers = Vec::new();
+            transfers.push(*target);
+            let mut previous_node: NodeId = *target;
+            for &node in path {
+                if previous_node.node_type == 3 && node.node_type == 2 {
+                    transfers.push(node);
                 }
-
-                transfers.reverse();
-
-                transfer_patterns.insert((*transfers.first().unwrap(), *target), transfers);
+                previous_node = node;
             }
 
-            transfer_patterns
+            transfers.reverse();
+
+            transfer_patterns.insert((*transfers.first().unwrap(), *target), transfers);
         }
 
-        // Arrival loop for a given station. That is, for each node from that station,
-        // see whether its label can be improved by simply waiting from an earlier
-        // node at that station.
-        pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
-            arrival_nodes.sort_unstable_by(|a, b| a.0.station_id.cmp(&b.0.station_id));
-            let time_chunks = arrival_nodes.chunk_by_mut(|a, b| a.0.station_id <= b.0.station_id);
-            for chunk in time_chunks {
-                chunk.sort_unstable_by(|a, b| a.0.time.cmp(&b.0.time));
-                let mut previous_arrival: Option<(NodeId, u64)> = None;
-                for (node, path, cost) in chunk.iter_mut() {
-                    if let Some((prev_node, prev_cost)) = previous_arrival {
-                        let new_cost = prev_cost + (node.time.unwrap() - prev_node.time.unwrap());
-                        if new_cost <= *cost {
-                            *cost = new_cost;
-                            path.insert(1, prev_node);
-                        }
+        transfer_patterns
+    }
+
+    // Arrival chain algo: For each arrival node, see if cost can be approved
+    // by simply waiting from an earlier arrival time. (favors less travel time)
+    pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
+        arrival_nodes.sort_unstable_by(|a, b| a.0.station_id.cmp(&b.0.station_id));
+        let time_chunks = arrival_nodes.chunk_by_mut(|a, b| a.0.station_id <= b.0.station_id);
+        for chunk in time_chunks {
+            chunk.sort_unstable_by(|a, b| a.0.time.cmp(&b.0.time));
+            let mut previous_arrival: Option<(NodeId, u64)> = None;
+            for (node, path, cost) in chunk.iter_mut() {
+                if let Some((prev_node, prev_cost)) = previous_arrival {
+                    let new_cost = prev_cost + (node.time.unwrap() - prev_node.time.unwrap());
+                    if new_cost <= *cost {
+                        *cost = new_cost;
+                        path.insert(1, prev_node);
                     }
-                    previous_arrival = Some((*node, *cost));
                 }
-                //new_arrival_list.append(&mut chunk.to_vec().to_owned())
+                previous_arrival = Some((*node, *cost));
             }
-            //new_arrival_list
+            //new_arrival_list.append(&mut chunk.to_vec().to_owned())
         }
+        //new_arrival_list
+    }
 
-        pub fn make_points_from_coords(
-            source_lat: f64,
-            source_lon: f64,
-            target_lat: f64,
-            target_lon: f64,
-        ) -> (Point, Point) {
-            let source = point!(x:source_lat, y:source_lon);
-            let target = point!(x: target_lat, y: target_lon);
-            (source, target)
-        }
+    pub fn make_points_from_coords(
+        source_lat: f64,
+        source_lon: f64,
+        target_lat: f64,
+        target_lon: f64,
+    ) -> (Point, Point) {
+        let source = point!(x:source_lat, y:source_lon);
+        let target = point!(x: target_lat, y: target_lon);
+        (source, target)
+    }
 
-        pub fn query_graph_construction_from_geodesic_points(
-            &mut self,
-            router: &mut TransitDijkstra,
-            source: Point,
-            target: Point,
-            time: u64,
-            preset_distance: f64, //in meters
-        ) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) {
-            //source nodes, target nodes, edges
+    pub fn query_graph_construction_from_geodesic_points(
+        router: &mut TransitDijkstra,
+        source: Point,
+        target: Point,
+        time: u64,
+        preset_distance: f64, //in meters
+    ) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) {
+        //source nodes, target nodes, edges
 
-            //compute sets of N(source) and N(target) of stations N= near
-            let sources: Vec<_> = router
+        //compute sets of N(source) and N(target) of stations N= near
+        let sources: Vec<_> = router
                 .graph
                 .nodes
                 .iter()
@@ -1336,7 +1347,7 @@ pub mod transfer_patterns {
                 .copied()
                 .collect();
 
-            let targets: Vec<_> = router
+        let targets: Vec<_> = router
                 .graph
                 .nodes
                 .iter()
@@ -1347,119 +1358,180 @@ pub mod transfer_patterns {
                 .copied()
                 .collect();
 
-            //get hubs of important stations I(hubs)
-            self.hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
+        let a = Instant::now();
 
-            let hubs = Some(self.hubs.clone());
-            //precompute local TP from N(source) to first hub (this min hub is access station)
-            for source in sources.iter() {
-                self.num_transfer_patterns_from_source(source.station_id, router, &hubs);
-            }
+        //get hubs of important stations I(hubs)
+        let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
+        router.node_deactivator(&hubs);
 
-            //global transfer patterns from I(hubs) to to N(target())
-            for hub_station in self.hubs.iter() {
-                let tps = self.num_transfer_patterns_from_source(*hub_station, router, &None);
-                self.transfer_patterns.extend(tps.into_iter());
-            }
+        //precompute local TP from N(source) to first hub (this min hub is access station)
+        //using multithreading to go faster
+        let source_chunk_len = sources.len();
+        let threaded_sources = Arc::new(Mutex::new(sources.clone()));
+        let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+        let arc_router = Arc::new(Mutex::new(router.clone()));
+        let threaded_hubs = Arc::new(Mutex::new(hubs.clone()));
+        let mut handles = vec![];
 
-            let mut raw_edges = HashMap::new();
-            let _ = self
-                .transfer_patterns
-                .iter()
-                .filter(|((source, target), _)| {
-                    sources.contains(source) && targets.contains(target)
-                })
-                .map(|(_, path)| {
-                    let mut prev = None;
-                    for node in path {
-                        if let Some(prev) = prev {
-                            match raw_edges.entry(prev) {
-                                Entry::Occupied(mut o) => {
-                                    let tails: &mut Vec<NodeId> = o.get_mut();
-                                    tails.push(*node);
-                                }
-                                Entry::Vacant(v) => {
-                                    let tails = Vec::from([*node]);
-                                    v.insert(tails);
-                                }
-                            }
-                        }
-                        prev = Some(*node);
-                    }
-                });
+        for x in 1..4 {
+            let source = Arc::clone(&threaded_sources);
+            let transfer_patterns = Arc::clone(&total_transfer_patterns);
+            let router = Arc::clone(&arc_router);
+            let hub_list = Arc::clone(&threaded_hubs);
+            let handle = thread::spawn(move || {
+                let src = source.lock().unwrap();
+                for i in (x - 1) * (source_chunk_len / 4)..(x * source_chunk_len / 4) {
+                    let source_id = src.get(i).unwrap();
+                    let l_tps = num_transfer_patterns_from_source(
+                        source_id.station_id,
+                        &mut router.lock().unwrap(),
+                        Some(&hub_list.lock().unwrap()),
+                    );
 
-            (sources, targets, raw_edges)
+                    let mut ttp = transfer_patterns.lock().unwrap();
+                    ttp.extend(l_tps.into_iter());
+                }
+            });
+            handles.push(handle);
         }
 
-        pub fn query_graph_search(
-            roads: RoadNetwork,
-            connections: DirectConnections,
-            edges: HashMap<NodeId, Vec<NodeId>>,
-            start: Point,
-            end: Point,
-            sources: Vec<NodeId>,
-            targets: Vec<NodeId>,
-        ) {
-            let mut router = TDDijkstra::new(connections, edges);
+        for handle in handles {
+            handle.join().unwrap();
+        }
 
-            let mut source_paths: HashMap<&NodeId, Option<RoadPathedNode>> = HashMap::new();
-            //note: remember to write a function that returns the closest approx point from road network if cannot find a point!
-            if let Some(start_road_node) = roads.nodes.values().find(|n| {
-                n.lat == (start.0.x * f64::powi(10.0, 14)) as i64
-                    && n.lon == (start.0.y * f64::powi(10.0, 14)) as i64
-            }) {
-                for source in sources.iter() {
-                    let mut graph = RoadDijkstra::new(&roads);
-                    if let Some(station_sought) = roads
-                        .nodes
-                        .values()
-                        .find(|n| n.lat == source.lat && n.lon == source.lon)
-                    {
-                        let result =
-                            graph.dijkstra(start_road_node.id, station_sought.id, &None, true);
-                        source_paths.insert(source, result.0);
-                    }
-                }
-            }
+        println!("local tp {:?}", a.elapsed());
 
-            let mut target_paths: HashMap<&NodeId, Option<RoadPathedNode>> = HashMap::new();
-            //note: remember to write a function that returns the closest approx point from road network if cannot find a point!
-            if let Some(end_road_node) = roads.nodes.values().find(|n| {
-                n.lat == (end.0.x * f64::powi(10.0, 14)) as i64
-                    && n.lon == (end.0.y * f64::powi(10.0, 14)) as i64
-            }) {
-                for target in targets.iter() {
-                    let mut graph = RoadDijkstra::new(&roads);
-                    if let Some(station_sought) = roads
-                        .nodes
-                        .values()
-                        .find(|n| n.lat == target.lat && n.lon == target.lon)
-                    {
-                        let result =
-                            graph.dijkstra(end_road_node.id, station_sought.id, &None, true);
-                        target_paths.insert(target, result.0);
-                    }
-                }
-            }
+        let a = Instant::now();
 
-            let mut transit_paths = HashMap::new();
-            for source_id in sources.iter() {
-                let source_path = source_paths.get(source_id).unwrap().as_ref().unwrap();
-                for target_id in targets.iter() {
-                    let target_path = target_paths.get(target_id).unwrap().as_ref().unwrap();
-                    let path = router.time_expanded_dijkstra(*source_id, *target_id);
-                    let transit_cost = path.as_ref().unwrap().cost_from_start;
+        //global transfer patterns from I(hubs) to to N(target())
+        let hub_chunk_len = hubs.len();
+        let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+        let arc_router = Arc::new(Mutex::new(router.clone()));
+        let threaded_hubs = Arc::new(Mutex::new(hubs.into_iter().collect::<Vec<_>>()));
+        let mut handles = vec![];
 
-                    transit_paths.insert(
-                        (source_id, target_id),
-                        (
-                            (source_path, path, target_path),
-                            transit_cost
-                                + source_path.distance_from_start
-                                + target_path.distance_from_start,
-                        ),
+        for x in 1..4 {
+            let transfer_patterns = Arc::clone(&total_transfer_patterns);
+            let router = Arc::clone(&arc_router);
+            let hub_list = Arc::clone(&threaded_hubs);
+            let handle = thread::spawn(move || {
+                let src = hub_list.lock().unwrap();
+                for i in (x - 1) * (hub_chunk_len / 4)..(x * hub_chunk_len / 4) {
+                    let hub_id = src.get(i).unwrap();
+                    let g_tps = num_transfer_patterns_from_source(
+                        *hub_id,
+                        &mut router.lock().unwrap(),
+                        None,
                     );
+
+                    let mut ttp = transfer_patterns.lock().unwrap();
+                    ttp.extend(g_tps.into_iter());
                 }
+            });
+            handles.push(handle);
+        }
+
+        println!("global tp {:?}", a.elapsed());
+        println!("tp len {}", total_transfer_patterns.lock().unwrap().len());
+
+        let a = Instant::now();
+
+        let mut raw_edges = HashMap::new();
+        let _ = total_transfer_patterns
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
+            .map(|(_, path)| {
+                let mut prev = None;
+                for node in path {
+                    if let Some(prev) = prev {
+                        match raw_edges.entry(prev) {
+                            Entry::Occupied(mut o) => {
+                                let tails: &mut Vec<NodeId> = o.get_mut();
+                                tails.push(*node);
+                            }
+                            Entry::Vacant(v) => {
+                                let tails = Vec::from([*node]);
+                                v.insert(tails);
+                            }
+                        }
+                    }
+                    prev = Some(*node);
+                }
+            });
+
+        println!("graph {:?}", a.elapsed());
+
+        (sources, targets, raw_edges)
+    }
+
+    pub fn query_graph_search(
+        roads: RoadNetwork,
+        connections: DirectConnections,
+        edges: HashMap<NodeId, Vec<NodeId>>,
+        start: Point,
+        end: Point,
+        sources: Vec<NodeId>,
+        targets: Vec<NodeId>,
+    ) {
+        let mut router = TDDijkstra::new(connections, edges);
+
+        let mut source_paths: HashMap<&NodeId, Option<RoadPathedNode>> = HashMap::new();
+        //note: remember to write a function that returns the closest approx point from road network if cannot find a point!
+        if let Some(start_road_node) = roads.nodes.values().find(|n| {
+            n.lat == (start.0.x * f64::powi(10.0, 14)) as i64
+                && n.lon == (start.0.y * f64::powi(10.0, 14)) as i64
+        }) {
+            for source in sources.iter() {
+                let mut graph = RoadDijkstra::new(&roads);
+                if let Some(station_sought) = roads
+                    .nodes
+                    .values()
+                    .find(|n| n.lat == source.lat && n.lon == source.lon)
+                {
+                    let result = graph.dijkstra(start_road_node.id, station_sought.id, &None, true);
+                    source_paths.insert(source, result.0);
+                }
+            }
+        }
+
+        let mut target_paths: HashMap<&NodeId, Option<RoadPathedNode>> = HashMap::new();
+        //note: remember to write a function that returns the closest approx point from road network if cannot find a point!
+        if let Some(end_road_node) = roads.nodes.values().find(|n| {
+            n.lat == (end.0.x * f64::powi(10.0, 14)) as i64
+                && n.lon == (end.0.y * f64::powi(10.0, 14)) as i64
+        }) {
+            for target in targets.iter() {
+                let mut graph = RoadDijkstra::new(&roads);
+                if let Some(station_sought) = roads
+                    .nodes
+                    .values()
+                    .find(|n| n.lat == target.lat && n.lon == target.lon)
+                {
+                    let result = graph.dijkstra(end_road_node.id, station_sought.id, &None, true);
+                    target_paths.insert(target, result.0);
+                }
+            }
+        }
+
+        let mut transit_paths = HashMap::new();
+        for source_id in sources.iter() {
+            let source_path = source_paths.get(source_id).unwrap().as_ref().unwrap();
+            for target_id in targets.iter() {
+                let target_path = target_paths.get(target_id).unwrap().as_ref().unwrap();
+                let path = router.time_expanded_dijkstra(*source_id, *target_id);
+                let transit_cost = path.as_ref().unwrap().cost_from_start;
+
+                transit_paths.insert(
+                    (source_id, target_id),
+                    (
+                        (source_path, path, target_path),
+                        transit_cost
+                            + source_path.distance_from_start
+                            + target_path.distance_from_start,
+                    ),
+                );
             }
         }
     }

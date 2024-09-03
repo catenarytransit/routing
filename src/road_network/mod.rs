@@ -1,5 +1,5 @@
 #[allow(unused)]
-pub mod road_network {
+pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
     use crate::road_dijkstras::*;
     use core::num;

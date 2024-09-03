@@ -1,8 +1,6 @@
 fn main() {
     use std::time::Instant;
-    use transit_router::{
-        road_network::*, transfer_patterns::*, transit_dijkstras::*, transit_network::*,
-    };
+    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 
     use transit_router::RoadNetwork;
 
@@ -35,8 +33,8 @@ fn main() {
     let path = "hawaii.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
-    print!(
-        "{} Base Graph Nodes: {}, Edges: {}\t\t",
+    println!(
+        "{} Base Graph Nodes: {}, Edges: {}",
         path,
         roads.nodes.len(),
         roads.edges.len()
@@ -52,22 +50,15 @@ fn main() {
     );
 
     let mut router = TransitDijkstra::new(&graph);
-    let mut transfer_patterns = TransferPatterns::new();
 
     let now = Instant::now();
 
-    let (source, target) =
-        TransferPatterns::make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
+    let (source, target) = make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
 
     //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
-    let graph = transfer_patterns.query_graph_construction_from_geodesic_points(
-        &mut router,
-        source,
-        target,
-        24400,
-        1000.0,
-    );
-    TransferPatterns::query_graph_search(
+    let graph =
+        query_graph_construction_from_geodesic_points(&mut router, source, target, 24400, 1000.0);
+    query_graph_search(
         roads,
         connections,
         graph.2,
@@ -82,30 +73,35 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
     use transit_router::RoadNetwork;
+    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
     //use std::collections::HashMap;
     use std::time::Instant;
 
     #[test]
     fn test() {
-
+        
         let now = Instant::now();
         let gtfs = read_from_gtfs_zip("hawaii.zip");
-        let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
+        let (transit_graph, connections) =
+            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
         let time = now.elapsed().as_secs_f32();
         println!("time {}", time);
         println!("# of nodes: {}", transit_graph.nodes.len());
         println!(
             "# of edges: {}",
-            transit_graph.edges.values().map(|edges| edges.len()).sum::<usize>()
+            transit_graph
+                .edges
+                .values()
+                .map(|edges| edges.len())
+                .sum::<usize>()
         );
 
         let now = Instant::now();
         let graph = transit_graph.reduce_to_largest_connected_component();
         let time = now.elapsed().as_secs_f32();
 
-        println!("time {}", time);
+        println!("reduced time {}", time);
         println!("# of nodes: {}", graph.nodes.len());
         println!(
             "# of edges: {}",
@@ -132,22 +128,21 @@ mod tests {
         );
 
         let mut router = TransitDijkstra::new(&graph);
-        let mut transfer_patterns = TransferPatterns::new();
 
         let now = Instant::now();
 
-        let (source, target) =
-            TransferPatterns::make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
+        let (source, target) = make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
 
         //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
-        let graph = transfer_patterns.query_graph_construction_from_geodesic_points(
+        println!("time to do the thing");
+        let graph = query_graph_construction_from_geodesic_points(
             &mut router,
             source,
             target,
             24400,
             1000.0,
         );
-        TransferPatterns::query_graph_search(
+        query_graph_search(
             roads,
             connections,
             graph.2,
@@ -158,6 +153,8 @@ mod tests {
         );
 
         println!("time: {:?}", now);
+        
+
         //Pareto-set ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
             set.sort_by_key(|(x, y)| if y != &0 { 10 * x + (10 / y) } else { 10 * x });
@@ -211,7 +208,7 @@ mod tests {
         println!("{:?}", query);*/
 
         /*let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("octa.zip");
+        let gtfs = read_from_gtfs_zip("hawaii.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
 
@@ -222,21 +219,23 @@ mod tests {
             graph.edges.values().map(|edges| edges.len()).sum::<usize>()
         );
 
-        let mut router = Dijkstra::new(&graph);
-        let mut transfer_patterns = TransferPatterns::new();
-        transfer_patterns.hub_selection(&mut router, 6000, 36000);
+        let mut router = TransitDijkstra::new(&graph);
+        let hubs = hub_selection(&router, 1000, 54000);
+        router.node_deactivator(&hubs);
 
-        
-       
-        println!("stations {:?}\n", router.graph.station_mapping);
-        println!("hubs: {:?}", transfer_patterns.hubs);*/
-        
-        
-        /* 
+        for h in 0..10 {
+            let h = router.get_random_start().unwrap().station_id;
+            let now = Instant::now();
+            let result = num_transfer_patterns_from_source(h, &mut router, Some(&hubs));
+            println!("{:?}", result.len());
+        }*/
+
+
+        /*
         let mut total_pairs_considered = 0;
         let mut precomp_time_per_station = Vec::new();
         let mut histogram_tp: Vec<i32> = vec![0, 0, 0, 0, 0, 0];
-        
+
         for i in 0..1 {
             println!("{}", i);
             let source_id = router.get_random_start().unwrap();
@@ -430,16 +429,12 @@ mod tests {
         /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("test.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
-        let mut router = Dijkstra::new(&graph);
-        let transfer_patterns = TransferPatterns::new();
+        let mut router = TransitDijkstra::new(&graph);
 
         println!("{:?}\n# of nodes: {}", now, graph.nodes.len());
         println!(
             "# of edges: {}",
-            graph
-                .edges
-                .iter()
-                .map(|(_, edges)| edges.len())
+            graph.edges.values().map(|edges| edges.len())
                 .sum::<usize>()
         );
 
@@ -450,12 +445,10 @@ mod tests {
         let &source_id = router.graph.station_mapping.get("A").unwrap();
         //let &target_id = router.graph.station_mapping.get("F").unwrap();
 
-        let result = transfer_patterns.num_transfer_patterns_from_source(source_id, &mut router, &None);
+        let hubs = hub_selection(&router, 1, 60);
+        let result = num_transfer_patterns_from_source(source_id, &mut router, Some(&hubs));
 
         println!("aa{:?}", result);
-        //let now = Instant::now();
-
-        //transfer_patterns.hub_selection(&mut router, 500, u64::MAX);
 
         //println!("hubs \n{:?}", transfer_patterns.hubs);*/
     }
