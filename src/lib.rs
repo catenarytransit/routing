@@ -1,10 +1,8 @@
-#[allow(unused)]
 pub mod road_network {
     //constructs and preprocesses the graph struct from OSM data
     use crate::road_dijkstras::*;
-    use core::num;
     use osmpbfreader::objects::OsmObj;
-    use std::{collections::HashMap, ops::Index};
+    use std::collections::HashMap;
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct Node {
@@ -166,7 +164,6 @@ pub mod road_network {
             let mut counter = 0;
             let mut number_times_node_visted: HashMap<i64, i32> = HashMap::new();
             let mut shortest_path_graph = RoadDijkstra::new(&self);
-            let mut max_connections = 0;
 
             while let Some(source_id) =
                 shortest_path_graph.get_unvisted_node_id(&number_times_node_visted)
@@ -181,12 +178,11 @@ pub mod road_network {
                     break;
                 }
             }
-            let mut new_node_list = Vec::new();
-            new_node_list = number_times_node_visted.iter().collect();
-            new_node_list.sort_by(|(node1, counter1), (node2, counter2)| counter1.cmp(counter2));
+            let mut new_node_list: Vec<(&i64, &i32)> = number_times_node_visted.iter().collect();
+            new_node_list.sort_by(|(_ , counter1), (_, counter2)| counter1.cmp(counter2));
 
             let connected_components = &mut new_node_list
-                .chunk_by(|(node1, counter1), (node2, counter2)| counter1 == counter2);
+                .chunk_by(|(_, counter1), (_, counter2)| counter1 == counter2);
 
             let mut largest_node_set = Vec::new();
             let mut prev_set_size = 0;
@@ -208,17 +204,14 @@ pub mod road_network {
     }
 }
 
-#[allow(unused)]
 pub mod road_dijkstras {
     //routing algorithms and helper functiions
     use crate::road_network::*;
     use rand::Rng;
     use std::cmp::Reverse;
-    use std::collections::{BinaryHeap, HashMap, HashSet};
+    use std::collections::{BinaryHeap, HashMap};
     use std::hash::Hash;
-    use std::path;
     use std::rc::Rc;
-    use std::time::Instant;
 
     pub struct RoadDijkstra {
         //handle dijkstra calculations
@@ -248,7 +241,7 @@ pub mod road_dijkstras {
         pub fn get_path(self) -> (Vec<Node>, u64) {
             //uses reference to find the source node with parent_node == None
             let mut shortest_path: Vec<Node> = Vec::new();
-            let mut total_distance: u64 = self.distance_from_start;
+            let total_distance: u64 = self.distance_from_start;
             let mut current = self;
             while let Some(previous_node) = current.parent_node {
                 shortest_path.push(current.node_self);
@@ -316,7 +309,7 @@ pub mod road_dijkstras {
                 if self.visited_nodes.contains_key(&path.0) {
                     continue;
                 }
-                if (consider_arc_flags && !path.1 .1) {
+                if consider_arc_flags && !path.1 .1 {
                     continue;
                 }
                 paths.push((*self.graph.nodes.get(&path.0).unwrap(), path.1 .0));
@@ -356,21 +349,7 @@ pub mod road_dijkstras {
 
             priority_queue.push(Reverse((0, source_node.clone())));
 
-            let mut target: Node = Node {
-                id: 0,
-                lon: 0,
-                lat: 0,
-            };
-            if target_id > 0 {
-                target = *self
-                    .graph
-                    .nodes
-                    .get(&target_id)
-                    .unwrap_or_else(|| panic!("target node not found"));
-            }
-
-            let mut counter = 1;
-            let mut cost = 0;
+            let mut cost;
             while !priority_queue.is_empty() {
                 let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
                 cost = pathed_current_node.distance_from_start;
@@ -419,7 +398,6 @@ pub mod road_dijkstras {
                         previous_nodes.insert(neighbor.0.id, pathed_current_node.node_self.id);
                     }
                 }
-                counter += 1;
             }
             (None, previous_nodes)
         }
@@ -427,9 +405,9 @@ pub mod road_dijkstras {
         pub fn get_random_node_id(&mut self) -> Option<i64> {
             //returns ID of a random valid node from a graph
             let mut rng = rand::thread_rng();
-            let mut full_node_list = &self.graph.raw_nodes;
-            let mut random: usize = rng.gen_range(0..full_node_list.len());
-            let mut node_id = full_node_list.get(random).unwrap();
+            let full_node_list = &self.graph.raw_nodes;
+            let random: usize = rng.gen_range(0..full_node_list.len());
+            let node_id = full_node_list.get(random).unwrap();
 
             Some(*node_id)
         }
@@ -447,7 +425,7 @@ pub mod road_dijkstras {
                 (lon_min * f32::powi(10.0, 7)) as i64..(lon_max * f32::powi(10.0, 7)) as i64;
             let mut found = false;
             let mut id = -1;
-            while (!found) {
+            while !found {
                 if let Some(node_id) = self.get_random_node_id() {
                     if let Some(node) = self.graph.nodes.get(&node_id) {
                         found = lat_range.contains(&node.lat) && lon_range.contains(&node.lon);
@@ -469,7 +447,7 @@ pub mod road_dijkstras {
             }
             let other_located_nodes = other_located_nodes
                 .iter()
-                .filter(|(id, count)| **count > 0)
+                .filter(|(_, count)| **count > 0)
                 .map(|(id, _)| id)
                 .collect::<Vec<&i64>>();
 
@@ -835,13 +813,13 @@ pub mod transit_network {
             //reduces graph to largest connected component through nodes visited with time_expanded_dijkstra
             let mut counter = 0;
             let mut number_times_node_visted: HashMap<NodeId, i32> = HashMap::new();
-            let shortest_path_graph = Dijkstra::new(&self);
+            let shortest_path_graph = TransitDijkstra::new(&self);
 
             while let Some(source_id) =
                 shortest_path_graph.get_unvisted_node_id(&number_times_node_visted)
             {
                 counter += 1;
-                let mut shortest_path_graph = Dijkstra::new(&self);
+                let mut shortest_path_graph = TransitDijkstra::new(&self);
                 shortest_path_graph.time_expanded_dijkstra(Some(source_id), None, None, &None);
                 for node in shortest_path_graph.visited_nodes.keys() {
                     number_times_node_visted.insert(*node, counter);
@@ -952,7 +930,7 @@ pub mod transit_dijkstras {
     use std::rc::Rc;
 
     #[derive(Debug, PartialEq, Clone)]
-    pub struct Dijkstra {
+    pub struct TransitDijkstra {
         //handle time_expanded_dijkstra calculations
         pub graph: TimeExpandedGraph,
         pub visited_nodes: HashMap<NodeId, PathedNode>,
@@ -985,7 +963,7 @@ pub mod transit_dijkstras {
         }
     }
 
-    impl Dijkstra {
+    impl TransitDijkstra {
         //implementation of time_expanded_dijkstra's shortest path algorithm
         pub fn new(graph: &TimeExpandedGraph) -> Self {
             let visited_nodes = HashMap::new();
@@ -1199,7 +1177,6 @@ pub mod transfer_patterns {
     use std::collections::hash_map::Entry;
     use std::collections::{BinaryHeap, HashMap, HashSet};
     use std::rc::Rc;
-    use std::time::Instant;
 
     #[derive(Debug, PartialEq, Clone)]
     pub struct TDDijkstra {
@@ -1338,7 +1315,7 @@ pub mod transfer_patterns {
         }
 
         //only calculate global time_expanded_dijkstra from hubs (important stations) to save complexity
-        pub fn hub_selection(&mut self, router: &Dijkstra, random_samples: u32, cost_limit: u64) {
+        pub fn hub_selection(&mut self, router: &TransitDijkstra, random_samples: u32, cost_limit: u64) {
             //station ids
             let num_stations = 1.max((router.graph.station_mapping.len() as u32) / 100);
             let mut selected_hubs = HashSet::new();
@@ -1375,16 +1352,14 @@ pub mod transfer_patterns {
                                 if cost < previous_cost {
                                     map.insert(ti_head, *cost);
                                 }
-                            } else {
-                                map.insert(ti_head, *cost);
-                            };
+                            }
                         })
                         .or_insert({
                             let mut map: HashMap<NodeId, u64> = HashMap::new();
                             map.insert(ti_head, *cost);
                             map
                         });
-                }
+                } 
             }
 
             let time_independent_graph = TimeExpandedGraph {
@@ -1396,7 +1371,7 @@ pub mod transfer_patterns {
                 nodes_per_station: router.graph.nodes_per_station.clone(),
             };
 
-            let mut time_independent_router = Dijkstra::new(&time_independent_graph);
+            let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
             time_independent_router.set_cost_upper_bound(cost_limit);
 
             let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
@@ -1435,7 +1410,7 @@ pub mod transfer_patterns {
         pub fn num_transfer_patterns_from_source(
             &self,
             source_station_id: i64,
-            router: &mut Dijkstra,
+            router: &mut TransitDijkstra,
             hubs: &Option<HashSet<i64>>,
         ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
 
@@ -1464,7 +1439,7 @@ pub mod transfer_patterns {
         // set of distinct transfer patterns that occurred.
         pub fn transfer_patterns_to_target(
             &self,
-            router: &mut Dijkstra,
+            router: &mut TransitDijkstra,
         ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
             
             let mut transfer_patterns = HashMap::new();
@@ -1538,7 +1513,7 @@ pub mod transfer_patterns {
 
         pub fn query_graph_construction_from_geodesic_points(
             &mut self,
-            router: &mut Dijkstra,
+            router: &mut TransitDijkstra,
             source: Point,
             target: Point,
             time: u64,

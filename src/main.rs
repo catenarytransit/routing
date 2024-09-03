@@ -49,7 +49,7 @@ fn main() {
         roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
     );
 
-    let mut router = Dijkstra::new(&graph);
+    let mut router = TransitDijkstra::new(&graph);
     let mut transfer_patterns = TransferPatterns::new();
 
     let now = Instant::now();
@@ -80,12 +80,81 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
+    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*, road_network::*};
     //use std::collections::HashMap;
     use std::time::Instant;
 
     #[test]
     fn test() {
+
+        let now = Instant::now();
+        let gtfs = read_from_gtfs_zip("hawaii.zip");
+        let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
+        let time = now.elapsed().as_secs_f32();
+        println!("time {}", time);
+        println!("# of nodes: {}", transit_graph.nodes.len());
+        println!(
+            "# of edges: {}",
+            transit_graph.edges.values().map(|edges| edges.len()).sum::<usize>()
+        );
+
+        let now = Instant::now();
+        let graph = transit_graph.reduce_to_largest_connected_component();
+        let time = now.elapsed().as_secs_f32();
+
+        println!("time {}", time);
+        println!("# of nodes: {}", graph.nodes.len());
+        println!(
+            "# of edges: {}",
+            graph.edges.values().map(|edges| edges.len()).sum::<usize>()
+        );
+
+        let path = "hawaii.pbf";
+        let data = RoadNetwork::read_from_osm_file(path).unwrap();
+        let mut roads = RoadNetwork::new(data.0, data.1);
+        print!(
+            "{} Base Graph Nodes: {}, Edges: {}\t\t",
+            path,
+            roads.nodes.len(),
+            roads.edges.len()
+        );
+        let now = Instant::now();
+        roads = roads.reduce_to_largest_connected_component();
+        let time = now.elapsed().as_millis() as f32 * 0.001;
+        println!(
+            "time: {}, reduced map nodes: {}, edges: {}",
+            time,
+            roads.nodes.len(),
+            roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
+        );
+
+        let mut router = TransitDijkstra::new(&graph);
+        let mut transfer_patterns = TransferPatterns::new();
+
+        let now = Instant::now();
+
+        let (source, target) =
+            TransferPatterns::make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
+
+        //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
+        let graph = transfer_patterns.query_graph_construction_from_geodesic_points(
+            &mut router,
+            source,
+            target,
+            24400,
+            1000.0,
+        );
+        TransferPatterns::query_graph_search(
+            roads,
+            connections,
+            graph.2,
+            source,
+            target,
+            graph.0,
+            graph.1,
+        );
+
+        println!("time: {:?}", now);
         //Pareto-set ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
             set.sort_by_key(|(x, y)| if y != &0 { 10 * x + (10 / y) } else { 10 * x });
@@ -138,8 +207,8 @@ mod tests {
         let query = direct_connection_query(connections, 97, 111, 37200);
         println!("{:?}", query);*/
 
-        let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("hawaii.zip");
+        /*let now = Instant::now();
+        let gtfs = read_from_gtfs_zip("octa.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
 
@@ -150,25 +219,21 @@ mod tests {
             graph.edges.values().map(|edges| edges.len()).sum::<usize>()
         );
 
-        let now = Instant::now();
-        let graph = graph.reduce_to_largest_connected_component();
-        let time = now.elapsed().as_secs_f32();
+        let mut router = Dijkstra::new(&graph);
+        let mut transfer_patterns = TransferPatterns::new();
+        transfer_patterns.hub_selection(&mut router, 6000, 36000);
 
-        println!("time {}", time);
-        println!("# of nodes: {}", graph.nodes.len());
-        println!(
-            "# of edges: {}",
-            graph.edges.values().map(|edges| edges.len()).sum::<usize>()
-        );
-
+        
+       
+        println!("stations {:?}\n", router.graph.station_mapping);
+        println!("hubs: {:?}", transfer_patterns.hubs);*/
+        
+        
+        /* 
+        let mut total_pairs_considered = 0;
         let mut precomp_time_per_station = Vec::new();
         let mut histogram_tp: Vec<i32> = vec![0, 0, 0, 0, 0, 0];
-
-        let mut router = Dijkstra::new(&graph);
-        let transfer_patterns = TransferPatterns::new();
-        //transfer_patterns.hub_selection(&mut router, 1000); //panic call none 547 ln
-        let mut total_pairs_considered = 0;
-
+        
         for i in 0..1 {
             println!("{}", i);
             let source_id = router.get_random_start().unwrap();
@@ -211,7 +276,7 @@ mod tests {
         println!(
             "number of transfer patterns histogram percent {:?}",
             histogram_tp
-        );
+        );*/
 
         /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("manhattan.zip");
@@ -359,7 +424,7 @@ mod tests {
         }
         println!("{:?}", edges); */
 
-        let now = Instant::now();
+        /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("test.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let mut router = Dijkstra::new(&graph);
@@ -389,6 +454,6 @@ mod tests {
 
         //transfer_patterns.hub_selection(&mut router, 500, u64::MAX);
 
-        //println!("hubs \n{:?}", transfer_patterns.hubs);
+        //println!("hubs \n{:?}", transfer_patterns.hubs);*/
     }
 }
