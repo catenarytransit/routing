@@ -242,7 +242,7 @@ pub mod road_dijkstras {
             other_located_nodes: &HashMap<i64, i32>,
         ) -> Option<i64> {
             if other_located_nodes.len() == self.graph.nodes.len() {
-                println!("all nodes visted");
+                print!("\tall nodes visted\t");
                 return None;
             }
             let other_located_nodes = other_located_nodes
@@ -383,7 +383,7 @@ pub mod transit_network {
                 station_mapping.insert(stop_id.0.clone(), iterator);
                 iterator += 1;
             }
-            println!("# of stations: {}", iterator);
+            print!("# of stations: {}\t", iterator);
 
             let mut trip_id: u64 = 0; //custom counter like with stop_id
             let mut nodes_by_time: Vec<(u64, NodeId)> = Vec::new();
@@ -973,7 +973,7 @@ pub mod transit_dijkstras {
         //returns the first unvisted node that function parses upon (used to find largest connected component)
         pub fn get_unvisted_node_id(&self, found_nodes: &HashMap<NodeId, i32>) -> Option<NodeId> {
             if found_nodes.len() == self.graph.nodes.len() {
-                print!("all nodes visted\t");
+                print!("\tall nodes visted\t");
                 return None;
             }
             let found_nodes = found_nodes
@@ -1002,7 +1002,6 @@ pub mod transfer_patterns {
     use std::collections::hash_map::Entry;
     use std::collections::{BinaryHeap, HashMap, HashSet};
     use std::time::Instant;
-
     use std::sync::{Arc, Mutex};
     use std::thread;
 
@@ -1243,12 +1242,9 @@ pub mod transfer_patterns {
                 .map(|(_, node)| *node)
                 .collect(),
         );
-
-        let now = Instant::now();
+        
         //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
         router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs);
-        if hubs.is_none(){
-        println!("dijkstra {:?}", now.elapsed());}
 
         transfer_patterns_to_target(router)
     }
@@ -1358,50 +1354,48 @@ pub mod transfer_patterns {
                 .copied()
                 .collect();
 
-        let a = Instant::now();
-
         //get hubs of important stations I(hubs)
         let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
         router.node_deactivator(&hubs);
 
+        let mut total_transfer_patterns = HashMap::new();
+
         //precompute local TP from N(source) to first hub (this min hub is access station)
         //using multithreading to go faster
-        let source_chunk_len = sources.len();
+        /*let source_chunk_len = sources.len();
         let threaded_sources = Arc::new(Mutex::new(sources.clone()));
         let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
         let arc_router = Arc::new(Mutex::new(router.clone()));
         let threaded_hubs = Arc::new(Mutex::new(hubs.clone()));
         let mut handles = vec![];
 
-        for x in 1..4 {
+        for x in 1..5 {
             let source = Arc::clone(&threaded_sources);
             let transfer_patterns = Arc::clone(&total_transfer_patterns);
             let router = Arc::clone(&arc_router);
             let hub_list = Arc::clone(&threaded_hubs);
             let handle = thread::spawn(move || {
                 let src = source.lock().unwrap();
-                for i in (x - 1) * (source_chunk_len / 4)..(x * source_chunk_len / 4) {
+                let mut ttp = transfer_patterns.lock().unwrap();
+                for i in ((x - 1) * (source_chunk_len / 4))..(x * source_chunk_len / 4) {
                     let source_id = src.get(i).unwrap();
                     let l_tps = num_transfer_patterns_from_source(
                         source_id.station_id,
                         &mut router.lock().unwrap(),
                         Some(&hub_list.lock().unwrap()),
                     );
-
-                    let mut ttp = transfer_patterns.lock().unwrap();
                     ttp.extend(l_tps.into_iter());
+                    println!("local tp for {i} is x`{:?}", ttp.len());
                 }
             });
+            
+
             handles.push(handle);
         }
 
         for handle in handles {
             handle.join().unwrap();
         }
-
-        println!("local tp {:?}", a.elapsed());
-
-        let a = Instant::now();
 
         //global transfer patterns from I(hubs) to to N(target())
         let hub_chunk_len = hubs.len();
@@ -1410,7 +1404,7 @@ pub mod transfer_patterns {
         let threaded_hubs = Arc::new(Mutex::new(hubs.into_iter().collect::<Vec<_>>()));
         let mut handles = vec![];
 
-        for x in 1..4 {
+        for x in 1..5 {
             let transfer_patterns = Arc::clone(&total_transfer_patterns);
             let router = Arc::clone(&arc_router);
             let hub_list = Arc::clone(&threaded_hubs);
@@ -1431,15 +1425,31 @@ pub mod transfer_patterns {
             handles.push(handle);
         }
 
-        println!("global tp {:?}", a.elapsed());
-        println!("tp len {}", total_transfer_patterns.lock().unwrap().len());
+         for handle in handles {
+            handle.join().unwrap();
+        }
 
-        let a = Instant::now();
+        println!("tp len {}", total_transfer_patterns.lock().unwrap().len());
+        */
+
+        for hub in hubs.iter() {
+            let tps = num_transfer_patterns_from_source(*hub, router, None);
+            total_transfer_patterns.extend(tps.into_iter());
+        }
+        println!("tps {}", total_transfer_patterns.len());
+
+        let hubs = Some(hubs);
+        for source in sources.iter() {
+            let tps = num_transfer_patterns_from_source(source.station_id, router, hubs.as_ref());
+            total_transfer_patterns.extend(tps.into_iter());
+        }
+
+        println!("tps {}", total_transfer_patterns.len());
 
         let mut raw_edges = HashMap::new();
         let _ = total_transfer_patterns
-            .lock()
-            .unwrap()
+            //.lock()
+            //.unwrap()
             .iter()
             .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
             .map(|(_, path)| {
@@ -1461,7 +1471,7 @@ pub mod transfer_patterns {
                 }
             });
 
-        println!("graph {:?}", a.elapsed());
+            println!("lend{}", total_transfer_patterns.iter().filter(|((source, target), _)| sources.contains(source) && targets.contains(target)).collect::<Vec<_>>().len());
 
         (sources, targets, raw_edges)
     }
@@ -1516,6 +1526,7 @@ pub mod transfer_patterns {
         }
 
         let mut transit_paths = HashMap::new();
+
         for source_id in sources.iter() {
             let source_path = source_paths.get(source_id).unwrap().as_ref().unwrap();
             for target_id in targets.iter() {
