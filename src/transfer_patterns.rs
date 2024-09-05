@@ -338,7 +338,7 @@ pub fn stations_close_to_geo_point_and_time(
             .nodes
             .iter()
             .filter(|node| {
-                let node_coord = point!(x: node.lat as f64 / f64::powi(10.0, 14), y: node.lon as f64 / f64::powi(10.0, 14));
+                let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
                 search_point.haversine_distance(&node_coord) <= *preset_distance
                     && node.time >= Some(*time)
             })
@@ -515,9 +515,9 @@ pub fn query_graph_search(
 
     let time_rtree_insert = Instant::now();
 
-    let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| (n.lat, n.lon)).collect());
+    let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| (n.lon, n.lat)).collect());
 
-    println!("rtree insert time {:?}", time_rtree_insert.elapsed());
+    println!("rtree insert time {:?} with {} items", time_rtree_insert.elapsed(), road_node_tree.size());
 
     println!("start final step");
 
@@ -529,18 +529,18 @@ pub fn query_graph_search(
         for source in sources.iter() {
             print!("b\t");
             let mut graph = RoadDijkstra::new(&roads);
-            if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lat, source.lon))
+            if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lon, source.lat))
             {
                 print!("c\t");
                 let road_source = roads
                     .nodes
                     .values()
-                    .find(|n| n.lat == start_road_node.0 && n.lon == start_road_node.1)
+                    .find(|n| n.lon == start_road_node.0 && n.lat == start_road_node.1)
                     .unwrap();
                 let station = roads
                     .nodes
                     .values()
-                    .find(|n| n.lat == station_sought.0 && n.lon == station_sought.1)
+                    .find(|n| n.lon == station_sought.0 && n.lat == station_sought.1)
                     .unwrap();
 
                 let result = graph.dijkstra(road_source.id, station.id, &None, false);
@@ -564,12 +564,12 @@ pub fn query_graph_search(
                 let road_target = roads
                     .nodes
                     .values()
-                    .find(|n| n.lat == end_road_node.0 && n.lon == end_road_node.1)
+                    .find(|n| n.lon == end_road_node.0 && n.lat == end_road_node.1)
                     .unwrap();
                 let station = roads
                     .nodes
                     .values()
-                    .find(|n| n.lat == station_sought.0 && n.lon == station_sought.1)
+                    .find(|n| n.lon == station_sought.0 && n.lat == station_sought.1)
                     .unwrap();
 
                 let result = graph.dijkstra(station.id, road_target.id, &None, false);
