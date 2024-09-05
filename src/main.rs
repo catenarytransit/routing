@@ -1,5 +1,6 @@
 fn main() {
     use std::time::Instant;
+    use transit_router::transit_dijkstras::TransitDijkstra;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 
     use transit_router::RoadNetwork;
