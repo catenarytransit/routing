@@ -7,10 +7,12 @@ use std::{
     hash::Hash,
 };
 
+use crate::NodeType;
+
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct NodeId {
     //0 = "untyped"    1 = "arrival"   2 = "transfer"  3 = "departure"
-    pub node_type: i8,
+    pub node_type: NodeType,
     pub station_id: i64,
     pub time: Option<u64>,
     pub trip_id: u64,
@@ -156,7 +158,7 @@ impl TimeExpandedGraph {
                     .insert(id, (arrival_time - trip_start_time, stoptime.stop_sequence));
 
                 let arrival_node = NodeId {
-                    node_type: 1,
+                    node_type: NodeType::Arrival,
                     station_id: id,
                     time: Some(arrival_time),
                     trip_id,
@@ -164,7 +166,7 @@ impl TimeExpandedGraph {
                     lon,
                 };
                 let transfer_node = NodeId {
-                    node_type: 2,
+                    node_type: NodeType::Transfer,
                     station_id: id,
                     time: Some(arrival_time + transfer_buffer),
                     trip_id,
@@ -172,7 +174,7 @@ impl TimeExpandedGraph {
                     lon,
                 };
                 let departure_node = NodeId {
-                    node_type: 3,
+                    node_type: NodeType::Departure,
                     station_id: id,
                     time: Some(departure_time),
                     trip_id,
@@ -271,10 +273,10 @@ impl TimeExpandedGraph {
             }
 
             for (current_index, node) in station_nodes_by_time.iter().enumerate() {
-                if node.1.node_type == 2 {
+                if node.1.node_type == NodeType::Transfer {
                     for index in current_index + 1..station_nodes_by_time.len() {
                         let future_node = station_nodes_by_time.get(index).unwrap();
-                        if future_node.1.node_type == 2 {
+                        if future_node.1.node_type == NodeType::Transfer {
                             edges //waiting arc (transfer to transfer)
                                 .entry(node.1) //tail
                                 .and_modify(|inner| {
@@ -289,7 +291,7 @@ impl TimeExpandedGraph {
                             break;
                         }
 
-                        if future_node.1.node_type == 3 {
+                        if future_node.1.node_type == NodeType::Departure {
                             edges //boarding arc (transfer to departure)
                                 .entry(node.1) //tail
                                 .and_modify(|inner| {

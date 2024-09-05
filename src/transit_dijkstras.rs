@@ -5,6 +5,7 @@ use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::hash::Hash;
 use std::sync::Arc;
+use crate::NodeType;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TransitDijkstra {
@@ -73,8 +74,8 @@ impl TransitDijkstra {
             }
 
             if current.transfer_count >= 2
-                && current.node_self.node_type == 2
-                && next_node_id.node_type == 3
+                && current.node_self.node_type == NodeType::Transfer
+                && next_node_id.node_type == NodeType::Departure
             {
                 //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
                 continue;
@@ -87,13 +88,13 @@ impl TransitDijkstra {
 
     pub fn node_deactivator(&mut self, hubs: &HashSet<i64>) {
         for (u, edges) in self.graph.edges.iter() {
-            if u.node_type == 2 && hubs.contains(&u.station_id) {
+            if u.node_type == NodeType::Transfer && hubs.contains(&u.station_id) {
                 for v in edges.keys() {
                     self.inactive_nodes.insert(*v);
                 }
             } else {
                 for v in edges.keys() {
-                    if v.node_type == 2 && hubs.contains(&v.station_id) {
+                    if v.node_type == NodeType::Transfer && hubs.contains(&v.station_id) {
                         self.inactive_nodes.insert(*u);
                     }
                 }
@@ -195,7 +196,7 @@ impl TransitDijkstra {
                     gscore.insert(neighbor.0, temp_distance);
                     let prev_node: Arc<PathedNode> = Arc::new(pathed_current_node.clone());
                     let mut transfer_count = pathed_current_node.transfer_count;
-                    if pathed_current_node.node_self.node_type == 2 && neighbor.0.node_type == 3 {
+                    if pathed_current_node.node_self.node_type == NodeType::Transfer && neighbor.0.node_type == NodeType::Departure {
                         //transfer arc detected, increment transfer count for current path
                         transfer_count += 1;
                     }
@@ -227,7 +228,7 @@ impl TransitDijkstra {
             .graph
             .nodes
             .iter()
-            .filter(|id| id.node_type == 3 && id.time > Some(21600) && id.time < Some(75600))
+            .filter(|id| id.node_type == NodeType::Departure && id.time > Some(21600) && id.time < Some(75600))
             .copied()
             .collect();
         let mut rng = rand::thread_rng();
