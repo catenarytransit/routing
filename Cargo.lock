@@ -1631,6 +1631,7 @@ dependencies = [
  "gtfs-structures",
  "osmpbfreader",
  "rand",
+ "rstar",
 ]
 
 [[package]]

@@ -19,8 +19,8 @@ fn main() {
             .sum::<usize>()
     );
 
-    let now = Instant::now();
-    let graph = transit_graph.reduce_to_largest_connected_component();
+    /*let now = Instant::now();
+    let transit_graph = transit_graph.reduce_to_largest_connected_component();
     let time = now.elapsed().as_secs_f32();
 
     println!("time {}", time);
@@ -28,7 +28,7 @@ fn main() {
     println!(
         "# of edges: {}",
         graph.edges.values().map(|edges| edges.len()).sum::<usize>()
-    );
+    );*/
 
     let path = "hawaii.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
@@ -49,7 +49,7 @@ fn main() {
         roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
     );
 
-    let mut router = TransitDijkstra::new(&graph);
+    let mut router = TransitDijkstra::new(&transit_graph);
 
     let now = Instant::now();
 
@@ -80,9 +80,8 @@ mod tests {
 
     #[test]
     fn test() {
-        
         let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("hawaii.zip");
+        let gtfs = read_from_gtfs_zip("ctt.zip");
         let (transit_graph, connections) =
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
         let time = now.elapsed().as_secs_f32();
@@ -97,18 +96,18 @@ mod tests {
                 .sum::<usize>()
         );
 
-        let now = Instant::now();
-        let graph = transit_graph.reduce_to_largest_connected_component();
+        /*let now = Instant::now();
+        let transit_graph = transit_graph.reduce_to_largest_connected_component();
         let time = now.elapsed().as_secs_f32();
 
         println!("reduced time {}", time);
-        println!("# of nodes: {}", graph.nodes.len());
+        println!("# of nodes: {}", transit_graph.nodes.len());
         println!(
             "# of edges: {}",
-            graph.edges.values().map(|edges| edges.len()).sum::<usize>()
-        );
+            transit_graph.edges.values().map(|edges| edges.len()).sum::<usize>()
+        );*/
 
-        let path = "hawaii.pbf";
+        let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
         print!(
@@ -117,7 +116,7 @@ mod tests {
             roads.nodes.len(),
             roads.edges.len()
         );
-        let now = Instant::now();
+        /*let now = Instant::now();
         roads = roads.reduce_to_largest_connected_component();
         let time = now.elapsed().as_millis() as f32 * 0.001;
         println!(
@@ -125,13 +124,18 @@ mod tests {
             time,
             roads.nodes.len(),
             roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
-        );
+        );*/
 
-        let mut router = TransitDijkstra::new(&graph);
+        let mut router = TransitDijkstra::new(&transit_graph);
 
         let now = Instant::now();
 
-        let (source, target) = make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
+        let (source, target) = make_points_from_coords(
+            41.84945654310709,
+            -72.81226042073773,
+            41.80535590796691,
+            -72.74897459174736,
+        );
 
         //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
         println!("time to do the thing");
@@ -139,10 +143,10 @@ mod tests {
             &mut router,
             source,
             target,
-            24400,
-            1000.0,
+            48000,
+            100.0,
         );
-        query_graph_search(
+        let yes = query_graph_search(
             roads,
             connections,
             graph.2,
@@ -152,10 +156,9 @@ mod tests {
             graph.1,
         );
 
-        println!("time: {:?}", now);
-        
+        println!("final: {:?}",yes);
 
-        //Pareto-set ordering
+        //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
             set.sort_by_key(|(x, y)| if y != &0 { 10 * x + (10 / y) } else { 10 * x });
             let mut incomparable = true;
@@ -229,7 +232,6 @@ mod tests {
             let result = num_transfer_patterns_from_source(h, &mut router, Some(&hubs));
             println!("{:?}", result.len());
         }*/
-
 
         /*
         let mut total_pairs_considered = 0;
