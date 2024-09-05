@@ -1,3 +1,6 @@
+// Copyright Chelsea Wen
+// Cleaned up somewhat by Kyler Chin
+
 #![deny(
     clippy::mutable_key_type,
     clippy::map_entry,

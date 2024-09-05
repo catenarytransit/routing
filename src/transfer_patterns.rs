@@ -517,7 +517,11 @@ pub fn query_graph_search(
 
     let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| (n.lon, n.lat)).collect());
 
-    println!("rtree insert time {:?} with {} items", time_rtree_insert.elapsed(), road_node_tree.size());
+    println!(
+        "rtree insert time {:?} with {} items",
+        time_rtree_insert.elapsed(),
+        road_node_tree.size()
+    );
 
     println!("start final step");
 
