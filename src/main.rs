@@ -1,3 +1,6 @@
+// Copyright Chelsea Wen
+// Cleaned up somewhat by Kyler Chin
+
 fn main() {
     use std::time::Instant;
     use transit_router::transit_dijkstras::TransitDijkstra;
