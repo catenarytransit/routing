@@ -32,9 +32,9 @@
     clippy::module_inception
 )]
 
+mod common_enums;
 pub mod coord_int_convert;
 pub mod road_network;
-mod common_enums;
 pub use common_enums::NodeType;
 
 pub use crate::road_network::road_graph_construction::RoadNetwork;

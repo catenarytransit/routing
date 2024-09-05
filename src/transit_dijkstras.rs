@@ -1,11 +1,11 @@
 //transit_dijkstras algorithms and helper functiions
 use crate::transit_network::*;
+use crate::NodeType;
 use rand::Rng;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::hash::Hash;
 use std::sync::Arc;
-use crate::NodeType;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TransitDijkstra {
@@ -196,7 +196,9 @@ impl TransitDijkstra {
                     gscore.insert(neighbor.0, temp_distance);
                     let prev_node: Arc<PathedNode> = Arc::new(pathed_current_node.clone());
                     let mut transfer_count = pathed_current_node.transfer_count;
-                    if pathed_current_node.node_self.node_type == NodeType::Transfer && neighbor.0.node_type == NodeType::Departure {
+                    if pathed_current_node.node_self.node_type == NodeType::Transfer
+                        && neighbor.0.node_type == NodeType::Departure
+                    {
                         //transfer arc detected, increment transfer count for current path
                         transfer_count += 1;
                     }
@@ -228,7 +230,11 @@ impl TransitDijkstra {
             .graph
             .nodes
             .iter()
-            .filter(|id| id.node_type == NodeType::Departure && id.time > Some(21600) && id.time < Some(75600))
+            .filter(|id| {
+                id.node_type == NodeType::Departure
+                    && id.time > Some(21600)
+                    && id.time < Some(75600)
+            })
             .copied()
             .collect();
         let mut rng = rand::thread_rng();
