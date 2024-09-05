@@ -156,7 +156,7 @@ mod tests {
             graph.1,
         );
 
-        println!("final: {:?}",yes);
+        println!("final: {:?}", yes);
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

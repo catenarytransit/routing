@@ -1,5 +1,5 @@
-pub mod road_network;
 pub mod coord_int_convert;
+pub mod road_network;
 
 pub use crate::road_network::road_graph_construction::RoadNetwork;
 
@@ -272,13 +272,13 @@ pub mod road_dijkstras {
 
 pub mod transit_network {
     //constructs and preprocesses the graph struct from OSM data
+    use crate::coord_int_convert::coord_to_int;
     use crate::transit_dijkstras::*;
     use gtfs_structures::*;
     use std::{
         collections::{HashMap, HashSet},
         hash::Hash,
     };
-    use crate::coord_int_convert::coord_to_int;
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct NodeId {
@@ -417,7 +417,10 @@ pub mod transit_network {
                     //if let Some(other_stop_id) = stoptime.stop.parent_station {
                     //
                     //} else{
-                    let (lat, lon) = coord_to_int(stoptime.stop.longitude.unwrap(), stoptime.stop.latitude.unwrap());
+                    let (lat, lon) = coord_to_int(
+                        stoptime.stop.longitude.unwrap(),
+                        stoptime.stop.latitude.unwrap(),
+                    );
                     //}
 
                     let arrival_time: u64 = stoptime.arrival_time.unwrap().into();
@@ -1328,7 +1331,12 @@ pub mod transfer_patterns {
         (source, target)
     }
 
-    pub fn stations_close_to_geo_point_and_time(search_point: &Point, preset_distance: &f64, graph: &TimeExpandedGraph, time: &u64) -> Vec<NodeId> {
+    pub fn stations_close_to_geo_point_and_time(
+        search_point: &Point,
+        preset_distance: &f64,
+        graph: &TimeExpandedGraph,
+        time: &u64,
+    ) -> Vec<NodeId> {
         graph
             .nodes
             .iter()
@@ -1353,11 +1361,13 @@ pub mod transfer_patterns {
         //let road_node_tree = RTree::bulk_load(router.graph.nodes.iter().map(|n| (n.lat, n.lon)).collect());
 
         //compute sets of N(source) and N(target) of stations N= near
-        let sources = stations_close_to_geo_point_and_time(&source, &preset_distance, &router.graph, &time);
+        let sources =
+            stations_close_to_geo_point_and_time(&source, &preset_distance, &router.graph, &time);
 
         println!("s len{}", sources.len());
 
-        let targets = stations_close_to_geo_point_and_time(&target, &preset_distance, &router.graph, &time);
+        let targets =
+            stations_close_to_geo_point_and_time(&target, &preset_distance, &router.graph, &time);
 
         println!("t targets{}", sources.len());
 
