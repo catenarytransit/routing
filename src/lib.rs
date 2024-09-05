@@ -1,4 +1,5 @@
 pub mod road_network;
+pub mod coord_int_convert;
 
 pub use crate::road_network::road_graph_construction::RoadNetwork;
 
@@ -277,6 +278,7 @@ pub mod transit_network {
         collections::{HashMap, HashSet},
         hash::Hash,
     };
+    use crate::coord_int_convert::coord_to_int;
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct NodeId {
@@ -415,8 +417,7 @@ pub mod transit_network {
                     //if let Some(other_stop_id) = stoptime.stop.parent_station {
                     //
                     //} else{
-                    let lat = (stoptime.stop.latitude.unwrap() * f64::powi(10.0, 14)) as i64;
-                    let lon = (stoptime.stop.longitude.unwrap() * f64::powi(10.0, 14)) as i64;
+                    let (lat, lon) = coord_to_int(stoptime.stop.longitude.unwrap(), stoptime.stop.latitude.unwrap());
                     //}
 
                     let arrival_time: u64 = stoptime.arrival_time.unwrap().into();
@@ -1327,6 +1328,19 @@ pub mod transfer_patterns {
         (source, target)
     }
 
+    pub fn stations_close_to_geo_point_and_time(search_point: &Point, preset_distance: &f64, graph: &TimeExpandedGraph, time: &u64) -> Vec<NodeId> {
+        graph
+            .nodes
+            .iter()
+            .filter(|node| {
+                let node_coord = point!(x: node.lat as f64 / f64::powi(10.0, 14), y: node.lon as f64 / f64::powi(10.0, 14));
+                search_point.haversine_distance(&node_coord) <= *preset_distance
+                    && node.time >= Some(*time)
+            })
+            .copied()
+            .collect()
+    }
+
     pub fn query_graph_construction_from_geodesic_points(
         router: &mut TransitDijkstra,
         source: Point,
@@ -1339,30 +1353,11 @@ pub mod transfer_patterns {
         //let road_node_tree = RTree::bulk_load(router.graph.nodes.iter().map(|n| (n.lat, n.lon)).collect());
 
         //compute sets of N(source) and N(target) of stations N= near
-        let sources: Vec<_> = router
-                .graph
-                .nodes
-                .iter()
-                .filter(|node| {
-                    let node_coord = point!(x: node.lat as f64 / f64::powi(10.0, 14), y: node.lon as f64 / f64::powi(10.0, 14));
-                    source.haversine_distance(&node_coord) <= preset_distance
-                        && node.time >= Some(time)
-                })
-                .copied()
-                .collect();
+        let sources = stations_close_to_geo_point_and_time(&source, &preset_distance, &router.graph, &time);
 
         println!("s len{}", sources.len());
 
-        let targets: Vec<_> = router
-                .graph
-                .nodes
-                .iter()
-                .filter(|node| {
-                    let node_coord = point!(x: node.lat as f64 / f64::powi(10.0, 14), y: node.lon as f64 / f64::powi(10.0, 14));
-                    target.haversine_distance(&node_coord) <= preset_distance
-                })
-                .copied()
-                .collect();
+        let targets = stations_close_to_geo_point_and_time(&target, &preset_distance, &router.graph, &time);
 
         println!("t targets{}", sources.len());
 
@@ -1489,6 +1484,8 @@ pub mod transfer_patterns {
         (sources, targets, raw_edges)
     }
 
+    use std::time::Instant;
+
     pub fn query_graph_search(
         roads: RoadNetwork,
         connections: DirectConnections,
@@ -1502,8 +1499,12 @@ pub mod transfer_patterns {
 
         let mut source_paths: HashMap<&NodeId, Option<RoadPathedNode>> = HashMap::new();
 
+        let time_rtree_insert = Instant::now();
+
         let road_node_tree =
             RTree::bulk_load(roads.nodes.values().map(|n| (n.lat, n.lon)).collect());
+
+        println!("rtree insert time {:?}", time_rtree_insert.elapsed());
 
         println!("start final step");
 
