@@ -118,10 +118,10 @@ impl RoadDijkstra {
         target_id: i64,
         heuristics: &Option<HashMap<i64, u64>>,
         consider_arc_flags: bool,
-    ) -> (Option<RoadPathedNode>, HashMap<i64, i64>) {
+    ) -> Option<RoadPathedNode> { //(Option<RoadPathedNode>, HashMap<i64, i64>) {
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, RoadPathedNode)>> = BinaryHeap::new();
-        let mut previous_nodes = HashMap::new();
+        //let mut previous_nodes = HashMap::new();
 
         //set target (-1) for all-node-settle rather than just target settle or smth
         self.visited_nodes.clear();
@@ -154,7 +154,8 @@ impl RoadDijkstra {
 
             //found target node
             if idx.eq(&target_id) {
-                return (Some(pathed_current_node), previous_nodes);
+                return Some(pathed_current_node)
+                //return (Some(pathed_current_node), previous_nodes);
             }
 
             //stop conditions
@@ -162,7 +163,8 @@ impl RoadDijkstra {
             if cost > self.cost_upper_bound
                 || self.visited_nodes.len() > self.max_settled_nodes as usize
             {
-                return (None, previous_nodes);
+                return None
+                //return (None, previous_nodes);
             }
 
             //cost is higher than current path (not optimal)
@@ -190,11 +192,12 @@ impl RoadDijkstra {
                     }
                     //fscore = temp_distance (gscore) + h (hscore)
                     priority_queue.push(Reverse((temp_distance + h, tentative_new_node)));
-                    previous_nodes.insert(neighbor.0.id, pathed_current_node.node_self.id);
+                    //previous_nodes.insert(neighbor.0.id, pathed_current_node.node_self.id);
                 }
             }
         }
-        (None, previous_nodes)
+        None
+        //(None, previous_nodes)
     }
 
     pub fn get_random_node_id(&mut self) -> Option<i64> {
