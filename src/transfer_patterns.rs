@@ -1,3 +1,4 @@
+use crate::NodeType;
 //THE FINAL BOSS
 use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
 use geo::algorithm::haversine_distance::*;
@@ -154,7 +155,7 @@ pub fn hub_selection(
 
     for (tail, edge) in router.graph.edges.iter() {
         let ti_tail = NodeId {
-            node_type: 0,
+            node_type: NodeType::Untyped,
             station_id: tail.station_id,
             time: None,
             trip_id: 0,
@@ -164,7 +165,7 @@ pub fn hub_selection(
         time_independent_nodes.insert(ti_tail);
         for (head, cost) in edge {
             let ti_head = NodeId {
-                node_type: 0,
+                node_type: NodeType::Untyped,
                 station_id: head.station_id,
                 time: None,
                 trip_id: 0,
@@ -244,7 +245,7 @@ pub fn num_transfer_patterns_from_source(
             .get(&source_station_id)
             .unwrap()
             .iter()
-            .filter(|(_, node)| node.node_type == 2) // || node.node_type == 1
+            .filter(|(_, node)| node.node_type == NodeType::Transfer) // || node.node_type == 1
             //must check for transfer nodes, but checking for arrival nodes may improve query time at expense of longer precompute
             .map(|(_, node)| *node)
             .collect(),
@@ -266,7 +267,7 @@ pub fn transfer_patterns_to_target(
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = router
         .visited_nodes
         .iter()
-        .filter(|(node, _)| node.node_type == 1)
+        .filter(|(node, _)| node.node_type == NodeType::Arrival)
         .map(|(node, pathed_node)| {
             let (path, cost) = pathed_node.clone().get_path();
             (*node, path, cost)
@@ -280,7 +281,7 @@ pub fn transfer_patterns_to_target(
         transfers.push(*target);
         let mut previous_node: NodeId = *target;
         for &node in path {
-            if previous_node.node_type == 3 && node.node_type == 2 {
+            if previous_node.node_type == NodeType::Departure && node.node_type == NodeType::Transfer {
                 transfers.push(node);
             }
             previous_node = node;
