@@ -28,7 +28,7 @@ pub mod road_graph_construction {
         pub nodes: HashMap<i64, Node>, // <node.id, node>
         pub edges: HashMap<i64, HashMap<i64, (u64, bool)>>, // tail.id, <head.id, (cost, arcflag)>
         pub raw_ways: Vec<Way>,
-        pub raw_nodes: Vec<i64>,
+        pub nodes_by_coords: HashMap<(i64, i64), i64>,
     }
 
     pub fn speed_calc(highway: &str) -> Option<u64> {
@@ -115,10 +115,15 @@ pub mod road_graph_construction {
                 nodes.remove(node);
             }
 
+            let nodes_by_coords = nodes
+                .iter()
+                .map(|(id, node_info)| ((node_info.lon, node_info.lat), *id))
+                .collect();
+
             Self {
                 raw_ways: ways,
                 edges,
-                raw_nodes: nodes.clone().iter().map(|(&id, _)| id).collect(),
+                nodes_by_coords,
                 nodes,
             }
         }

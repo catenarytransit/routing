@@ -4,8 +4,8 @@
 fn main() {
     use std::time::Instant;
     use transit_router::transit_dijkstras::TransitDijkstra;
-    use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
-
+    use transit_router::{transfer_patterns::*, transit_network::*};
+    use std::collections::HashMap;
     use transit_router::RoadNetwork;
 
     let now = Instant::now();
@@ -79,60 +79,22 @@ fn main() {
 mod tests {
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
-    //use std::collections::HashMap;
-    use std::time::Instant;
+    use std::collections::HashMap;
+    //use std::time::Instant;
 
     #[test]
     fn test() {
-        let now = Instant::now();
+        //let now = Instant::now();
         let gtfs = read_from_gtfs_zip("ctt.zip");
         let (transit_graph, connections) =
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
-        let time = now.elapsed().as_secs_f32();
-        println!("time {}", time);
-        println!("# of nodes: {}", transit_graph.nodes.len());
-        println!(
-            "# of edges: {}",
-            transit_graph
-                .edges
-                .values()
-                .map(|edges| edges.len())
-                .sum::<usize>()
-        );
-
-        /*let now = Instant::now();
-        let transit_graph = transit_graph.reduce_to_largest_connected_component();
-        let time = now.elapsed().as_secs_f32();
-
-        println!("reduced time {}", time);
-        println!("# of nodes: {}", transit_graph.nodes.len());
-        println!(
-            "# of edges: {}",
-            transit_graph.edges.values().map(|edges| edges.len()).sum::<usize>()
-        );*/
 
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
-        print!(
-            "{} Base Graph Nodes: {}, Edges: {}\t\t",
-            path,
-            roads.nodes.len(),
-            roads.edges.len()
-        );
-        /*let now = Instant::now();
         roads = roads.reduce_to_largest_connected_component();
-        let time = now.elapsed().as_millis() as f32 * 0.001;
-        println!(
-            "time: {}, reduced map nodes: {}, edges: {}",
-            time,
-            roads.nodes.len(),
-            roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
-        );*/
 
         let mut router = TransitDijkstra::new(&transit_graph);
-
-        let now = Instant::now();
 
         let (source, target) = make_points_from_coords(
             41.84945654310709,
@@ -140,9 +102,6 @@ mod tests {
             41.80535590796691,
             -72.74897459174736,
         );
-
-        //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
-        println!("time to do the thing");
         let graph = query_graph_construction_from_geodesic_points(
             &mut router,
             source,
@@ -160,7 +119,16 @@ mod tests {
             graph.1,
         );
 
-        println!("final: {:?}", yes);
+        //println!("final: {:?}", yes);
+
+        let reverse_station_mapping = transit_graph.station_mapping.iter().map(|(name, id)| (id, name)).collect::<HashMap<_, _>>();
+
+        if let Some(stuff) = yes {
+            let path = stuff.2.get_path();
+            for node in path.0 {
+                println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
+            }
+        }
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

@@ -118,7 +118,8 @@ impl RoadDijkstra {
         target_id: i64,
         heuristics: &Option<HashMap<i64, u64>>,
         consider_arc_flags: bool,
-    ) -> Option<RoadPathedNode> { //(Option<RoadPathedNode>, HashMap<i64, i64>) {
+    ) -> Option<RoadPathedNode> {
+        //(Option<RoadPathedNode>, HashMap<i64, i64>) {
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, RoadPathedNode)>> = BinaryHeap::new();
         //let mut previous_nodes = HashMap::new();
@@ -154,7 +155,7 @@ impl RoadDijkstra {
 
             //found target node
             if idx.eq(&target_id) {
-                return Some(pathed_current_node)
+                return Some(pathed_current_node);
                 //return (Some(pathed_current_node), previous_nodes);
             }
 
@@ -163,7 +164,7 @@ impl RoadDijkstra {
             if cost > self.cost_upper_bound
                 || self.visited_nodes.len() > self.max_settled_nodes as usize
             {
-                return None
+                return None;
                 //return (None, previous_nodes);
             }
 
@@ -203,11 +204,11 @@ impl RoadDijkstra {
     pub fn get_random_node_id(&mut self) -> Option<i64> {
         //returns ID of a random valid node from a graph
         let mut rng = rand::thread_rng();
-        let full_node_list = &self.graph.raw_nodes;
+        let full_node_list: &Vec<_> = &self.graph.nodes.keys().collect();
         let random: usize = rng.gen_range(0..full_node_list.len());
         let node_id = full_node_list.get(random).unwrap();
 
-        Some(*node_id)
+        Some(**node_id)
     }
 
     pub fn get_random_node_area_id(

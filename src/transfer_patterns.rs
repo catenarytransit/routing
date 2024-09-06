@@ -4,14 +4,12 @@ use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
 use geo::algorithm::haversine_distance::*;
 use geo::point;
 use geo::Point;
+use rstar::*;
 use std::cmp::Reverse;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
-//use std::time::Instant;
 use std::sync::Arc;
-//use std::sync::Mutex;
-//use std::thread;
-use rstar::*;
+use std::time::Instant;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
@@ -281,7 +279,9 @@ pub fn transfer_patterns_to_target(
         transfers.push(*target);
         let mut previous_node: NodeId = *target;
         for &node in path {
-            if previous_node.node_type == NodeType::Departure && node.node_type == NodeType::Transfer {
+            if previous_node.node_type == NodeType::Departure
+                && node.node_type == NodeType::Transfer
+            {
                 transfers.push(node);
             }
             previous_node = node;
@@ -362,95 +362,100 @@ pub fn query_graph_construction_from_geodesic_points(
     let sources =
         stations_close_to_geo_point_and_time(&source, &preset_distance, &router.graph, &time);
 
-    println!("s len{}", sources.len());
+    //print!("s len{}\t\t", sources.len());
 
     let targets =
         stations_close_to_geo_point_and_time(&target, &preset_distance, &router.graph, &time);
 
-    println!("t targets{}", sources.len());
+    //println!("t targets{}", sources.len());
 
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
 
-    let mut total_transfer_patterns = HashMap::new();
+    let find_transfer_patterns = Instant::now();
 
-    //precompute local TP from N(source) to first hub (this min hub is access station)
-    //attempt at multithreading to go faster
-    /*let source_chunk_len = sources.len();
-    let threaded_sources = Arc::new(Mutex::new(sources.clone()));
-    let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-    let arc_router = Arc::new(Mutex::new(router.clone()));
-    let threaded_hubs = Arc::new(Mutex::new(hubs.clone()));
-    let mut handles = vec![];
+    /*
+       use std::sync::Mutex;
+       use std::thread;
 
-    for x in 1..5 {
-        let source = Arc::clone(&threaded_sources);
-        let transfer_patterns = Arc::clone(&total_transfer_patterns);
-        let router = Arc::clone(&arc_router);
-        let hub_list = Arc::clone(&threaded_hubs);
-        let handle = thread::spawn(move || {
-            let src = source.lock().unwrap();
-            let mut ttp = transfer_patterns.lock().unwrap();
-            for i in ((x - 1) * (source_chunk_len / 4))..(x * source_chunk_len / 4) {
-                let source_id = src.get(i).unwrap();
-                let l_tps = num_transfer_patterns_from_source(
-                    source_id.station_id,
-                    &mut router.lock().unwrap(),
-                    Some(&hub_list.lock().unwrap()),
-                );
-                ttp.extend(l_tps.into_iter());
-                println!("local tp for {i} is x`{:?}", ttp.len());
-            }
-        });
+       let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+       let thread_num = 7;
 
+       //global transfer patterns from I(hubs) to to N(target())
+       let hub_chunk_len = hubs.len();
+       //let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+       let arc_router = Arc::new(Mutex::new(router.clone()));
+       let threaded_hubs = Arc::new(Mutex::new(hubs.clone().into_iter().collect::<Vec<_>>()));
+       let mut handles = vec![];
 
-        handles.push(handle);
-    }
+       for x in 1..thread_num {
+           let transfer_patterns = Arc::clone(&total_transfer_patterns);
+           let router = Arc::clone(&arc_router);
+           let hub_list = Arc::clone(&threaded_hubs);
+           let handle = thread::spawn(move || {
+               let src = hub_list.lock().unwrap();
+               for i in (x - 1) * (hub_chunk_len / (thread_num-1))..(x * hub_chunk_len / (thread_num-1)) {
+                   let hub_id = src.get(i).unwrap();
+                   let g_tps = num_transfer_patterns_from_source(
+                       *hub_id,
+                       &mut router.lock().unwrap(),
+                       None,
+                   );
 
-    for handle in handles {
-        handle.join().unwrap();
-    }
+                   let mut ttp = transfer_patterns.lock().unwrap();
+                   ttp.extend(g_tps.into_iter());
+               }
+           });
+           handles.push(handle);
+       }
 
-    //global transfer patterns from I(hubs) to to N(target())
-    let hub_chunk_len = hubs.len();
-    let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-    let arc_router = Arc::new(Mutex::new(router.clone()));
-    let threaded_hubs = Arc::new(Mutex::new(hubs.into_iter().collect::<Vec<_>>()));
-    let mut handles = vec![];
+        for handle in handles {
+           handle.join().unwrap();
+       }
 
-    for x in 1..5 {
-        let transfer_patterns = Arc::clone(&total_transfer_patterns);
-        let router = Arc::clone(&arc_router);
-        let hub_list = Arc::clone(&threaded_hubs);
-        let handle = thread::spawn(move || {
-            let src = hub_list.lock().unwrap();
-            for i in (x - 1) * (hub_chunk_len / 4)..(x * hub_chunk_len / 4) {
-                let hub_id = src.get(i).unwrap();
-                let g_tps = num_transfer_patterns_from_source(
-                    *hub_id,
-                    &mut router.lock().unwrap(),
-                    None,
-                );
+       //precompute local TP from N(source) to first hub (this min hub is access station)
+       //attempt at multithreading to go faster
+       router.node_deactivator(&hubs);
 
-                let mut ttp = transfer_patterns.lock().unwrap();
-                ttp.extend(g_tps.into_iter());
-            }
-        });
-        handles.push(handle);
-    }
+       let source_chunk_len = sources.len();
+       let threaded_sources = Arc::new(Mutex::new(sources.clone()));
+       let arc_router = Arc::new(Mutex::new(router.clone()));
+       let threaded_hubs = Arc::new(Mutex::new(hubs.clone()));
+       let mut handles = vec![];
 
-     for handle in handles {
-        handle.join().unwrap();
-    }
+       for x in 1..thread_num {
+           let source = Arc::clone(&threaded_sources);
+           let transfer_patterns = Arc::clone(&total_transfer_patterns);
+           let router = Arc::clone(&arc_router);
+           let hub_list = Arc::clone(&threaded_hubs);
+           let handle = thread::spawn(move || {
+               let src = source.lock().unwrap();
+               let mut ttp = transfer_patterns.lock().unwrap();
+               for i in ((x - 1) * (source_chunk_len / (thread_num-1)))..(x * source_chunk_len / (thread_num-1)) {
+                   let source_id = src.get(i).unwrap();
+                   let l_tps = num_transfer_patterns_from_source(
+                       source_id.station_id,
+                       &mut router.lock().unwrap(),
+                       Some(&hub_list.lock().unwrap()),
+                   );
+                   ttp.extend(l_tps.into_iter());
+               }
+           });
 
-    println!("tp len {}", total_transfer_patterns.lock().unwrap().len());
+           handles.push(handle);
+       }
+
+       for handle in handles {
+           handle.join().unwrap();
+       }
+       println!("tps length {}, time for tps {:?}",  total_transfer_patterns.lock().unwrap().len(), find_transfer_patterns.elapsed());
     */
 
+    let mut total_transfer_patterns = HashMap::new();
     for hub in hubs.iter() {
         let tps = num_transfer_patterns_from_source(*hub, router, None);
         total_transfer_patterns.extend(tps.into_iter());
     }
-    println!("insert hubs to tps {}", total_transfer_patterns.len());
 
     router.node_deactivator(&hubs);
 
@@ -460,46 +465,44 @@ pub fn query_graph_construction_from_geodesic_points(
         total_transfer_patterns.extend(tps.into_iter());
     }
 
-    println!("insert sources to tps {}", total_transfer_patterns.len());
+    println!(
+        "tps length {}, time for tps {:?}",
+        total_transfer_patterns.len(),
+        find_transfer_patterns.elapsed()
+    );
 
-    let mut raw_edges = HashMap::new();
-    let _ = total_transfer_patterns
+    let paths = total_transfer_patterns
         //.lock()
         //.unwrap()
         .iter()
-        .filter(|((source, target), _)| sources.contains(source) || targets.contains(target))
-        .map(|(_, path)| {
-            let mut prev = None;
-            for node in path {
-                if let Some(prev) = prev {
-                    match raw_edges.entry(prev) {
-                        Entry::Occupied(mut o) => {
-                            let tails: &mut Vec<NodeId> = o.get_mut();
-                            tails.push(*node);
-                        }
-                        Entry::Vacant(v) => {
-                            let tails = Vec::from([*node]);
-                            v.insert(tails);
-                        }
+        .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
+        .map(|(_, path)| path)
+        .collect::<Vec<_>>();
+
+    
+    let mut raw_edges = HashMap::new();
+
+    for path in paths {
+        let mut prev = None;
+        for node in path {
+            if let Some(prev) = prev {
+                match raw_edges.entry(prev) {
+                    Entry::Occupied(mut o) => {
+                        let tails: &mut Vec<NodeId> = o.get_mut();
+                        tails.push(*node);
+                    }
+                    Entry::Vacant(v) => {
+                        let tails = Vec::from([*node]);
+                        v.insert(tails);
                     }
                 }
-                prev = Some(*node);
             }
-        });
-
-    println!(
-        "length of tps with source and target{}",
-        total_transfer_patterns
-            .iter()
-            .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
-            .collect::<Vec<_>>()
-            .len()
-    );
+            prev = Some(*node);
+            }
+    }
 
     (sources, targets, raw_edges)
 }
-
-use std::time::Instant;
 
 pub fn query_graph_search(
     roads: RoadNetwork,
@@ -510,8 +513,6 @@ pub fn query_graph_search(
     sources: Vec<NodeId>,
     targets: Vec<NodeId>,
 ) -> Option<(NodeId, NodeId, PathedNode)> {
-    let mut router = TDDijkstra::new(connections, edges);
-
     let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
     let time_rtree_insert = Instant::now();
@@ -524,40 +525,33 @@ pub fn query_graph_search(
         road_node_tree.size()
     );
 
-    println!("start final step");
-
-    let nn_search_source = Instant::now();
     if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
         ((start.0.x * f64::powi(10.0, 14)) as i64),
         ((start.0.y * f64::powi(10.0, 14)) as i64),
     )) {
-        println!("nearest neighbor source {:?}", nn_search_source.elapsed());
         for source in sources.iter() {
             let mut graph = RoadDijkstra::new(&roads);
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lon, source.lat))
             {
-                let road_source = roads
-                    .nodes
-                    .values()
-                    .find(|n| n.lon == start_road_node.0 && n.lat == start_road_node.1)
+                let road_source = *roads
+                    .nodes_by_coords
+                    .get(&(start_road_node.0, start_road_node.1))
                     .unwrap();
-                let station = roads
-                    .nodes
-                    .values()
-                    .find(|n| n.lon == station_sought.0 && n.lat == station_sought.1)
+                let station = *roads
+                    .nodes_by_coords
+                    .get(&(station_sought.0, station_sought.1))
                     .unwrap();
-
-                if let Some(result) = graph.dijkstra(road_source.id, station.id, &None, false) {
+                if let Some(result) = graph.dijkstra(road_source, station, &None, false) {
                     source_paths.insert(source, result);
                 }
             }
         }
     }
 
-    println!("\tsource paths {}", source_paths.len());
+    println!("source paths {}", source_paths.len());
 
     let mut target_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
-    
+
     if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(
         ((end.0.x * f64::powi(10.0, 14)) as i64),
         ((end.0.y * f64::powi(10.0, 14)) as i64),
@@ -566,18 +560,16 @@ pub fn query_graph_search(
             let mut graph = RoadDijkstra::new(&roads);
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&(target.lat, target.lon))
             {
-                let road_target = roads
-                    .nodes
-                    .values()
-                    .find(|n| n.lon == end_road_node.0 && n.lat == end_road_node.1)
+                let road_target = *roads
+                    .nodes_by_coords
+                    .get(&(end_road_node.0, end_road_node.1))
                     .unwrap();
-                let station = roads
-                    .nodes
-                    .values()
-                    .find(|n| n.lon == station_sought.0 && n.lat == station_sought.1)
+                let station = *roads
+                    .nodes_by_coords
+                    .get(&(station_sought.0, station_sought.1))
                     .unwrap();
 
-                if let Some(result) = graph.dijkstra(station.id, road_target.id, &None, false) {
+                if let Some(result) = graph.dijkstra(station, road_target, &None, false) {
                     target_paths.insert(target, result);
                 }
             }
@@ -587,6 +579,7 @@ pub fn query_graph_search(
     println!("targ paths {}", target_paths.len());
 
     let mut min_cost = 0;
+    let mut router = TDDijkstra::new(connections, edges);
     let mut returned_val: Option<(NodeId, NodeId, PathedNode)> = None; //source, target, path
 
     for source_id in sources.iter() {
@@ -605,5 +598,6 @@ pub fn query_graph_search(
             }
         }
     }
+
     returned_val
 }
