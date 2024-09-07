@@ -108,12 +108,9 @@ impl TimeExpandedGraph {
 
         //TODO: add repetitions of trip_id for frequencies.txt if it exists
 
-        let mut iterator: i64 = 0;
-        for stop_id in gtfs.stops.iter() {
+        for (iterator, stop_id) in (0_i64..).zip(gtfs.stops.iter()) {
             station_mapping.insert(stop_id.0.clone(), iterator);
-            iterator += 1;
         }
-        print!("# of stations: {}\t", iterator);
 
         let mut trip_id: u64 = 0; //custom counter like with stop_id
         let mut nodes_by_time: Vec<(u64, NodeId)> = Vec::new();

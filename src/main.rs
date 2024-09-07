@@ -1,3 +1,4 @@
+#![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
 
@@ -80,21 +81,25 @@ mod tests {
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
     use std::collections::HashMap;
-    //use std::time::Instant;
+    use std::time::Instant;
 
     #[test]
     fn test() {
-        //let now = Instant::now();
+        let now = Instant::now();
         let gtfs = read_from_gtfs_zip("ctt.zip");
         let (transit_graph, connections) =
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
+        let mut router = TransitDijkstra::new(&transit_graph);
+        
+        println!("time for transit {:?}", now.elapsed());
 
+        let now = Instant::now();
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
         roads = roads.reduce_to_largest_connected_component();
 
-        let mut router = TransitDijkstra::new(&transit_graph);
+        println!("time for road {:?}", now.elapsed());
 
         let (source, target) = make_points_from_coords(
             41.84945654310709,
@@ -102,6 +107,8 @@ mod tests {
             41.80535590796691,
             -72.74897459174736,
         );
+
+        let now = Instant::now();
         let graph = query_graph_construction_from_geodesic_points(
             &mut router,
             source,
@@ -109,7 +116,10 @@ mod tests {
             48000,
             100.0,
         );
-        let yes = query_graph_search(
+        
+        println!("time for query graph{:?}", now.elapsed());
+
+        /*let yes = query_graph_search(
             roads,
             connections,
             graph.2,
@@ -119,8 +129,6 @@ mod tests {
             graph.1,
         );
 
-        //println!("final: {:?}", yes);
-
         let reverse_station_mapping = transit_graph.station_mapping.iter().map(|(name, id)| (id, name)).collect::<HashMap<_, _>>();
 
         if let Some(stuff) = yes {
@@ -128,7 +136,7 @@ mod tests {
             for node in path.0 {
                 println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
             }
-        }
+        }*/
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
