@@ -82,6 +82,7 @@ mod tests {
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
     use std::collections::HashMap;
     use std::time::Instant;
+    use std::env;
 
     #[test]
     fn test() {

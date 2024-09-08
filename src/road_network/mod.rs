@@ -32,23 +32,17 @@ pub mod road_graph_construction {
     }
 
     pub fn speed_calc(highway: &str) -> Option<u64> {
-        //calculates speed of highway based on given values
+        //picks speed of highway based on given values, in km/h
         match highway {
-            "motorway" => Some(110),
-            "trunk" => Some(110),
-            "primary" => Some(70),
-            "secondary" => Some(60),
-            "tertiary" => Some(50),
-            "motorway_link" => Some(50),
-            "trunk_link" => Some(50),
-            "primary_link" => Some(50),
-            "secondary_link" => Some(50),
-            "road" => Some(40),
-            "unclassified" => Some(40),
-            "residential" => Some(30),
-            "unsurfaced" => Some(30),
-            "living_street" => Some(10),
-            "service" => Some(5),
+            "pedestrian" => Some(4),
+            "path" => Some(4),
+            "footway" => Some(4),
+            "steps" => Some(4),
+            "corridor"=> Some(4),
+            "living_street"=> Some(4),
+            "sidewalk" => Some(4),
+            "traffic_island" => Some(4),
+            "crossing" => Some(3),
             _ => None,
         }
     }
@@ -79,7 +73,7 @@ pub mod road_graph_construction {
                         let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
                             / f64::powi(10.0, 14);
                         let c = (a + b).sqrt();
-                        let cost = (c as u64) / ((way.speed as f64) * 5.0 / 18.0) as u64; //seconds to traverse segment based on road type
+                        let cost = (c / ((way.speed as f64) * 5.0 / 18.0)) as u64; //seconds to traverse segment based on road type
                         let flag = false;
                         edges
                             .entry(tail_id)
@@ -149,7 +143,7 @@ pub mod road_graph_construction {
                     }
                     OsmObj::Way(e) => {
                         if let Some(road_type) =
-                            e.tags.clone().iter().find(|(k, _)| k.eq(&"highway"))
+                            e.tags.clone().iter().find(|(k, _)| k.eq(&"highway") || k.eq(&"footway"))
                         {
                             if let Some(speed) = speed_calc(road_type.1.as_str()) {
                                 ways.push(Way {
