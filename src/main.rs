@@ -55,7 +55,7 @@ fn main() {
         target,
         //9h departure
         32400,
-        100.0,
+        500.0,
     );
 
     println!("query graph constructed in {:?}", now.elapsed());
