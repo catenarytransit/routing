@@ -11,10 +11,8 @@ use std::sync::Arc;
 pub struct TransitDijkstra {
     //handle time_expanded_dijkstra calculations
     pub graph: TimeExpandedGraph,
-    pub visited_nodes: HashMap<NodeId, PathedNode>,
     cost_upper_bound: u64,
     inactive_nodes: HashSet<NodeId>,
-    transfer_count: u8,
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
@@ -46,14 +44,11 @@ impl PathedNode {
 impl TransitDijkstra {
     //implementation of time_expanded_dijkstra's shortest path algorithm
     pub fn new(graph: &TimeExpandedGraph) -> Self {
-        let visited_nodes = HashMap::new();
         let inactive_nodes = HashSet::new();
         Self {
             graph: graph.clone(),
-            visited_nodes,
             cost_upper_bound: u64::MAX,
-            inactive_nodes,
-            transfer_count: 0,
+            inactive_nodes
         }
     }
 
@@ -61,7 +56,7 @@ impl TransitDijkstra {
         self.cost_upper_bound = upper_bound;
     }
 
-    pub fn get_neighbors(&mut self, current: &PathedNode) -> Vec<(NodeId, u64)> {
+    pub fn get_neighbors(&self, current: &PathedNode, visited_nodes: &HashMap<NodeId, PathedNode>) -> Vec<(NodeId, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
         let mut next_node_edges = HashMap::new();
@@ -69,7 +64,7 @@ impl TransitDijkstra {
             next_node_edges.clone_from(connections);
         }
         for (next_node_id, cost) in next_node_edges {
-            if self.visited_nodes.contains_key(&next_node_id) {
+            if visited_nodes.contains_key(&next_node_id) {
                 continue;
             }
 
@@ -103,22 +98,22 @@ impl TransitDijkstra {
     }
 
     pub fn time_expanded_dijkstra(
-        &mut self,
+        &self,
         source_id: Option<NodeId>,
         source_id_set: Option<Vec<NodeId>>,
         target_id: Option<NodeId>, //if target == None, settles all reachable nodes
         hubs: Option<&HashSet<i64>>,
-    ) -> Option<PathedNode> {
+    ) -> (Option<PathedNode>,  HashMap<NodeId, PathedNode>){ //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
+        let mut visited_nodes: HashMap<NodeId, PathedNode> = HashMap::new();
 
         //stores distances of node relative to target
         let mut gscore: HashMap<NodeId, u64> = HashMap::new();
 
         //resets list of settled nodes for new computation
-        self.visited_nodes.clear();
-        self.transfer_count = 0;
+        visited_nodes.clear();
 
         if let Some(source_id) = source_id {
             let source_node: PathedNode = PathedNode {
@@ -156,12 +151,12 @@ impl TransitDijkstra {
             if self.inactive_nodes.contains(&pathed_current_node.node_self) {
                 num_visited_inactive += 1
             }
-            self.visited_nodes.insert(idx, pathed_current_node.clone());
+            visited_nodes.insert(idx, pathed_current_node.clone());
 
             //found target node
             if let Some(target_id) = target_id {
                 if idx.eq(&target_id) {
-                    return Some(pathed_current_node);
+                    return (Some(pathed_current_node), visited_nodes);
                 }
             }
 
@@ -170,17 +165,17 @@ impl TransitDijkstra {
             //this cool math solution was thought of by a server-mate on Discord, thank you!
             if hubs.is_some()
                 && (self.graph.nodes.len()
-                    - self.visited_nodes.len()
+                    - visited_nodes.len()
                     - (self.inactive_nodes.len() - num_visited_inactive)
                     == 0)
             {
-                return None;
+                return (None, visited_nodes);
             }
 
             //stop conditions
             //cost or # of settled nodes goes over limit
             if current_cost > self.cost_upper_bound {
-                return None;
+                return (None, visited_nodes);
             }
 
             //cost is higher than current path (not optimal)
@@ -188,7 +183,7 @@ impl TransitDijkstra {
                 continue;
             }
 
-            for neighbor in self.get_neighbors(&pathed_current_node) {
+            for neighbor in self.get_neighbors(&pathed_current_node, &visited_nodes) {
                 let temp_distance = current_cost + neighbor.1;
                 let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
 
@@ -213,7 +208,7 @@ impl TransitDijkstra {
                 }
             }
         }
-        None //(None, node_path_tracker)
+        (None, visited_nodes)
     }
 
     pub fn get_random_node_id(&self) -> Option<NodeId> {
@@ -258,23 +253,4 @@ impl TransitDijkstra {
         full_node_list.get(random).copied()
     }*/
 
-    //returns the first unvisted node that function parses upon (used to find largest connected component)
-    pub fn get_unvisted_node_id(&self, found_nodes: &HashMap<NodeId, i32>) -> Option<NodeId> {
-        if found_nodes.len() == self.graph.nodes.len() {
-            print!("\tall nodes visted\t");
-            return None;
-        }
-        let found_nodes = found_nodes
-            .iter()
-            .filter(|(_, count)| **count > 0)
-            .map(|(id, _)| id)
-            .collect::<Vec<&NodeId>>();
-
-        for node in &self.graph.nodes {
-            if !found_nodes.contains(&node) {
-                return Some(*node);
-            }
-        }
-        None
-    }
 }

@@ -206,8 +206,8 @@ pub fn hub_selection(
 
     for _ in 0..random_samples {
         let current_node = time_independent_router.get_random_node_id();
-        time_independent_router.time_expanded_dijkstra(current_node, None, None, None);
-        for (node, _) in time_independent_router.visited_nodes.iter() {
+        let visited_nodes = time_independent_router.time_expanded_dijkstra(current_node, None, None, None).1;
+        for (node, _) in visited_nodes.iter() {
             match hub_list.entry(*node) {
                 Entry::Occupied(mut o) => {
                     let counter = o.get_mut();
@@ -234,7 +234,7 @@ pub fn hub_selection(
 // Return the transfer patterns & numbers of ybetween each station pair.
 pub fn num_transfer_patterns_from_source(
     source_station_id: i64,
-    router: &mut TransitDijkstra,
+    router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
 ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
     let source_transfer_nodes: Option<Vec<NodeId>> = Some(
@@ -251,20 +251,11 @@ pub fn num_transfer_patterns_from_source(
     );
 
     //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
-    router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs);
+    let visited_nodes = router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs).1;
 
-    transfer_patterns_to_target(router)
-}
-
-// Backtrace all paths from a given station pair with respect to last Dijkstra
-// computation. Return distinct set of the pair's transfer patterns
-pub fn transfer_patterns_to_target(
-    router: &mut TransitDijkstra,
-) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
     let mut transfer_patterns = HashMap::new();
 
-    let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = router
-        .visited_nodes
+    let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = visited_nodes
         .iter()
         .filter(|(node, _)| node.node_type == NodeType::Arrival)
         .map(|(node, pathed_node)| {
@@ -385,9 +376,8 @@ pub fn query_graph_construction_from_geodesic_points(
 
     //global transfer patterns from I(hubs) to to N(target())
     let hub_chunk_len = hubs.len();
-    //let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-    let arc_router = Arc::new(Mutex::new(router.clone()));
-    let threaded_hubs = Arc::new(Mutex::new(hubs.clone().into_iter().collect::<Vec<_>>()));
+    let arc_router = Arc::new(router.clone());
+    let threaded_hubs = Arc::new(hubs.clone().into_iter().collect::<Vec<_>>());
     let mut handles = vec![];
 
     for x in 1..thread_num {
@@ -395,14 +385,14 @@ pub fn query_graph_construction_from_geodesic_points(
         let router = Arc::clone(&arc_router);
         let hub_list = Arc::clone(&threaded_hubs);
         let handle = thread::spawn(move || {
-            let src = hub_list.lock().unwrap();
+            let src = hub_list;
             for i in (x - 1) * (hub_chunk_len / (thread_num - 1))
                 ..(x * hub_chunk_len / (thread_num - 1))
             {
                 let hub_id = src.get(i).unwrap();
                 let g_tps = num_transfer_patterns_from_source(
                     *hub_id,
-                    &mut router.lock().unwrap(),
+                    &router,
                     None,
                 );
 
@@ -422,9 +412,9 @@ pub fn query_graph_construction_from_geodesic_points(
     router.node_deactivator(&hubs);
 
     let source_chunk_len = sources.len();
-    let threaded_sources = Arc::new(Mutex::new(sources.clone()));
-    let arc_router = Arc::new(Mutex::new(router.clone()));
-    let threaded_hubs = Arc::new(Mutex::new(hubs.clone()));
+    let threaded_sources = Arc::new(sources.clone());
+    let arc_router = Arc::new(router.clone());
+    let threaded_hubs = Arc::new(hubs.clone());
     let mut handles = vec![];
 
     for x in 1..thread_num {
@@ -433,7 +423,7 @@ pub fn query_graph_construction_from_geodesic_points(
         let router = Arc::clone(&arc_router);
         let hub_list = Arc::clone(&threaded_hubs);
         let handle = thread::spawn(move || {
-            let src = source.lock().unwrap();
+            let src = source;
             let mut ttp = transfer_patterns.lock().unwrap();
             for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
                 ..(x * source_chunk_len / (thread_num - 1))
@@ -441,8 +431,8 @@ pub fn query_graph_construction_from_geodesic_points(
                 let source_id = src.get(i).unwrap();
                 let l_tps = num_transfer_patterns_from_source(
                     source_id.station_id,
-                    &mut router.lock().unwrap(),
-                    Some(&hub_list.lock().unwrap()),
+                    &router,
+                    Some(&hub_list),
                 );
                 ttp.extend(l_tps.into_iter());
             }

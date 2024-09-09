@@ -1,6 +1,5 @@
 //constructs and preprocesses the graph struct from OSM data
 use crate::coord_int_convert::coord_to_int;
-use crate::transit_dijkstras::*;
 use gtfs_structures::*;
 use std::{
     collections::{HashMap, HashSet},
@@ -342,6 +341,8 @@ impl TimeExpandedGraph {
         )
     }
 
+    //removed visited nodes as part of graph struct, so this no longer works and we're not using it anyway so it can just sit here
+    /*
     pub fn reduce_to_largest_connected_component(self) -> Self {
         let saved_day = self.day_of_week.clone();
         let saved_tb = self.transfer_buffer;
@@ -408,7 +409,7 @@ impl TimeExpandedGraph {
             nodes_per_station: self.nodes_per_station,
             trip_mapping: self.trip_mapping,
         }
-    }
+    }*/
 }
 
 //For each station: Hashmap<stationid, (line, stop sequence #)>
