@@ -37,6 +37,7 @@ fn main() {
 
     let path = "hawaii.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
+
     let mut roads = RoadNetwork::new(data.0, data.1);
     println!(
         "{} Base Graph Nodes: {}, Edges: {}",
