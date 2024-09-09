@@ -326,7 +326,7 @@ pub fn make_points_from_coords(
     target_lon: f64,
 ) -> (Point, Point) {
     let source = point!(x: source_lon, y:source_lat);
-    let target = point!(x: target_lon, y: target_lat);
+    let target = point!(x: target_lon, y:target_lat);
     (source, target)
 }
 

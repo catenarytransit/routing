@@ -58,6 +58,26 @@ fn main() {
         );
 
         println!("query graph constructed in {:?}", now.elapsed());
+
+         let run_query = query_graph_search(
+            roads,
+            connections,
+            graph.2,
+            source,
+            target,
+            graph.0,
+            graph.1,
+        );
+
+        let reverse_station_mapping = transit_graph.station_mapping.iter().map(|(name, id)| (id, name)).collect::<HashMap<_, _>>();
+
+        if let Some(stuff) = run_query {
+            let path = stuff.2.get_path();
+            for node in path.0 {
+                println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
+            }
+        }
+
 }
 
 #[cfg(test)]
