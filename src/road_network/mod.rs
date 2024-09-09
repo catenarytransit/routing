@@ -31,7 +31,7 @@ pub mod road_graph_construction {
         pub nodes_by_coords: HashMap<(i64, i64), i64>,
     }
 
-    pub fn speed_calc(highway: &str) -> Option<u64> {
+    pub fn speed_calc(highway: &str) -> Option<u64> { //for pedestrians
         //picks speed of highway based on given values, in km/h
         match highway {
             "pedestrian" => Some(4),
@@ -46,6 +46,28 @@ pub mod road_graph_construction {
             _ => None,
         }
     }
+
+    /*pub fn speed_calc(highway: &str) -> Option<u64> { //for vehicles
+        //picks speed of highway based on given values, in km/h
+        match highway {
+            "motorway" => Some(110),
+            "trunk" => Some(110),
+            "primary" => Some(70),
+            "secondary" => Some(60),
+            "tertiary" => Some(50),
+            "motorway_link" => Some(50),
+            "trunk_link" => Some(50),
+            "primary_link" => Some(50),
+            "secondary_link" => Some(50),
+            "road" => Some(40),
+            "unclassified" => Some(40),
+            "residential" => Some(30),
+            "unsurfaced" => Some(30),
+            "living_street" => Some(10),
+            "service" => Some(5),
+            _ => None,
+        }
+    }*/
 
     impl RoadNetwork {
         pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {
@@ -145,16 +167,15 @@ pub mod road_graph_construction {
                         if let Some((key, road_type)) = e
                             .tags
                             .iter()
-                            .find(|(k, _)| k.eq(&"highway") || k.eq(&"footway"))
+                            //.find(|(k, _)| k.eq(&"highway") || k.eq(&"footway")) //for pedestrians
+                            .find(|(k, _)| k.eq(&"highway"))
                         {
-                            if road_type != "motorway" {
-                                if let Some(speed) = speed_calc(road_type.as_str()) {
-                                    ways.push(Way {
-                                        id: e.id.0,
-                                        speed,
-                                        refs: e.nodes.into_iter().map(|x| x.0).collect(),
-                                    });
-                                }
+                            if let Some(speed) = speed_calc(road_type.as_str()) {
+                                ways.push(Way {
+                                    id: e.id.0,
+                                    speed,
+                                    refs: e.nodes.into_iter().map(|x| x.0).collect(),
+                                });
                             }
                         }
                     }
