@@ -30,7 +30,7 @@ fn main() {
     //   let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let data = RoadNetwork::from_bincode_file(&bytes);
     let mut roads = RoadNetwork::new(data.0, data.1);
-    roads = roads.reduce_to_largest_connected_component();
+    //roads = roads.reduce_to_largest_connected_component();
 
     println!("time for road {:?}", now.elapsed());
 
