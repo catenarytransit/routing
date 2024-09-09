@@ -384,9 +384,6 @@ pub fn query_graph_construction_from_geodesic_points(
     let hub_chunk_len = hubs.len();
     let arc_router = Arc::new(router.clone());
     let threaded_hubs = Arc::new(hubs.clone().into_iter().collect::<Vec<_>>());
-    //let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-    let arc_router = Arc::new(Mutex::new(router.clone()));
-    let threaded_hubs = Arc::new(hubs.clone().into_iter().collect::<Vec<_>>());
     let mut handles = vec![];
 
     for x in 1..thread_num {
@@ -397,8 +394,6 @@ pub fn query_graph_construction_from_geodesic_points(
             let src = hub_list;
             for i in (x - 1) * (hub_chunk_len / (thread_num - 1))
                 ..(x * hub_chunk_len / (thread_num - 1))
-            for i in
-                (x - 1) * (hub_chunk_len / (thread_num - 1))..(x * hub_chunk_len / (thread_num - 1))
             {
                 let hub_id = src.get(i).unwrap();
                 let g_tps = num_transfer_patterns_from_source(
@@ -406,9 +401,6 @@ pub fn query_graph_construction_from_geodesic_points(
                     &router,
                     None,
                 );
-                let hub_id = hub_list.get(i).unwrap();
-                let g_tps =
-                    num_transfer_patterns_from_source(*hub_id, &mut router.lock().unwrap(), None);
 
                 let mut ttp = transfer_patterns.lock().unwrap();
                 ttp.extend(g_tps.into_iter());
