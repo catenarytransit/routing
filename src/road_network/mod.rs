@@ -38,8 +38,8 @@ pub mod road_graph_construction {
             "path" => Some(4),
             "footway" => Some(4),
             "steps" => Some(4),
-            "corridor"=> Some(4),
-            "living_street"=> Some(4),
+            "corridor" => Some(4),
+            "living_street" => Some(4),
             "sidewalk" => Some(4),
             "traffic_island" => Some(4),
             "crossing" => Some(3),
@@ -142,8 +142,11 @@ pub mod road_graph_construction {
                         );
                     }
                     OsmObj::Way(e) => {
-                        if let Some(road_type) =
-                            e.tags.clone().iter().find(|(k, _)| k.eq(&"highway") || k.eq(&"footway"))
+                        if let Some(road_type) = e
+                            .tags
+                            .clone()
+                            .iter()
+                            .find(|(k, _)| k.eq(&"highway") || k.eq(&"footway"))
                         {
                             if let Some(speed) = speed_calc(road_type.1.as_str()) {
                                 ways.push(Way {

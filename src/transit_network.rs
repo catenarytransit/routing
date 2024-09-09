@@ -60,7 +60,7 @@ pub struct TimeExpandedGraph {
     pub edges: HashMap<NodeId, HashMap<NodeId, u64>>, // tail.id, <head.id, cost>
     pub station_mapping: HashMap<String, i64>, //station_id string, internal station_id (assigned number)
     pub nodes_per_station: HashMap<i64, Vec<(u64, NodeId)>>,
-    pub trip_mapping: HashMap<u64, String> //internal trip_id (assigned number), trip_id string
+    pub trip_mapping: HashMap<u64, String>, //internal trip_id (assigned number), trip_id string
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -333,7 +333,7 @@ impl TimeExpandedGraph {
                 edges,
                 station_mapping,
                 nodes_per_station,
-                trip_mapping
+                trip_mapping,
             },
             DirectConnections {
                 route_tables: connection_table_per_line,
@@ -406,7 +406,7 @@ impl TimeExpandedGraph {
             edges: filtered_edges,
             station_mapping: self.station_mapping,
             nodes_per_station: self.nodes_per_station,
-            trip_mapping: self.trip_mapping
+            trip_mapping: self.trip_mapping,
         }
     }
 }
