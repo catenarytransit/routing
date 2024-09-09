@@ -373,7 +373,7 @@ pub fn query_graph_construction_from_geodesic_points(
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
 
-    let mut stupid_vector_thing = Vec::new();
+    let mut time_tracker_for_multithreading_test = Vec::new();
     let thread_num = 16;
     for _ in 1..50 {
         let find_transfer_patterns = Instant::now();
@@ -453,7 +453,7 @@ pub fn query_graph_construction_from_geodesic_points(
         for handle in handles {
             handle.join().unwrap();
         }
-        stupid_vector_thing.push(find_transfer_patterns.elapsed().as_secs_f32());
+        time_tracker_for_multithreading_test.push(find_transfer_patterns.elapsed().as_secs_f32());
 
         let tps = total_transfer_patterns.lock().unwrap();
         let _paths = tps
@@ -465,7 +465,7 @@ pub fn query_graph_construction_from_geodesic_points(
 
     println!(
         "avg time {:?} vs thread num {}",
-        stupid_vector_thing.iter().sum::<f32>() / stupid_vector_thing.len() as f32,
+        time_tracker_for_multithreading_test.iter().sum::<f32>() / time_tracker_for_multithreading_test.len() as f32,
         thread_num
     );
 
