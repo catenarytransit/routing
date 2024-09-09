@@ -2,3 +2,4 @@
 *.pbf
 /target
 *.osm.bincode
+*:Zone.Identifier
