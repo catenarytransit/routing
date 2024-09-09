@@ -316,8 +316,8 @@ pub fn make_points_from_coords(
     target_lat: f64,
     target_lon: f64,
 ) -> (Point, Point) {
-    let source = point!(x:source_lat, y:source_lon);
-    let target = point!(x: target_lat, y: target_lon);
+    let source = point!(x: source_lon, y:source_lat);
+    let target = point!(x: target_lon, y:target_lat);
     (source, target)
 }
 
@@ -351,13 +351,19 @@ pub fn query_graph_construction_from_geodesic_points(
     //let road_node_tree = RTree::bulk_load(router.graph.nodes.iter().map(|n| (n.lat, n.lon)).collect());
 
     //compute sets of N(source) and N(target) of stations N= near
+    println!("Finding sources");
+
     let sources =
         stations_close_to_geo_point_and_time(&source, &preset_distance, &router.graph, &time);
 
     //print!("s len{}\t\t", sources.len());
 
+    println!("Possible starting stations count: {}", sources.len());
+
     let targets =
         stations_close_to_geo_point_and_time(&target, &preset_distance, &router.graph, &time);
+
+    println!("Possible ending stations count: {}", targets.len());
 
     //println!("t targets{}", sources.len());
 
@@ -365,10 +371,10 @@ pub fn query_graph_construction_from_geodesic_points(
     let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
 
     let thread_num = 7;
-    
+
     //let mut time_tracker_for_multithreading_test = Vec::new();
     //for _ in 1..50 {
-        //let find_transfer_patterns = Instant::now();
+    //let find_transfer_patterns = Instant::now();
     use std::sync::Mutex;
     use std::thread;
 
@@ -377,6 +383,9 @@ pub fn query_graph_construction_from_geodesic_points(
     //global transfer patterns from I(hubs) to to N(target())
     let hub_chunk_len = hubs.len();
     let arc_router = Arc::new(router.clone());
+    let threaded_hubs = Arc::new(hubs.clone().into_iter().collect::<Vec<_>>());
+    //let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+    let arc_router = Arc::new(Mutex::new(router.clone()));
     let threaded_hubs = Arc::new(hubs.clone().into_iter().collect::<Vec<_>>());
     let mut handles = vec![];
 
@@ -388,6 +397,8 @@ pub fn query_graph_construction_from_geodesic_points(
             let src = hub_list;
             for i in (x - 1) * (hub_chunk_len / (thread_num - 1))
                 ..(x * hub_chunk_len / (thread_num - 1))
+            for i in
+                (x - 1) * (hub_chunk_len / (thread_num - 1))..(x * hub_chunk_len / (thread_num - 1))
             {
                 let hub_id = src.get(i).unwrap();
                 let g_tps = num_transfer_patterns_from_source(
@@ -395,6 +406,9 @@ pub fn query_graph_construction_from_geodesic_points(
                     &router,
                     None,
                 );
+                let hub_id = hub_list.get(i).unwrap();
+                let g_tps =
+                    num_transfer_patterns_from_source(*hub_id, &mut router.lock().unwrap(), None);
 
                 let mut ttp = transfer_patterns.lock().unwrap();
                 ttp.extend(g_tps.into_iter());
@@ -505,7 +519,7 @@ pub fn query_graph_construction_from_geodesic_points(
                 }
             }
             prev = Some(*node);
-            }
+        }
     }
 
     (sources, targets, raw_edges)

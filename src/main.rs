@@ -1,8 +1,10 @@
 #![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
+use std::fs;
 
 fn main() {
+    use geo::point;
     use std::collections::HashMap;
     use std::time::Instant;
     use transit_router::transit_dijkstras::TransitDijkstra;
@@ -10,60 +12,60 @@ fn main() {
     use transit_router::{transfer_patterns::*, transit_network::*};
 
     let now = Instant::now();
-    let gtfs = read_from_gtfs_zip("hawaii.zip");
+    let gtfs = read_from_gtfs_zip("gtfs_stm.zip");
     let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
-    let time = now.elapsed().as_secs_f32();
-    println!("time {}", time);
-    println!("# of nodes: {}", transit_graph.nodes.len());
-    println!(
-        "# of edges: {}",
-        transit_graph
-            .edges
-            .values()
-            .map(|edges| edges.len())
-            .sum::<usize>()
-    );
-
-    /*let now = Instant::now();
-    let transit_graph = transit_graph.reduce_to_largest_connected_component();
-    let time = now.elapsed().as_secs_f32();
-
-    println!("time {}", time);
-    println!("# of nodes: {}", graph.nodes.len());
-    println!(
-        "# of edges: {}",
-        graph.edges.values().map(|edges| edges.len()).sum::<usize>()
-    );*/
-
-    let path = "hawaii.pbf";
-    let data = RoadNetwork::read_from_osm_file(path).unwrap();
-    let mut roads = RoadNetwork::new(data.0, data.1);
-    println!(
-        "{} Base Graph Nodes: {}, Edges: {}",
-        path,
-        roads.nodes.len(),
-        roads.edges.len()
-    );
-    let now = Instant::now();
-    roads = roads.reduce_to_largest_connected_component();
-    let time = now.elapsed().as_millis() as f32 * 0.001;
-    println!(
-        "time: {}, reduced map nodes: {}, edges: {}",
-        time,
-        roads.nodes.len(),
-        roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
-    );
-
     let mut router = TransitDijkstra::new(&transit_graph);
 
+    println!("time for transit {:?}", now.elapsed());
+
     let now = Instant::now();
 
-    let (source, target) = make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
+    //read bytes from file ped-and-bike-north-america-canada-quebec.osm.bincode
+    let path = "./ped-and-bike-north-america-canada-quebec.osm.bincode";
 
-    //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
-    let graph =
-        query_graph_construction_from_geodesic_points(&mut router, source, target, 24400, 1000.0);
-    query_graph_search(
+    //read data from file
+
+    let bytes = fs::read(path).unwrap();
+
+    //   let data = RoadNetwork::read_from_osm_file(path).unwrap();
+    let data = RoadNetwork::from_bincode_file(&bytes);
+    let mut roads = RoadNetwork::new(data.0, data.1);
+    //roads = roads.reduce_to_largest_connected_component();
+
+    println!("time for road {:?}", now.elapsed());
+
+    println!("# of nodes: {}", roads.nodes.len());
+    println!(
+        "# of edges: {}",
+        roads.edges.values().map(|edges| edges.len()).sum::<usize>()
+    );
+
+    //Gare de Centrale, Montreal, Quebec, Canada
+    let source = point! {x:-73.567398, y:45.499860
+    };
+    //Parc Olympique, Montreal, Quebec, Canada
+    let target = point! {
+        x:-73.547620, y:45.559989
+    };
+
+    println!("Starting graph construction");
+
+    let now = Instant::now();
+    let graph = query_graph_construction_from_geodesic_points(
+        &mut router,
+        source,
+        target,
+        //9h departure
+        32400,
+        500.0,
+    );
+
+    println!("query graph constructed in {:?}", now.elapsed());
+
+    println!("source nodes {:?}", graph.0);
+    println!("target nodes {:?}", graph.1);
+
+    let run_query = query_graph_search(
         roads,
         connections,
         graph.2,
@@ -73,7 +75,18 @@ fn main() {
         graph.1,
     );
 
-    println!("time: {:?}", now);
+    let reverse_station_mapping = transit_graph
+        .station_mapping
+        .iter()
+        .map(|(name, id)| (id, name))
+        .collect::<HashMap<_, _>>();
+
+    if let Some(stuff) = run_query {
+        let path = stuff.2.get_path();
+        for node in path.0 {
+            println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
+        }
+    }
 }
 
 #[cfg(test)]
@@ -101,7 +114,7 @@ mod tests {
         roads = roads.reduce_to_largest_connected_component();
 
         println!("time for road {:?}", now.elapsed());
-   
+
         println!("# of nodes: {}", roads.nodes.len());
         println!(
             "# of edges: {}",
@@ -124,7 +137,7 @@ mod tests {
             100.0,
         );
 
-        println!("time for query graph {:?}", now.elapsed());
+        println!("query graph constructed in {:?}", now.elapsed());
 
         /*let yes = query_graph_search(
             roads,

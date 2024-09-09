@@ -146,7 +146,7 @@ impl TimeExpandedGraph {
                 //if let Some(other_stop_id) = stoptime.stop.parent_station {
                 //
                 //} else{
-                let (lat, lon) = coord_to_int(
+                let (lon, lat) = coord_to_int(
                     stoptime.stop.longitude.unwrap(),
                     stoptime.stop.latitude.unwrap(),
                 );
