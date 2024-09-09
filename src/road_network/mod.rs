@@ -15,6 +15,12 @@ pub mod road_graph_construction {
         pub lon: i64,
     }
 
+    pub struct i64Point {
+        //used to store coordinates of nodes
+        pub lat: i64,
+        pub lon: i64,
+    }
+
     #[derive(Debug, PartialEq, Hash, Eq, Clone)]
     pub struct Way {
         //ways from OSM, each with unique ID, speed from highway type, and referenced nodes that it connects
