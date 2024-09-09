@@ -370,7 +370,7 @@ pub fn query_graph_construction_from_geodesic_points(
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
 
-    let thread_num = 7;
+    let thread_num = 8;
 
     //let mut time_tracker_for_multithreading_test = Vec::new();
     //for _ in 1..50 {
