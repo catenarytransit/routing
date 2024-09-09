@@ -374,7 +374,7 @@ pub fn query_graph_construction_from_geodesic_points(
 
     
     let mut stupid_vector_thing = Vec::new();
-    let thread_num = 7;
+    let thread_num = 16;
     for _ in 1..50 {
     let find_transfer_patterns = Instant::now();
     use std::sync::Mutex;

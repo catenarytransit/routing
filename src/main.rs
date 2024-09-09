@@ -117,7 +117,7 @@ mod tests {
             100.0,
         );
         
-        println!("time for query graph{:?}", now.elapsed());
+        println!("query time: {:?}", now.elapsed());
 
         /*let yes = query_graph_search(
             roads,

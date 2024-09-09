@@ -149,7 +149,7 @@ pub mod road_graph_construction {
                     }
                     OsmObj::Way(e) => {
                         if let Some(road_type) =
-                            e.tags.clone().iter().find(|(k, _)| k.eq(&"highway"))
+                            e.tags.iter().find(|(k, _)| k.eq(&"highway"))
                         {
                             if let Some(speed) = speed_calc(road_type.1.as_str()) {
                                 ways.push(Way {
