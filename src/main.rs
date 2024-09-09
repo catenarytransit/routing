@@ -60,6 +60,9 @@ fn main() {
 
     println!("query graph constructed in {:?}", now.elapsed());
 
+    println!("source nodes {:?}", graph.0);
+    println!("target nodes {:?}", graph.1);
+
     let run_query = query_graph_search(
         roads,
         connections,
