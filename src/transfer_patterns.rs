@@ -360,13 +360,19 @@ pub fn query_graph_construction_from_geodesic_points(
     //let road_node_tree = RTree::bulk_load(router.graph.nodes.iter().map(|n| (n.lat, n.lon)).collect());
 
     //compute sets of N(source) and N(target) of stations N= near
+    println!("Finding sources");
+
     let sources =
         stations_close_to_geo_point_and_time(&source, &preset_distance, &router.graph, &time);
 
     //print!("s len{}\t\t", sources.len());
 
+    println!("Possible starting stations count: {}", sources.len());
+
     let targets =
         stations_close_to_geo_point_and_time(&target, &preset_distance, &router.graph, &time);
+
+    println!("Possible ending stations count: {}", targets.len());
 
     //println!("t targets{}", sources.len());
 

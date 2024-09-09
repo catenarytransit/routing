@@ -51,7 +51,7 @@ pub mod road_graph_construction {
             "sidewalk" => Some(4),
             "traffic_island" => Some(4),
             "crossing" => Some(3),
-            _ => None,
+            _ => Some(1),
         }
     }
 
