@@ -4,6 +4,7 @@ pub mod road_graph_construction {
     use crate::road_dijkstras::*;
     use core::num;
     use osmpbfreader::objects::OsmObj;
+    use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
@@ -18,7 +19,7 @@ pub mod road_graph_construction {
     pub struct Way {
         //ways from OSM, each with unique ID, speed from highway type, and referenced nodes that it connects
         pub id: i64,
-        pub speed: u64,
+        pub speed: u16,
         pub refs: Vec<i64>,
     }
 
@@ -31,7 +32,8 @@ pub mod road_graph_construction {
         pub nodes_by_coords: HashMap<(i64, i64), i64>,
     }
 
-    pub fn speed_calc(highway: &str) -> Option<u64> { //for pedestrians
+    pub fn speed_calc(highway: &str) -> Option<u16> {
+        //for pedestrians
         //picks speed of highway based on given values, in km/h
         match highway {
             "pedestrian" => Some(4),
@@ -68,6 +70,12 @@ pub mod road_graph_construction {
             _ => None,
         }
     }*/
+
+    #[derive(serde::Serialize, serde::Deserialize, Clone)]
+    struct ExportOsm {
+        nodes: Vec<osmpbfreader::Node>,
+        ways: Vec<osmpbfreader::Way>,
+    }
 
     impl RoadNetwork {
         pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {
@@ -142,6 +150,59 @@ pub mod road_graph_construction {
                 nodes_by_coords,
                 nodes,
             }
+        }
+
+        pub fn from_bincode_obj_vec(data: &[u8]) -> (HashMap<i64, Node>, Vec<Way>) {
+            //reads bincode file, values are used to make RoadNetwork
+            let objs = bincode::deserialize::<ExportOsm>(data).unwrap();
+
+            let mut nodes = HashMap::new();
+            let ways = objs.ways;
+
+            let mut new_ways = vec![];
+
+            for node in objs.nodes {
+                nodes.insert(
+                    node.id.0,
+                    Node {
+                        id: node.id.0,
+                        lat: (node.lat() * f64::powi(10.0, 7)) as i64,
+                        lon: (node.lon() * f64::powi(10.0, 7)) as i64,
+                    },
+                );
+            }
+
+            for way in ways {
+                if let Some((key, road_type)) = way
+                    .tags
+                    .iter()
+                    //.find(|(k, _)| k.eq(&"highway") || k.eq(&"footway")) //for pedestrians
+                    .find(|(k, _)| k.eq(&"highway"))
+                {
+                    if let Some(speed) = speed_calc(road_type.as_str()) {
+                        new_ways.push(Way {
+                            id: way.id.0,
+                            speed,
+                            refs: way.nodes.into_iter().map(|x| x.0).collect(),
+                        });
+                    }
+                } else {
+                    if let Some((key, road_type)) = way
+                        .tags
+                        .iter()
+                        //.find(|(k, _)| k.eq(&"highway") || k.eq(&"footway")) //for pedestrians
+                        .find(|(k, _)| k.eq(&"foot"))
+                    {
+                        new_ways.push(Way {
+                            id: way.id.0,
+                            speed: 4,
+                            refs: way.nodes.into_iter().map(|x| x.0).collect(),
+                        });
+                    }
+                }
+            }
+
+            (nodes, new_ways)
         }
 
         pub fn read_from_osm_file(path: &str) -> Option<(HashMap<i64, Node>, Vec<Way>)> {

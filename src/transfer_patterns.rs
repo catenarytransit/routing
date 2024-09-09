@@ -374,10 +374,10 @@ pub fn query_graph_construction_from_geodesic_points(
     let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
 
     let thread_num = 7;
-    
+
     //let mut time_tracker_for_multithreading_test = Vec::new();
     //for _ in 1..50 {
-        //let find_transfer_patterns = Instant::now();
+    //let find_transfer_patterns = Instant::now();
     use std::sync::Mutex;
     use std::thread;
 
@@ -395,15 +395,12 @@ pub fn query_graph_construction_from_geodesic_points(
         let router = Arc::clone(&arc_router);
         let hub_list = Arc::clone(&threaded_hubs);
         let handle = thread::spawn(move || {
-            for i in (x - 1) * (hub_chunk_len / (thread_num - 1))
-                ..(x * hub_chunk_len / (thread_num - 1))
+            for i in
+                (x - 1) * (hub_chunk_len / (thread_num - 1))..(x * hub_chunk_len / (thread_num - 1))
             {
                 let hub_id = hub_list.get(i).unwrap();
-                let g_tps = num_transfer_patterns_from_source(
-                    *hub_id,
-                    &mut router.lock().unwrap(),
-                    None,
-                );
+                let g_tps =
+                    num_transfer_patterns_from_source(*hub_id, &mut router.lock().unwrap(), None);
 
                 let mut ttp = transfer_patterns.lock().unwrap();
                 ttp.extend(g_tps.into_iter());
@@ -514,7 +511,7 @@ pub fn query_graph_construction_from_geodesic_points(
                 }
             }
             prev = Some(*node);
-            }
+        }
     }
 
     (sources, targets, raw_edges)

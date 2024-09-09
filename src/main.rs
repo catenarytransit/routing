@@ -102,7 +102,7 @@ mod tests {
         roads = roads.reduce_to_largest_connected_component();
 
         println!("time for road {:?}", now.elapsed());
-   
+
         println!("# of nodes: {}", roads.nodes.len());
         println!(
             "# of edges: {}",
