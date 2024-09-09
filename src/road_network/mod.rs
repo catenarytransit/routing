@@ -51,7 +51,7 @@ pub mod road_graph_construction {
         pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {
             //init new RoadNetwork based on results from reading .pbf file
             let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();
-            for way in ways.clone() {
+            for way in ways.iter() {
                 let mut previous_head_node_now_tail: Option<&Node> = None;
                 let mut previous_head_node_index: usize = 0;
                 for i in 0..way.refs.len() - 1 {
