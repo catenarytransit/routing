@@ -9,7 +9,7 @@ Supplemented by exercises from Lectures 9-11 from Uni Freiburg's [Efficient Rout
 [2^]: H. Bast, M. Hertel, and S. Storandt, “Scalable Transfer Patterns,” 2016 Proceedings of the Meeting on Algorithm Engineering and Experiments (ALENEX), pp. 15–29, Jan. 2016, doi: https://doi.org/10.1137/1.9781611974317.2.
 
 ‌
-### Running the graph
+### Running the demo for Montreal
 
 Extracting from a compressed bincode is faster.
 
@@ -17,4 +17,9 @@ Run this to produce a bincode from the catenary-backend.
 
 ```bash
 cargo run --release --bin osm_extractor -- --routing_export_path ./testing_routing_export --temp_dir ./testing_temp_dir
+```
+
+Download le file GTFS de STM 
+```bash
+wget https://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip
 ```

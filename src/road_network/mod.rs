@@ -152,7 +152,7 @@ pub mod road_graph_construction {
             }
         }
 
-        pub fn from_bincode_obj_vec(data: &[u8]) -> (HashMap<i64, Node>, Vec<Way>) {
+        pub fn from_bincode_file(data: &[u8]) -> (HashMap<i64, Node>, Vec<Way>) {
             //reads bincode file, values are used to make RoadNetwork
             let objs = bincode::deserialize::<ExportOsm>(data).unwrap();
 

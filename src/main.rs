@@ -1,6 +1,7 @@
 #![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
+use std::fs;
 
 fn main() {
     use std::collections::HashMap;
@@ -10,71 +11,53 @@ fn main() {
     use transit_router::{transfer_patterns::*, transit_network::*};
 
     let now = Instant::now();
-    let gtfs = read_from_gtfs_zip("hawaii.zip");
-    let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
-    let time = now.elapsed().as_secs_f32();
-    println!("time {}", time);
-    println!("# of nodes: {}", transit_graph.nodes.len());
-    println!(
-        "# of edges: {}",
-        transit_graph
-            .edges
-            .values()
-            .map(|edges| edges.len())
-            .sum::<usize>()
-    );
+        let gtfs = read_from_gtfs_zip("gtfs_stm.zip");
+        let (transit_graph, connections) =
+            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
+        let mut router = TransitDijkstra::new(&transit_graph);
 
-    /*let now = Instant::now();
-    let transit_graph = transit_graph.reduce_to_largest_connected_component();
-    let time = now.elapsed().as_secs_f32();
+        println!("time for transit {:?}", now.elapsed());
 
-    println!("time {}", time);
-    println!("# of nodes: {}", graph.nodes.len());
-    println!(
-        "# of edges: {}",
-        graph.edges.values().map(|edges| edges.len()).sum::<usize>()
-    );*/
+        let now = Instant::now();
+        
+        //read bytes from file ped-and-bike-north-america-canada-quebec.osm.bincode
+        let path = "./ped-and-bike-north-america-canada-quebec.osm.bincode";
 
-    let path = "hawaii.pbf";
-    let data = RoadNetwork::read_from_osm_file(path).unwrap();
+        //read data from file
 
-    let mut roads = RoadNetwork::new(data.0, data.1);
-    println!(
-        "{} Base Graph Nodes: {}, Edges: {}",
-        path,
-        roads.nodes.len(),
-        roads.edges.len()
-    );
-    let now = Instant::now();
-    roads = roads.reduce_to_largest_connected_component();
-    let time = now.elapsed().as_millis() as f32 * 0.001;
-    println!(
-        "time: {}, reduced map nodes: {}, edges: {}",
-        time,
-        roads.nodes.len(),
-        roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
-    );
+        let bytes = fs::read(path).unwrap();
 
-    let mut router = TransitDijkstra::new(&transit_graph);
+     //   let data = RoadNetwork::read_from_osm_file(path).unwrap();
+     let data = RoadNetwork::from_bincode_file(&bytes);
+        let mut roads = RoadNetwork::new(data.0, data.1);
+        roads = roads.reduce_to_largest_connected_component();
 
-    let now = Instant::now();
+        println!("time for road {:?}", now.elapsed());
 
-    let (source, target) = make_points_from_coords(21.3732, -157.9201, 21.3727, -157.9172);
+        println!("# of nodes: {}", roads.nodes.len());
+        println!(
+            "# of edges: {}",
+            roads.edges.values().map(|edges| edges.len()).sum::<usize>()
+        );
 
-    //bus comes at 24480 at Ulune St + Kahuapaani St (Stop ID: 1996) at least in modern day
-    let graph =
-        query_graph_construction_from_geodesic_points(&mut router, source, target, 24400, 1000.0);
-    query_graph_search(
-        roads,
-        connections,
-        graph.2,
-        source,
-        target,
-        graph.0,
-        graph.1,
-    );
+        let (source, target) = make_points_from_coords(
+            //Gare de Centrale, Montreal, Quebec, Canada
+            45.499860, -73.567398,
+            //Parc Olympique, Montreal, Quebec, Canada
+            45.559989, -73.547620
+        );
 
-    println!("time: {:?}", now);
+        let now = Instant::now();
+        let graph = query_graph_construction_from_geodesic_points(
+            &mut router,
+            source,
+            target,
+            //9h departure
+            32400,
+            100.0,
+        );
+
+        println!("query graph constructed in {:?}", now.elapsed());
 }
 
 #[cfg(test)]
