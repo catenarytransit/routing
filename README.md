@@ -13,4 +13,8 @@ Supplemented by exercises from Lectures 9-11 from Uni Freiburg's [Efficient Rout
 
 Extracting from a compressed bincode is faster.
 
-Run this to produce a bincode
+Run this to produce a bincode from the catenary-backend.
+
+```bash
+cargo run --release --bin osm_extractor -- --routing_export_path ./testing_routing_export --temp_dir ./testing_temp_dir
+```
