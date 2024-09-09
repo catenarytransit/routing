@@ -48,7 +48,7 @@ impl TransitDijkstra {
         Self {
             graph: graph.clone(),
             cost_upper_bound: u64::MAX,
-            inactive_nodes
+            inactive_nodes,
         }
     }
 
@@ -56,7 +56,11 @@ impl TransitDijkstra {
         self.cost_upper_bound = upper_bound;
     }
 
-    pub fn get_neighbors(&self, current: &PathedNode, visited_nodes: &HashMap<NodeId, PathedNode>) -> Vec<(NodeId, u64)> {
+    pub fn get_neighbors(
+        &self,
+        current: &PathedNode,
+        visited_nodes: &HashMap<NodeId, PathedNode>,
+    ) -> Vec<(NodeId, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
         let mut next_node_edges = HashMap::new();
@@ -103,7 +107,8 @@ impl TransitDijkstra {
         source_id_set: Option<Vec<NodeId>>,
         target_id: Option<NodeId>, //if target == None, settles all reachable nodes
         hubs: Option<&HashSet<i64>>,
-    ) -> (Option<PathedNode>,  HashMap<NodeId, PathedNode>){ //path, visted nodes, transfer count
+    ) -> (Option<PathedNode>, HashMap<NodeId, PathedNode>) {
+        //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
@@ -252,5 +257,4 @@ impl TransitDijkstra {
         let mut random: usize = rng.gen_range(0..full_node_list.len());
         full_node_list.get(random).copied()
     }*/
-
 }

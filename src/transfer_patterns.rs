@@ -206,7 +206,9 @@ pub fn hub_selection(
 
     for _ in 0..random_samples {
         let current_node = time_independent_router.get_random_node_id();
-        let visited_nodes = time_independent_router.time_expanded_dijkstra(current_node, None, None, None).1;
+        let visited_nodes = time_independent_router
+            .time_expanded_dijkstra(current_node, None, None, None)
+            .1;
         for (node, _) in visited_nodes.iter() {
             match hub_list.entry(*node) {
                 Entry::Occupied(mut o) => {
@@ -251,7 +253,9 @@ pub fn num_transfer_patterns_from_source(
     );
 
     //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
-    let visited_nodes = router.time_expanded_dijkstra(None, source_transfer_nodes, None, hubs).1;
+    let visited_nodes = router
+        .time_expanded_dijkstra(None, source_transfer_nodes, None, hubs)
+        .1;
 
     let mut transfer_patterns = HashMap::new();
 
@@ -356,16 +360,12 @@ pub fn query_graph_construction_from_geodesic_points(
     let sources =
         stations_close_to_geo_point_and_time(&source, &preset_distance, &router.graph, &time);
 
-    //print!("s len{}\t\t", sources.len());
-
     println!("Possible starting stations count: {}", sources.len());
 
     let targets =
         stations_close_to_geo_point_and_time(&target, &preset_distance, &router.graph, &time);
 
     println!("Possible ending stations count: {}", targets.len());
-
-    //println!("t targets{}", sources.len());
 
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
@@ -392,15 +392,11 @@ pub fn query_graph_construction_from_geodesic_points(
         let hub_list = Arc::clone(&threaded_hubs);
         let handle = thread::spawn(move || {
             let src = hub_list;
-            for i in (x - 1) * (hub_chunk_len / (thread_num - 1))
-                ..(x * hub_chunk_len / (thread_num - 1))
+            for i in
+                (x - 1) * (hub_chunk_len / (thread_num - 1))..(x * hub_chunk_len / (thread_num - 1))
             {
                 let hub_id = src.get(i).unwrap();
-                let g_tps = num_transfer_patterns_from_source(
-                    *hub_id,
-                    &router,
-                    None,
-                );
+                let g_tps = num_transfer_patterns_from_source(*hub_id, &router, None);
 
                 let mut ttp = transfer_patterns.lock().unwrap();
                 ttp.extend(g_tps.into_iter());

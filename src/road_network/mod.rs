@@ -15,7 +15,7 @@ pub mod road_graph_construction {
         pub lon: i64,
     }
 
-    pub struct i64Point {
+    pub struct I64Point {
         //used to store coordinates of nodes
         pub lat: i64,
         pub lon: i64,
@@ -192,19 +192,17 @@ pub mod road_graph_construction {
                             refs: way.nodes.into_iter().map(|x| x.0).collect(),
                         });
                     }
-                } else {
-                    if let Some((key, road_type)) = way
-                        .tags
-                        .iter()
-                        //.find(|(k, _)| k.eq(&"highway") || k.eq(&"footway")) //for pedestrians
-                        .find(|(k, _)| k.eq(&"foot"))
-                    {
-                        new_ways.push(Way {
-                            id: way.id.0,
-                            speed: 4,
-                            refs: way.nodes.into_iter().map(|x| x.0).collect(),
-                        });
-                    }
+                } else if let Some((key, road_type)) = way
+                    .tags
+                    .iter()
+                    //.find(|(k, _)| k.eq(&"highway") || k.eq(&"footway")) //for pedestrians
+                    .find(|(k, _)| k.eq(&"foot"))
+                {
+                    new_ways.push(Way {
+                        id: way.id.0,
+                        speed: 4,
+                        refs: way.nodes.into_iter().map(|x| x.0).collect(),
+                    });
                 }
             }
 
@@ -231,11 +229,8 @@ pub mod road_graph_construction {
                         );
                     }
                     OsmObj::Way(e) => {
-                        if let Some((key, road_type)) = e
-                            .tags
-                            .iter()
-                            //.find(|(k, _)| k.eq(&"highway") || k.eq(&"footway")) //for pedestrians
-                            .find(|(k, _)| k.eq(&"highway"))
+                        if let Some((key, road_type)) =
+                            e.tags.iter().find(|(k, _)| k.eq(&"highway"))
                         {
                             if let Some(speed) = speed_calc(road_type.as_str()) {
                                 ways.push(Way {
