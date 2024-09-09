@@ -3,11 +3,11 @@
 // Cleaned up somewhat by Kyler Chin
 
 fn main() {
+    use std::collections::HashMap;
     use std::time::Instant;
     use transit_router::transit_dijkstras::TransitDijkstra;
-    use transit_router::{transfer_patterns::*, transit_network::*};
-    use std::collections::HashMap;
     use transit_router::RoadNetwork;
+    use transit_router::{transfer_patterns::*, transit_network::*};
 
     let now = Instant::now();
     let gtfs = read_from_gtfs_zip("hawaii.zip");
@@ -78,10 +78,11 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use std::env;
+    use std::time::Instant;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
-    use std::collections::HashMap;
-    use std::time::Instant;
 
     #[test]
     fn test() {
@@ -90,7 +91,7 @@ mod tests {
         let (transit_graph, connections) =
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
         let mut router = TransitDijkstra::new(&transit_graph);
-        
+
         println!("time for transit {:?}", now.elapsed());
 
         let now = Instant::now();
@@ -116,8 +117,13 @@ mod tests {
             48000,
             100.0,
         );
+<<<<<<< HEAD
         
         println!("query time: {:?}", now.elapsed());
+=======
+
+        println!("time for query graph{:?}", now.elapsed());
+>>>>>>> 643cbd6a2c80352e10c57e4fa171bfdec2ae29a7
 
         /*let yes = query_graph_search(
             roads,

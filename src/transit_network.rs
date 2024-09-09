@@ -58,8 +58,9 @@ pub struct TimeExpandedGraph {
     pub transfer_buffer: u64,
     pub nodes: HashSet<NodeId>,
     pub edges: HashMap<NodeId, HashMap<NodeId, u64>>, // tail.id, <head.id, cost>
-    pub station_mapping: HashMap<String, i64>, //station_id string, station_id (assigned number)
+    pub station_mapping: HashMap<String, i64>, //station_id string, internal station_id (assigned number)
     pub nodes_per_station: HashMap<i64, Vec<(u64, NodeId)>>,
+    pub trip_mapping: HashMap<u64, String>, //internal trip_id (assigned number), trip_id string
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -90,6 +91,7 @@ impl TimeExpandedGraph {
         let mut nodes_per_station: HashMap<i64, Vec<(u64, NodeId)>> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
         let mut connection_table_per_line: HashMap<String, LineConnectionTable> = HashMap::new();
         let mut lines_per_station: HashMap<i64, HashMap<String, u16>> = HashMap::new();
+        let mut trip_mapping: HashMap<u64, String> = HashMap::new();
 
         let service_ids_of_given_day: HashSet<String> = gtfs
             .calendar
@@ -119,6 +121,9 @@ impl TimeExpandedGraph {
             if !trip_ids_of_given_day.contains(&trip.id) {
                 continue;
             }
+
+            trip_mapping.insert(trip_id, trip.id.clone());
+
             let mut id;
 
             let mut prev_departure: Option<(NodeId, u64)> = None;
@@ -328,6 +333,7 @@ impl TimeExpandedGraph {
                 edges,
                 station_mapping,
                 nodes_per_station,
+                trip_mapping,
             },
             DirectConnections {
                 route_tables: connection_table_per_line,
@@ -400,6 +406,7 @@ impl TimeExpandedGraph {
             edges: filtered_edges,
             station_mapping: self.station_mapping,
             nodes_per_station: self.nodes_per_station,
+            trip_mapping: self.trip_mapping,
         }
     }
 }
