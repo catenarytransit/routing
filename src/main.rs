@@ -48,6 +48,8 @@ fn main() {
         x:-73.547620, y:45.559989
     };
 
+    println!("Starting graph construction");
+
     let now = Instant::now();
     let graph = query_graph_construction_from_geodesic_points(
         &mut router,
