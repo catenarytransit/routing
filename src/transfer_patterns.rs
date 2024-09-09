@@ -373,101 +373,101 @@ pub fn query_graph_construction_from_geodesic_points(
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
 
-    let mut stupid_vector_thing = Vec::new();
-    let thread_num = 16;
-    for _ in 1..50 {
-        let find_transfer_patterns = Instant::now();
-        use std::sync::Mutex;
-        use std::thread;
+    let thread_num = 7;
+    
+    //let mut time_tracker_for_multithreading_test = Vec::new();
+    //for _ in 1..50 {
+        //let find_transfer_patterns = Instant::now();
+    use std::sync::Mutex;
+    use std::thread;
 
-        let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+    let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
 
-        //global transfer patterns from I(hubs) to to N(target())
-        let hub_chunk_len = hubs.len();
-        //let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-        let arc_router = Arc::new(Mutex::new(router.clone()));
-        let threaded_hubs = Arc::new(hubs.clone().into_iter().collect::<Vec<_>>());
-        let mut handles = vec![];
+    //global transfer patterns from I(hubs) to to N(target())
+    let hub_chunk_len = hubs.len();
+    //let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+    let arc_router = Arc::new(Mutex::new(router.clone()));
+    let threaded_hubs = Arc::new(hubs.clone().into_iter().collect::<Vec<_>>());
+    let mut handles = vec![];
 
-        for x in 1..thread_num {
-            let transfer_patterns = Arc::clone(&total_transfer_patterns);
-            let router = Arc::clone(&arc_router);
-            let hub_list = Arc::clone(&threaded_hubs);
-            let handle = thread::spawn(move || {
-                //let src = hub_list.lock().unwrap();
-                for i in (x - 1) * (hub_chunk_len / (thread_num - 1))
-                    ..(x * hub_chunk_len / (thread_num - 1))
-                {
-                    let hub_id = hub_list.get(i).unwrap();
-                    let g_tps = num_transfer_patterns_from_source(
-                        *hub_id,
-                        &mut router.lock().unwrap(),
-                        None,
-                    );
+    for x in 1..thread_num {
+        let transfer_patterns = Arc::clone(&total_transfer_patterns);
+        let router = Arc::clone(&arc_router);
+        let hub_list = Arc::clone(&threaded_hubs);
+        let handle = thread::spawn(move || {
+            for i in (x - 1) * (hub_chunk_len / (thread_num - 1))
+                ..(x * hub_chunk_len / (thread_num - 1))
+            {
+                let hub_id = hub_list.get(i).unwrap();
+                let g_tps = num_transfer_patterns_from_source(
+                    *hub_id,
+                    &mut router.lock().unwrap(),
+                    None,
+                );
 
-                    let mut ttp = transfer_patterns.lock().unwrap();
-                    ttp.extend(g_tps.into_iter());
-                }
-            });
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            handle.join().unwrap();
-        }
-
-        //precompute local TP from N(source) to first hub (this min hub is access station)
-        //attempt at multithreading to go faster
-        router.node_deactivator(&hubs);
-
-        let source_chunk_len = sources.len();
-        let threaded_sources = Arc::new(Mutex::new(sources.clone()));
-        let arc_router = Arc::new(Mutex::new(router.clone()));
-        let threaded_hubs = Arc::new(Mutex::new(hubs.clone()));
-        let mut handles = vec![];
-
-        for x in 1..thread_num {
-            let source = Arc::clone(&threaded_sources);
-            let transfer_patterns = Arc::clone(&total_transfer_patterns);
-            let router = Arc::clone(&arc_router);
-            let hub_list = Arc::clone(&threaded_hubs);
-            let handle = thread::spawn(move || {
-                let src = source.lock().unwrap();
                 let mut ttp = transfer_patterns.lock().unwrap();
-                for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
-                    ..(x * source_chunk_len / (thread_num - 1))
-                {
-                    let source_id = src.get(i).unwrap();
-                    let l_tps = num_transfer_patterns_from_source(
-                        source_id.station_id,
-                        &mut router.lock().unwrap(),
-                        Some(&hub_list.lock().unwrap()),
-                    );
-                    ttp.extend(l_tps.into_iter());
-                }
-            });
-
-            handles.push(handle);
-        }
-
-        for handle in handles {
-            handle.join().unwrap();
-        }
-        stupid_vector_thing.push(find_transfer_patterns.elapsed().as_secs_f32());
-
-        let tps = total_transfer_patterns.lock().unwrap();
-        let _paths = tps
-            .iter()
-            .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
-            .map(|(_, path)| path)
-            .collect::<Vec<_>>();
+                ttp.extend(g_tps.into_iter());
+            }
+        });
+        handles.push(handle);
     }
 
-    println!(
-        "avg time {:?} vs thread num {}",
-        stupid_vector_thing.iter().sum::<f32>() / stupid_vector_thing.len() as f32,
-        thread_num
-    );
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    //precompute local TP from N(source) to first hub (this min hub is access station)
+    //attempt at multithreading to go faster
+    router.node_deactivator(&hubs);
+
+    let source_chunk_len = sources.len();
+    let threaded_sources = Arc::new(Mutex::new(sources.clone()));
+    let arc_router = Arc::new(Mutex::new(router.clone()));
+    let threaded_hubs = Arc::new(Mutex::new(hubs.clone()));
+    let mut handles = vec![];
+
+    for x in 1..thread_num {
+        let source = Arc::clone(&threaded_sources);
+        let transfer_patterns = Arc::clone(&total_transfer_patterns);
+        let router = Arc::clone(&arc_router);
+        let hub_list = Arc::clone(&threaded_hubs);
+        let handle = thread::spawn(move || {
+            let src = source.lock().unwrap();
+            let mut ttp = transfer_patterns.lock().unwrap();
+            for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
+                ..(x * source_chunk_len / (thread_num - 1))
+            {
+                let source_id = src.get(i).unwrap();
+                let l_tps = num_transfer_patterns_from_source(
+                    source_id.station_id,
+                    &mut router.lock().unwrap(),
+                    Some(&hub_list.lock().unwrap()),
+                );
+                ttp.extend(l_tps.into_iter());
+            }
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+    //time_tracker_for_multithreading_test.push(find_transfer_patterns.elapsed().as_secs_f32());
+
+    let tps = total_transfer_patterns.lock().unwrap();
+    let paths = tps
+        .iter()
+        .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
+        .map(|(_, path)| path)
+        .collect::<Vec<_>>();
+    //}
+
+    //println!(
+    //    "avg time {:?} vs thread num {}",
+    //    time_tracker_for_multithreading_test.iter().sum::<f32>() / time_tracker_for_multithreading_test.len() as f32,
+    //    thread_num
+    //);
 
     /*
     let mut total_transfer_patterns = HashMap::new();
@@ -496,10 +496,9 @@ pub fn query_graph_construction_from_geodesic_points(
         .map(|(_, path)| path)
         .collect::<Vec<_>>();
     */
-    //mut
-    let raw_edges = HashMap::new();
+    let mut raw_edges = HashMap::new();
 
-    /*for path in paths.into_iter() {
+    for path in paths.into_iter() {
         let mut prev = None;
         for node in path {
             if let Some(prev) = prev {
@@ -516,7 +515,7 @@ pub fn query_graph_construction_from_geodesic_points(
             }
             prev = Some(*node);
             }
-    }*/
+    }
 
     (sources, targets, raw_edges)
 }

@@ -102,6 +102,12 @@ mod tests {
         roads = roads.reduce_to_largest_connected_component();
 
         println!("time for road {:?}", now.elapsed());
+   
+        println!("# of nodes: {}", roads.nodes.len());
+        println!(
+            "# of edges: {}",
+            roads.edges.values().map(|edges| edges.len()).sum::<usize>()
+        );
 
         let (source, target) = make_points_from_coords(
             41.84945654310709,
