@@ -3,9 +3,11 @@ pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
     use crate::road_dijkstras::*;
     use core::num;
+    use geo::HaversineDistance;
     use osmpbfreader::objects::OsmObj;
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
+    use crate::coord_int_convert::TEN_TO_14;
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct Node {
@@ -103,13 +105,13 @@ pub mod road_graph_construction {
                     let head_id = way.refs[i + 1];
                     let head = nodes.get(&head_id);
                     if let (Some(tail), Some(head)) = (tail, head) {
-                        //following math converts lon/lat into distance of segment
-                        let a = i128::pow(((head.lat - tail.lat) * 111229).into(), 2) as f64
-                            / f64::powi(10.0, 14);
-                        let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
-                            / f64::powi(10.0, 14);
-                        let c = (a + b).sqrt();
-                        let cost = (c / ((way.speed as f64) * 5.0 / 18.0)) as u64; //seconds to traverse segment based on road type
+
+                        let head_point = geo::Point::new((head.lon as f64 / TEN_TO_14 ), (head.lat as f64 / TEN_TO_14));
+                        let tail_point = geo::Point::new((tail.lon as f64 / TEN_TO_14 ), (tail.lat as f64 / TEN_TO_14));
+
+                        let distance = head_point.haversine_distance(&tail_point);
+
+                        let cost = (distance / ((way.speed as f64) * 5.0 / 18.0)) as u64; //seconds to traverse segment based on road type
                         let flag = false;
                         edges
                             .entry(tail_id)
