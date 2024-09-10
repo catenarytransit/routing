@@ -62,7 +62,7 @@ impl TDDijkstra {
         paths
     }
 
-    pub fn time_expanded_dijkstra(
+    pub fn time_dependent_dijkstra(
         &mut self,
         source_id: NodeId,
         target_id: NodeId, //if target == None, settles all reachable nodes
@@ -332,7 +332,7 @@ pub fn query_graph_construction_from_geodesic_points(
     router: &mut TransitDijkstra,
     source: Point,
     target: Point,
-    time: u64,
+    start_time: u64,
     preset_distance: f64, //in meters
 ) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) {
     //source nodes, target nodes, edges
@@ -345,8 +345,8 @@ pub fn query_graph_construction_from_geodesic_points(
     .filter(|node| {
         let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
         source.haversine_distance(&node_coord) <= preset_distance
-            && node.time >= Some(time)
-            && node.time <= Some(time + 7200) //2 hr waiting limit
+            && node.time >= Some(start_time)
+            && node.time <= Some(start_time + 7200) //2 hr waiting limit
     })
     .copied()
     .collect();
@@ -524,27 +524,22 @@ pub fn query_graph_search(
     edges: HashMap<NodeId, Vec<NodeId>>,
     start: Point,
     end: Point,
-    sources: Vec<NodeId>,
-    targets: Vec<NodeId>,
+    source_target_vecs: (Vec<NodeId>, Vec<NodeId>),
+    preset_distance: f64
 ) -> Option<(NodeId, NodeId, PathedNode)> {
     let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
-    let time_rtree_insert = Instant::now();
-
     let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| (n.lon, n.lat)).collect());
 
-    println!(
-        "rtree insert time {:?} with {} items",
-        time_rtree_insert.elapsed(),
-        road_node_tree.size()
-    );
+    let mut graph = RoadDijkstra::new(&roads);
+    graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0/ 18.0)) as u64);
+     
 
     if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
         ((start.0.x * f64::powi(10.0, 14)) as i64),
         ((start.0.y * f64::powi(10.0, 14)) as i64),
     )) {
-        for source in sources.iter() {
-            let mut graph = RoadDijkstra::new(&roads);
+        for source in source_target_vecs.0.iter() {
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lon, source.lat))
             {
                 let road_source = *roads
@@ -555,7 +550,9 @@ pub fn query_graph_search(
                     .nodes_by_coords
                     .get(&(station_sought.0, station_sought.1))
                     .unwrap();
-                if let Some(result) = graph.dijkstra(road_source, station, &None, false) {
+                let now = Instant::now();
+                if let Some(result) = graph.dijkstra(road_source, station) {
+                    println!("time src {:?}", now.elapsed());
                     source_paths.insert(source, result);
                 }
             }
@@ -570,9 +567,8 @@ pub fn query_graph_search(
         ((end.0.x * f64::powi(10.0, 14)) as i64),
         ((end.0.y * f64::powi(10.0, 14)) as i64),
     )) {
-        for target in targets.iter() {
-            let mut graph = RoadDijkstra::new(&roads);
-            if let Some(station_sought) = road_node_tree.nearest_neighbor(&(target.lat, target.lon))
+        for target in source_target_vecs.1.iter() {
+            if let Some(station_sought) = road_node_tree.nearest_neighbor(&(target.lon, target.lat))
             {
                 let road_target = *roads
                     .nodes_by_coords
@@ -582,8 +578,13 @@ pub fn query_graph_search(
                     .nodes_by_coords
                     .get(&(station_sought.0, station_sought.1))
                     .unwrap();
-
-                if let Some(result) = graph.dijkstra(station, road_target, &None, false) {
+                let now = Instant::now();
+                if let Some(result) = graph.dijkstra(station, road_target) {
+                    println!("coords check: {:?} and {:?}", 
+                        roads.nodes.get(&station),
+                        roads.nodes.get(&road_target)
+                    );
+                    println!("time targ {:?}", now.elapsed());
                     target_paths.insert(target, result);
                 }
             }
@@ -596,11 +597,11 @@ pub fn query_graph_search(
     let mut router = TDDijkstra::new(connections, edges);
     let mut returned_val: Option<(NodeId, NodeId, PathedNode)> = None; //source, target, path
 
-    for source_id in sources.iter() {
+    for source_id in source_target_vecs.0.iter() {
         let source_path = source_paths.get(source_id).unwrap();
-        for target_id in targets.iter() {
+        for target_id in source_target_vecs.1.iter() {
             let target_path = target_paths.get(target_id).unwrap();
-            let path = router.time_expanded_dijkstra(*source_id, *target_id);
+            let path = router.time_dependent_dijkstra(*source_id, *target_id);
             if let Some(transit_path) = path {
                 let new_cost = transit_path.cost_from_start
                     + source_path.distance_from_start

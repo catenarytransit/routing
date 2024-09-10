@@ -50,6 +50,8 @@ fn main() {
 
     println!("Starting graph construction");
 
+    let preset_distance = 500.0;
+
     let now = Instant::now();
     let graph = query_graph_construction_from_geodesic_points(
         &mut router,
@@ -57,7 +59,7 @@ fn main() {
         target,
         //9h departure
         32400,
-        500.0,
+        preset_distance
     );
 
     println!("query graph constructed in {:?}", now.elapsed());
@@ -71,8 +73,8 @@ fn main() {
         graph.2,
         source,
         target,
-        graph.0,
-        graph.1,
+        (graph.0, graph.1),
+        preset_distance
     );
 
     let reverse_station_mapping = transit_graph
@@ -128,13 +130,15 @@ mod tests {
             -72.74897459174736,
         );
 
+        let preset_distance = 100.0;
+
         let now = Instant::now();
         let graph = query_graph_construction_from_geodesic_points(
             &mut router,
             source,
             target,
             48000,
-            100.0,
+            preset_distance
         );
 
         println!("query graph constructed in {:?}", now.elapsed());
@@ -145,8 +149,8 @@ mod tests {
             graph.2,
             source,
             target,
-            graph.0,
-            graph.1,
+            (graph.0, graph.1),
+            preset_distance
         );
 
         let reverse_station_mapping = transit_graph
