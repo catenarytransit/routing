@@ -63,24 +63,22 @@ impl TransitDijkstra {
     ) -> Vec<(NodeId, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
-        let mut next_node_edges = HashMap::new();
         if let Some(connections) = self.graph.edges.get(&current.node_self) {
-            next_node_edges.clone_from(connections);
-        }
-        for (next_node_id, cost) in next_node_edges {
-            if visited_nodes.contains_key(&next_node_id) {
-                continue;
-            }
+            for (next_node_id, cost) in connections {
+                if visited_nodes.contains_key(next_node_id) {
+                    continue;
+                }
 
-            if current.transfer_count >= 2
-                && current.node_self.node_type == NodeType::Transfer
-                && next_node_id.node_type == NodeType::Departure
-            {
-                //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
-                continue;
-            }
+                if current.transfer_count >= 1
+                    && current.node_self.node_type == NodeType::Transfer
+                    && next_node_id.node_type == NodeType::Departure
+                {
+                    //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
+                    continue;
+                }
 
-            paths.push((next_node_id, cost));
+                paths.push((*next_node_id, *cost));
+            }
         }
         paths
     }
@@ -106,7 +104,7 @@ impl TransitDijkstra {
         source_id: Option<NodeId>,
         source_id_set: Option<Vec<NodeId>>,
         target_id: Option<NodeId>, //if target == None, settles all reachable nodes
-        hubs: Option<&HashSet<i64>>,
+        _hubs: Option<&HashSet<i64>>,
     ) -> (Option<PathedNode>, HashMap<NodeId, PathedNode>) {
         //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
@@ -146,16 +144,17 @@ impl TransitDijkstra {
         }
 
         let mut current_cost;
-        let mut num_visited_inactive = 0;
+        //let mut num_visited_inactive = 0;
 
         while !priority_queue.is_empty() {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
             current_cost = pathed_current_node.cost_from_start;
             let idx = pathed_current_node.node_self;
 
-            if self.inactive_nodes.contains(&pathed_current_node.node_self) {
+            /*if self.inactive_nodes.contains(&pathed_current_node.node_self) {
                 num_visited_inactive += 1
-            }
+            }*/
+
             visited_nodes.insert(idx, pathed_current_node.clone());
 
             //found target node
@@ -168,14 +167,14 @@ impl TransitDijkstra {
             //stop search for local TP if all unsettled NodeIds are inactive -->
             //all unvisited nodes should become subset of inactive nodes
             //this cool math solution was thought of by a server-mate on Discord, thank you!
-            if hubs.is_some()
+            /*if hubs.is_some()
                 && (self.graph.nodes.len()
                     - visited_nodes.len()
                     - (self.inactive_nodes.len() - num_visited_inactive)
                     == 0)
             {
                 return (None, visited_nodes);
-            }
+            }*/
 
             //stop conditions
             //cost or # of settled nodes goes over limit

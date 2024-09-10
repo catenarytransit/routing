@@ -99,6 +99,7 @@ mod tests {
 
     #[test]
     fn test() {
+        
         let now = Instant::now();
         let gtfs = read_from_gtfs_zip("ctt.zip");
         let (transit_graph, connections) =
@@ -211,7 +212,7 @@ mod tests {
         println!("{:?}", query);*/
 
         /*let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("hawaii.zip");
+        let gtfs = read_from_gtfs_zip("ctt.zip");
         let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
         let time = now.elapsed().as_secs_f32();
 
@@ -223,131 +224,21 @@ mod tests {
         );
 
         let mut router = TransitDijkstra::new(&graph);
-        let hubs = hub_selection(&router, 1000, 54000);
+        let hubs = hub_selection(&router, 10000, 54000);
         router.node_deactivator(&hubs);
+        let mut precomp_time_per_station = Vec::new();
 
         for h in 0..10 {
             let h = router.get_random_start().unwrap().station_id;
             let now = Instant::now();
-            let result = num_transfer_patterns_from_source(h, &mut router, Some(&hubs));
-            println!("{:?}", result.len());
-        }*/
-
-        /*
-        let mut total_pairs_considered = 0;
-        let mut precomp_time_per_station = Vec::new();
-        let mut histogram_tp: Vec<i32> = vec![0, 0, 0, 0, 0, 0];
-
-        for i in 0..1 {
-            println!("{}", i);
-            let source_id = router.get_random_start().unwrap();
-            let now = Instant::now();
-            let result = transfer_patterns.num_transfer_patterns_from_source(
-                source_id.station_id,
-                &mut router,
-                &None,
-            );
+            let result = num_transfer_patterns_from_source(h, &router, Some(&hubs));
             let time = now.elapsed().as_secs_f32();
             precomp_time_per_station.push(time);
-
-            for (_, &ref tp_num) in result.iter() {
-                if tp_num.len() == 2 {
-                    histogram_tp[0] += 1;
-                } else if (3..=6).contains(&tp_num.len()) {
-                    histogram_tp[1] += 1;
-                } else if (7..=11).contains(&tp_num.len()) {
-                    histogram_tp[2] += 1;
-                } else if (12..=21).contains(&tp_num.len()) {
-                    histogram_tp[3] += 1;
-                } else if (22..=51).contains(&tp_num.len()) {
-                    histogram_tp[4] += 1;
-                } else if tp_num.len() >= 52 {
-                    histogram_tp[5] += 1;
-                }
-            }
-            total_pairs_considered += result.len();
         }
 
         println!(
             "average station preprocess time in seconds {}",
             precomp_time_per_station.iter().sum::<f32>() / precomp_time_per_station.len() as f32
-        );
-
-        for i in histogram_tp.iter_mut() {
-            *i = *i * 100 / total_pairs_considered as i32;
-        }
-
-        println!(
-            "number of transfer patterns histogram percent {:?}",
-            histogram_tp
-        );*/
-
-        /*let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("manhattan.zip");
-        let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
-        let time = now.elapsed().as_secs_f32();
-
-        println!("time {}", time);
-        println!("# of nodes: {}", graph.nodes.len());
-        println!(
-            "# of edges: {}",
-            graph
-                .edges
-                .iter()
-                .map(|(_, edges)| edges.len())
-                .sum::<usize>()
-        );
-
-        //1,831 / 830,100 / 1,371,298     2s     5ms     2h12m35s
-        let now = Instant::now();
-        let graph = graph.reduce_to_largest_connected_component();
-        let mut time = now.elapsed().as_secs_f32();
-
-        println!("time {}", time);
-        println!("# of nodes: {}", graph.nodes.len());
-        println!(
-            "# of edges: {}",
-            graph
-                .edges
-                .iter()
-                .map(|(_, edges)| edges.len())
-                .sum::<usize>()
-        );
-
-        let mut query_time = Vec::new();
-        let mut shortest_path_costs = Vec::new();
-
-        let mut routing_graph = Dijkstra::new(&graph);
-        for _ in 0..1000 {
-            let source_id = routing_graph.get_random_start().unwrap();
-            let target_id = Some(
-                routing_graph
-                    .get_random_end(source_id.time.unwrap())
-                    .unwrap(),
-            );
-            let now = Instant::now();
-            let result = routing_graph.time_expanded_dijkstra(Some(source_id), None, target_id, &None, &None);
-            time = now.elapsed().as_millis() as f32;
-            query_time.push(time);
-
-            if let Some(result) = result {
-                let cost = result.cost_from_start;
-                shortest_path_costs.push(cost);
-            }
-
-            //println!("{} cost {}", x, cost);
-        }
-
-        println!(
-            "average query time in miliseconds {}",
-            query_time.iter().sum::<f32>() / query_time.len() as f32
-        );
-
-        println!(
-            "average cost hh::mm:ss {}:{}:{} \n",
-            shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 3600,
-            shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 3600 / 60,
-            shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 60,
         );*/
 
         /*let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();

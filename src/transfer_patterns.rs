@@ -239,6 +239,7 @@ pub fn num_transfer_patterns_from_source(
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
 ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+
     let source_transfer_nodes: Option<Vec<NodeId>> = Some(
         router
             .graph
@@ -246,16 +247,19 @@ pub fn num_transfer_patterns_from_source(
             .get(&source_station_id)
             .unwrap()
             .iter()
-            .filter(|(_, node)| node.node_type == NodeType::Transfer) // || node.node_type == 1
+            .filter(|(_, node)| node.node_type == NodeType::Transfer )//|| (hubs.is_none() && node.node_type == NodeType::Arrival))
             //must check for transfer nodes, but checking for arrival nodes may improve query time at expense of longer precompute
             .map(|(_, node)| *node)
             .collect(),
     );
 
+    //let now = Instant::now();
     //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
     let visited_nodes = router
         .time_expanded_dijkstra(None, source_transfer_nodes, None, hubs)
         .1;
+
+    //println!("get visiteds time {:?}", now.elapsed());
 
     let mut transfer_patterns = HashMap::new();
 
@@ -269,7 +273,7 @@ pub fn num_transfer_patterns_from_source(
         .collect();
 
     arrival_loop(&mut arrival_nodes);
-
+ 
     for (target, path, _) in arrival_nodes.iter() {
         let mut transfers = Vec::new();
         transfers.push(*target);
@@ -352,15 +356,11 @@ pub fn query_graph_construction_from_geodesic_points(
 ) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) {
     //source nodes, target nodes, edges
 
-    //let road_node_tree = RTree::bulk_load(router.graph.nodes.iter().map(|n| (n.lat, n.lon)).collect());
-
     //compute sets of N(source) and N(target) of stations N= near
-    println!("Finding sources");
-
     let sources =
         stations_close_to_geo_point_and_time(&source, &preset_distance, &router.graph, &time);
 
-    println!("Possible starting stations count: {}", sources.len());
+    println!("Possible starting stations count: {}", sources.len()); 
 
     let targets =
         stations_close_to_geo_point_and_time(&target, &preset_distance, &router.graph, &time);
@@ -369,8 +369,8 @@ pub fn query_graph_construction_from_geodesic_points(
 
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
-
-    let thread_num = 8;
+    
+    let thread_num = 9;
 
     //let mut time_tracker_for_multithreading_test = Vec::new();
     //for _ in 1..50 {
@@ -447,6 +447,12 @@ pub fn query_graph_construction_from_geodesic_points(
         handle.join().unwrap();
     }
     //time_tracker_for_multithreading_test.push(find_transfer_patterns.elapsed().as_secs_f32());
+    
+    //println!(
+    //    "avg time {:?} vs thread num {}",
+    //    time_tracker_for_multithreading_test.iter().sum::<f32>() / time_tracker_for_multithreading_test.len() as f32,
+    //    thread_num
+    //);
 
     let tps = total_transfer_patterns.lock().unwrap();
     let paths = tps
@@ -455,12 +461,6 @@ pub fn query_graph_construction_from_geodesic_points(
         .map(|(_, path)| path)
         .collect::<Vec<_>>();
     //}
-
-    //println!(
-    //    "avg time {:?} vs thread num {}",
-    //    time_tracker_for_multithreading_test.iter().sum::<f32>() / time_tracker_for_multithreading_test.len() as f32,
-    //    thread_num
-    //);
 
     /*
     let mut total_transfer_patterns = HashMap::new();
