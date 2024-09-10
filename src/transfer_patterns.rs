@@ -328,6 +328,54 @@ pub fn make_points_from_coords(
     (source, target)
 }
 
+#[derive(PartialEq, Debug, Clone)]
+struct RTreeStationItem {
+    pub x: f64,
+    pub y: f64,
+    pub station_id: i64
+}
+
+impl rstar::RTreeObject for RTreeStationItem {
+    type Envelope = rstar::AABB<[f64; 2]>;
+
+    fn envelope(&self) -> Self::Envelope
+    {
+        AABB::from_point([self.x, self.y])
+    }
+}
+
+impl rstar::Point for RTreeStationItem
+{
+  type Scalar = f64;
+  const DIMENSIONS: usize = 2;
+
+  fn generate(mut generator: impl FnMut(usize) -> Self::Scalar) -> Self
+  {
+    IntegerPoint {
+      x: generator(0),
+      y: generator(1)
+    }
+  }
+
+  fn nth(&self, index: usize) -> Self::Scalar
+  {
+    match index {
+      0 => self.x,
+      1 => self.y,
+      _ => unreachable!()
+    }
+  }
+
+  fn nth_mut(&mut self, index: usize) -> &mut Self::Scalar
+  {
+    match index {
+      0 => &mut self.x,
+      1 => &mut self.y,
+      _ => unreachable!()
+    }
+  }
+}
+
 pub fn query_graph_construction_from_geodesic_points(
     router: &mut TransitDijkstra,
     source: Point,
@@ -337,8 +385,13 @@ pub fn query_graph_construction_from_geodesic_points(
 ) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) {
     //source nodes, target nodes, edges
 
-    let road_node_tree = RTree::bulk_load(router.graph.nodes.iter().map(|n| (n.lon as f64 / f64::powi(10.0, 14), 
-    n.lat as f64 / f64::powi(10.0, 14))).collect());
+    let road_node_tree = RTree::bulk_load(router.graph.nodes.iter().map(|n|
+        RTreeStationItem {
+            x:  n.lon as f64 / f64::powi(10.0, 14), 
+            y : n.lat as f64 / f64::powi(10.0, 14),
+            station_id: n.station_id
+        }
+).collect());
 
     //compute sets of N(source) and N(target) of stations N= near
     let sources:Vec<_> =
