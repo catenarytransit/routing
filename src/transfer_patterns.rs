@@ -1,7 +1,6 @@
 use crate::NodeType;
 //THE FINAL BOSS
 use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
-use geo::algorithm::haversine_distance::*;
 use geo::point;
 use geo::Point;
 use rstar::*;
@@ -332,28 +331,20 @@ pub fn make_points_from_coords(
 struct RTreeStationItem {
     pub x: f64,
     pub y: f64,
-    pub station_id: i64
-}
-
-impl rstar::RTreeObject for RTreeStationItem {
-    type Envelope = rstar::AABB<[f64; 2]>;
-
-    fn envelope(&self) -> Self::Envelope
-    {
-        AABB::from_point([self.x, self.y])
-    }
+    pub station_id: f64
 }
 
 impl rstar::Point for RTreeStationItem
 {
   type Scalar = f64;
-  const DIMENSIONS: usize = 2;
+  const DIMENSIONS: usize = 3;
 
   fn generate(mut generator: impl FnMut(usize) -> Self::Scalar) -> Self
   {
-    IntegerPoint {
+    RTreeStationItem {
       x: generator(0),
-      y: generator(1)
+      y: generator(1),
+      station_id: generator(2)
     }
   }
 
@@ -389,18 +380,18 @@ pub fn query_graph_construction_from_geodesic_points(
         RTreeStationItem {
             x:  n.lon as f64 / f64::powi(10.0, 14), 
             y : n.lat as f64 / f64::powi(10.0, 14),
-            station_id: n.station_id
+            station_id: n.station_id as f64
         }
 ).collect());
 
     //compute sets of N(source) and N(target) of stations N= near
     let sources:Vec<_> =
-        road_node_tree.locate_within_distance(source.0.x_y(), preset_distance).collect();
+        road_node_tree.locate_within_distance(RTreeStationItem {x: source.x(), y: source.y(), station_id: 0.0}, preset_distance).collect();
 
     println!("Possible starting nodes count: {}", sources.len());
 
     let targets:Vec<_> =
-        road_node_tree.locate_within_distance(target.0.x_y(), preset_distance).collect();
+        road_node_tree.locate_within_distance(RTreeStationItem {x: target.x(), y: target.y(), station_id: 0.0}, preset_distance).collect();
 
     println!("Possible ending nodes count: {}", targets.len());
 
@@ -469,7 +460,7 @@ pub fn query_graph_construction_from_geodesic_points(
             {
                 let source_id = src.get(i).unwrap();
                 let l_tps = num_transfer_patterns_from_source(
-                    source_id.station_id,
+                    source_id.station_id as i64,
                     &router,
                     Some(&hub_list),
                 );
@@ -494,7 +485,8 @@ pub fn query_graph_construction_from_geodesic_points(
     let tps = total_transfer_patterns.lock().unwrap();
     let paths = tps
         .iter()
-        .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
+        .filter(|((source, target), _)| sources.contains(&&RTreeStationItem {x: source.lon as f64 / f64::powi(10.0, 14) , y: source.lat as f64 / f64::powi(10.0, 14), station_id: source.station_id as f64}) 
+        && targets.contains(&&RTreeStationItem {x: target.lon as f64 / f64::powi(10.0, 14) , y: target.lat as f64 / f64::powi(10.0, 14), station_id: target.station_id as f64}))
         .map(|(_, path)| path)
         .collect::<Vec<_>>();
     
