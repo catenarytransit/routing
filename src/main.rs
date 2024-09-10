@@ -50,6 +50,8 @@ fn main() {
 
     println!("Starting graph construction");
 
+    let preset_distance = 500.0;
+
     let now = Instant::now();
     let graph = query_graph_construction_from_geodesic_points(
         &mut router,
@@ -57,7 +59,7 @@ fn main() {
         target,
         //9h departure
         32400,
-        500.0,
+        preset_distance
     );
 
     println!("query graph constructed in {:?}", now.elapsed());
@@ -71,8 +73,8 @@ fn main() {
         graph.2,
         source,
         target,
-        graph.0,
-        graph.1,
+        (graph.0, graph.1),
+        preset_distance
     );
 
     let reverse_station_mapping = transit_graph
@@ -99,7 +101,6 @@ mod tests {
 
     #[test]
     fn test() {
-        
         let now = Instant::now();
         let gtfs = read_from_gtfs_zip("ctt.zip");
         let (transit_graph, connections) =
@@ -129,35 +130,41 @@ mod tests {
             -72.74897459174736,
         );
 
+        let preset_distance = 100.0;
+
         let now = Instant::now();
         let graph = query_graph_construction_from_geodesic_points(
             &mut router,
             source,
             target,
             48000,
-            100.0,
+            preset_distance
         );
 
         println!("query graph constructed in {:?}", now.elapsed());
 
-        /*let yes = query_graph_search(
+        let yes = query_graph_search(
             roads,
             connections,
             graph.2,
             source,
             target,
-            graph.0,
-            graph.1,
+            (graph.0, graph.1),
+            preset_distance
         );
 
-        let reverse_station_mapping = transit_graph.station_mapping.iter().map(|(name, id)| (id, name)).collect::<HashMap<_, _>>();
+        let reverse_station_mapping = transit_graph
+            .station_mapping
+            .iter()
+            .map(|(name, id)| (id, name))
+            .collect::<HashMap<_, _>>();
 
         if let Some(stuff) = yes {
             let path = stuff.2.get_path();
             for node in path.0 {
                 println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
             }
-        }*/
+        }
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

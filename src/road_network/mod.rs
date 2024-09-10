@@ -3,9 +3,11 @@ pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
     use crate::road_dijkstras::*;
     use core::num;
+    use geo::HaversineDistance;
     use osmpbfreader::objects::OsmObj;
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
+    use crate::coord_int_convert::TEN_TO_14;
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct Node {
@@ -33,7 +35,7 @@ pub mod road_graph_construction {
     pub struct RoadNetwork {
         //graph struct that will be used to route
         pub nodes: HashMap<i64, Node>, // <node.id, node>
-        pub edges: HashMap<i64, HashMap<i64, (u64, bool)>>, // tail.id, <head.id, (cost, arcflag)>
+        pub edges: HashMap<i64, HashMap<i64, u64>>, // tail.id, <head.id, cost>
         pub raw_ways: Vec<Way>,
         pub nodes_by_coords: HashMap<(i64, i64), i64>,
     }
@@ -51,31 +53,23 @@ pub mod road_graph_construction {
             "sidewalk" => Some(4),
             "traffic_island" => Some(4),
             "crossing" => Some(3),
+            "road" => Some(4),
+            "unclassified" => Some(4),
+            "residential" => Some(4),
+            "unsurfaced" => Some(4),
+            "living_street" => Some(4),
+            "service" => Some(4),
+            "trunk" => Some(4),
+            "primary" => Some(4),
+            "secondary" => Some(4),
+            "tertiary" => Some(4),
+            "motorway_link" => Some(4),
+            "trunk_link" => Some(4),
+            "primary_link" => Some(4),
+            "secondary_link" => Some(4),
             _ => Some(1),
         }
     }
-
-    /*pub fn speed_calc(highway: &str) -> Option<u64> { //for vehicles
-        //picks speed of highway based on given values, in km/h
-        match highway {
-            "motorway" => Some(110),
-            "trunk" => Some(110),
-            "primary" => Some(70),
-            "secondary" => Some(60),
-            "tertiary" => Some(50),
-            "motorway_link" => Some(50),
-            "trunk_link" => Some(50),
-            "primary_link" => Some(50),
-            "secondary_link" => Some(50),
-            "road" => Some(40),
-            "unclassified" => Some(40),
-            "residential" => Some(30),
-            "unsurfaced" => Some(30),
-            "living_street" => Some(10),
-            "service" => Some(5),
-            _ => None,
-        }
-    }*/
 
     #[derive(serde::Serialize, serde::Deserialize, Clone)]
     struct ExportOsm {
@@ -86,7 +80,7 @@ pub mod road_graph_construction {
     impl RoadNetwork {
         pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {
             //init new RoadNetwork based on results from reading .pbf file
-            let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();
+            let mut edges: HashMap<i64, HashMap<i64, u64>> = HashMap::new();
             for way in ways.iter() {
                 let mut previous_head_node_now_tail: Option<&Node> = None;
                 let mut previous_head_node_index: usize = 0;
@@ -103,32 +97,32 @@ pub mod road_graph_construction {
                     let head_id = way.refs[i + 1];
                     let head = nodes.get(&head_id);
                     if let (Some(tail), Some(head)) = (tail, head) {
-                        //following math converts lon/lat into distance of segment
-                        let a = i128::pow(((head.lat - tail.lat) * 111229).into(), 2) as f64
-                            / f64::powi(10.0, 14);
-                        let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
-                            / f64::powi(10.0, 14);
-                        let c = (a + b).sqrt();
-                        let cost = (c / ((way.speed as f64) * 5.0 / 18.0)) as u64; //seconds to traverse segment based on road type
+
+                        let head_point = geo::Point::new((head.lon as f64 / TEN_TO_14 ), (head.lat as f64 / TEN_TO_14));
+                        let tail_point = geo::Point::new((tail.lon as f64 / TEN_TO_14 ), (tail.lat as f64 / TEN_TO_14));
+
+                        let distance = head_point.haversine_distance(&tail_point);
+
+                        let cost = (distance / ((way.speed as f64) * 5.0 / 18.0)) as u64; //seconds to traverse segment based on road type
                         let flag = false;
                         edges
                             .entry(tail_id)
                             .and_modify(|inner| {
-                                inner.insert(head_id, (cost, flag));
+                                inner.insert(head_id, cost);
                             })
                             .or_insert({
                                 let mut a = HashMap::new();
-                                a.insert(head_id, (cost, flag));
+                                a.insert(head_id, cost);
                                 a
                             });
                         edges
                             .entry(head.id)
                             .and_modify(|inner| {
-                                inner.insert(tail_id, (cost, flag));
+                                inner.insert(tail_id, cost);
                             })
                             .or_insert({
                                 let mut a = HashMap::new();
-                                a.insert(tail_id, (cost, flag));
+                                a.insert(tail_id, cost);
                                 a
                             });
                         previous_head_node_now_tail = Some(head);
@@ -182,7 +176,6 @@ pub mod road_graph_construction {
                 if let Some((key, road_type)) = way
                     .tags
                     .iter()
-                    //.find(|(k, _)| k.eq(&"highway") || k.eq(&"footway")) //for pedestrians
                     .find(|(k, _)| k.eq(&"highway"))
                 {
                     if let Some(speed) = speed_calc(road_type.as_str()) {
@@ -195,7 +188,6 @@ pub mod road_graph_construction {
                 } else if let Some((key, road_type)) = way
                     .tags
                     .iter()
-                    //.find(|(k, _)| k.eq(&"highway") || k.eq(&"footway")) //for pedestrians
                     .find(|(k, _)| k.eq(&"foot"))
                 {
                     new_ways.push(Way {
@@ -259,7 +251,7 @@ pub mod road_graph_construction {
             {
                 counter += 1;
                 let mut shortest_path_graph = RoadDijkstra::new(&self);
-                shortest_path_graph.dijkstra(source_id, -1, &None, false);
+                shortest_path_graph.dijkstra(source_id, -1);
                 for node in shortest_path_graph.visited_nodes.keys() {
                     number_times_node_visted.insert(*node, counter);
                 }

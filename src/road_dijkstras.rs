@@ -47,27 +47,6 @@ impl RoadPathedNode {
     }
 }
 
-pub fn a_star_heuristic(graph: &RoadNetwork, target: i64) -> HashMap<i64, u64> {
-    let tail = *graph.nodes.get(&target).unwrap();
-    //for each current i64 id, enter euciladan distance from current to target, divided by max speed on that path
-    let heuristics = graph
-        .nodes
-        .iter()
-        .map(|(id, head)| {
-            (
-                *id,
-                ((i128::pow(((head.lat - tail.lat) * 111229).into(), 2) as f64
-                    / f64::powi(10.0, 14)
-                    + i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
-                        / f64::powi(10.0, 14))
-                .sqrt() as u64)
-                    / ((110_f64) * 5.0 / 18.0) as u64, //110 is motorway speed --> max speed possible on road network
-            )
-        })
-        .collect::<HashMap<i64, u64>>();
-    heuristics
-}
-
 impl RoadDijkstra {
     //implementation of dijkstra's shortest path algorithm
     pub fn new(graph: &RoadNetwork) -> Self {
@@ -89,25 +68,19 @@ impl RoadDijkstra {
     }
 
     pub fn get_neighbors(
-        &mut self,
+        &self,
         current: &RoadPathedNode,
-        consider_arc_flags: bool,
     ) -> Vec<(Node, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
-        let mut next_node_edges = HashMap::new();
         //need some case to handle neighbor to parent instead of just parent to neighbor
-        if let Some(connections) = self.graph.edges.get_mut(&current.node_self.id) {
-            next_node_edges.clone_from(connections);
-        }
-        for path in next_node_edges {
-            if self.visited_nodes.contains_key(&path.0) {
-                continue;
+        if let Some(connections) = self.graph.edges.get(&current.node_self.id) {
+            for path in connections {
+                if self.visited_nodes.contains_key(path.0) {
+                    continue;
+                }
+                paths.push((*self.graph.nodes.get(path.0).unwrap(), *path.1));
             }
-            if consider_arc_flags && !path.1 .1 {
-                continue;
-            }
-            paths.push((*self.graph.nodes.get(&path.0).unwrap(), path.1 .0));
         }
         paths
     }
@@ -116,8 +89,6 @@ impl RoadDijkstra {
         &mut self,
         source_id: i64,
         target_id: i64,
-        heuristics: &Option<HashMap<i64, u64>>,
-        consider_arc_flags: bool,
     ) -> Option<RoadPathedNode> {
         //(Option<RoadPathedNode>, HashMap<i64, i64>) {
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
@@ -173,7 +144,7 @@ impl RoadDijkstra {
                 continue;
             }
 
-            for neighbor in self.get_neighbors(&pathed_current_node, consider_arc_flags) {
+            for neighbor in self.get_neighbors(&pathed_current_node) {
                 let temp_distance = pathed_current_node.distance_from_start + neighbor.1;
                 let next_distance = *gscore.get(&neighbor.0.id).unwrap_or(&u64::MAX);
 
@@ -185,15 +156,8 @@ impl RoadDijkstra {
                         distance_from_start: temp_distance,
                         parent_node: Some(prev_node),
                     };
-                    let h;
-                    if let Some(heuristic) = heuristics {
-                        h = heuristic.get(&neighbor.0.id).unwrap_or(&0);
-                    } else {
-                        h = &0;
-                    }
-                    //fscore = temp_distance (gscore) + h (hscore)
-                    priority_queue.push(Reverse((temp_distance + h, tentative_new_node)));
-                    //previous_nodes.insert(neighbor.0.id, pathed_current_node.node_self.id);
+                    priority_queue.push(Reverse((temp_distance, tentative_new_node)));
+
                 }
             }
         }
@@ -256,13 +220,5 @@ impl RoadDijkstra {
             }
         }
         None
-    }
-
-    pub fn reset_all_flags(&mut self, state: bool) {
-        for (_, edgelist) in self.graph.edges.iter_mut() {
-            for edge in edgelist.iter_mut() {
-                edge.1 .1 = state;
-            }
-        }
     }
 }
