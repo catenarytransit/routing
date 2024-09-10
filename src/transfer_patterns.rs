@@ -337,34 +337,17 @@ pub fn query_graph_construction_from_geodesic_points(
 ) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) {
     //source nodes, target nodes, edges
 
+    let road_node_tree = RTree::bulk_load(router.graph.nodes.iter().map(|n| (n.lon as f64 / f64::powi(10.0, 14), 
+    n.lat as f64 / f64::powi(10.0, 14))).collect());
+
     //compute sets of N(source) and N(target) of stations N= near
     let sources:Vec<_> =
-    router
-    .graph.nodes
-    .iter()
-    .filter(|node| {
-        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
-        source.haversine_distance(&node_coord) <= preset_distance
-            && node.time >= Some(start_time)
-            && node.time <= Some(start_time + 7200) //2 hr waiting limit
-    })
-    .copied()
-    .collect();
+        road_node_tree.locate_within_distance(source.0.x_y(), preset_distance).collect();
 
     println!("Possible starting nodes count: {}", sources.len());
-    let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
 
     let targets:Vec<_> =
-    router
-    .graph.nodes
-    .iter()
-    .filter(|node| {
-        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
-        target.haversine_distance(&node_coord) <= preset_distance
-        && node.time >= earliest_departure
-    })
-    .copied()
-    .collect();
+        road_node_tree.locate_within_distance(target.0.x_y(), preset_distance).collect();
 
     println!("Possible ending nodes count: {}", targets.len());
 
