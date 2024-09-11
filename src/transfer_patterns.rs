@@ -9,7 +9,7 @@ use std::cmp::Reverse;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Instant;
+//use std::time::Instant;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
@@ -120,12 +120,6 @@ impl TDDijkstra {
                         transfer_count: 0,
                     };
 
-                    /*let mut h = &0;
-                    if let Some(heuristic) = heuristics {
-                        h = heuristic.get(&neighbor.0).unwrap_or(&0);
-                    } */
-                    //fscore = temp_distance + h (which is the gscore + hscore)
-
                     priority_queue.push(Reverse((temp_distance, tentative_new_node.clone())));
                 }
             }
@@ -194,9 +188,9 @@ pub fn hub_selection(
         transfer_buffer: router.graph.transfer_buffer,
         nodes: time_independent_nodes,
         edges: time_independent_edges,
-        station_mapping: router.graph.station_mapping.clone(),
-        nodes_per_station: router.graph.nodes_per_station.clone(),
-        trip_mapping: router.graph.trip_mapping.clone(),
+        station_mapping: HashMap::from([]),
+        nodes_per_station: HashMap::from([]),
+        trip_mapping: HashMap::from([]),
     };
 
     let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
@@ -246,7 +240,10 @@ pub fn num_transfer_patterns_from_source(
             .get(&source_station_id)
             .unwrap()
             .iter()
-            .filter(|(_, node)| node.node_type == NodeType::Transfer) //|| (hubs.is_none() && node.node_type == NodeType::Arrival))
+            .filter(|(_, node)| {
+                node.node_type == NodeType::Transfer
+                 //   || (hubs.is_none() && node.node_type == NodeType::Arrival)
+            })
             //must check for transfer nodes, but checking for arrival nodes may improve query time at expense of longer precompute
             .map(|(_, node)| *node)
             .collect(),
@@ -427,7 +424,6 @@ pub fn query_graph_construction_from_geodesic_points(
         let hub_list = Arc::clone(&threaded_hubs);
         let handle = thread::spawn(move || {
             let src = source;
-            let mut ttp = transfer_patterns.lock().unwrap();
             for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
                 ..(x * source_chunk_len / (thread_num - 1))
             {
@@ -437,6 +433,8 @@ pub fn query_graph_construction_from_geodesic_points(
                     &router,
                     Some(&hub_list),
                 );
+                
+                let mut ttp = transfer_patterns.lock().unwrap();
                 ttp.extend(l_tps.into_iter());
             }
         });
@@ -459,9 +457,9 @@ pub fn query_graph_construction_from_geodesic_points(
     let paths = tps
         .iter()
         .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
-        .map(|(_, path)| path)
+        //.map(|(_, path)| path)
         .collect::<Vec<_>>();
-    
+
     println!("paths num {}", paths.len());
     //}
 
@@ -494,9 +492,9 @@ pub fn query_graph_construction_from_geodesic_points(
     */
     let mut raw_edges = HashMap::new();
 
-    for path in paths.into_iter() {
+    for path in paths.iter() {
         let mut prev = None;
-        for node in path {
+        for node in path.1.iter() {
             if let Some(prev) = prev {
                 match raw_edges.entry(prev) {
                     Entry::Occupied(mut o) => {
@@ -513,27 +511,35 @@ pub fn query_graph_construction_from_geodesic_points(
         }
     }
 
-    println!("raw edges len {}", raw_edges.len());
+   // let mut sources: Vec<_> = paths.iter().map(|((s, _), _)| *s).collect();
+    //let mut targets: Vec<_> = paths.iter().map(|((_, t), _)| *t).collect();
+
+    //sources.dedup();
+   // targets.dedup();
 
     (sources, targets, raw_edges)
 }
 
 pub fn query_graph_search(
-    roads: RoadNetwork,
+    roads: &RoadNetwork,
     connections: DirectConnections,
     edges: HashMap<NodeId, Vec<NodeId>>,
     start: Point,
     end: Point,
     source_target_vecs: (Vec<NodeId>, Vec<NodeId>),
-    preset_distance: f64
+    preset_distance: f64,
 ) -> Option<(NodeId, NodeId, PathedNode)> {
     let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
     let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| (n.lon, n.lat)).collect());
 
-    let mut graph = RoadDijkstra::new(&roads);
-    graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0/ 18.0)) as u64);
-     
+    println!("Made rtree");
+
+    let mut graph = RoadDijkstra::new(roads);
+
+    println!("Made graph of road dijkstras");
+
+    graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
 
     if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
         ((start.0.x * f64::powi(10.0, 14)) as i64),
@@ -550,9 +556,8 @@ pub fn query_graph_search(
                     .nodes_by_coords
                     .get(&(station_sought.0, station_sought.1))
                     .unwrap();
-                let now = Instant::now();
                 if let Some(result) = graph.dijkstra(road_source, station) {
-                    println!("time src {:?}", now.elapsed());
+                   // println!("{:?} to {:?}", source, result);
                     source_paths.insert(source, result);
                 }
             }
@@ -578,13 +583,7 @@ pub fn query_graph_search(
                     .nodes_by_coords
                     .get(&(station_sought.0, station_sought.1))
                     .unwrap();
-                let now = Instant::now();
                 if let Some(result) = graph.dijkstra(station, road_target) {
-                    println!("coords check: {:?} and {:?}", 
-                        roads.nodes.get(&station),
-                        roads.nodes.get(&road_target)
-                    );
-                    println!("time targ {:?}", now.elapsed());
                     target_paths.insert(target, result);
                 }
             }

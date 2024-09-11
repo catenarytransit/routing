@@ -59,22 +59,22 @@ fn main() {
         target,
         //9h departure
         32400,
-        preset_distance
+        preset_distance,
     );
 
     println!("query graph constructed in {:?}", now.elapsed());
 
-    println!("source nodes {:?}", graph.0);
-    println!("target nodes {:?}", graph.1);
+    //println!("source nodes {:?}", graph.0);
+    //println!("target nodes {:?}", graph.1);
 
     let run_query = query_graph_search(
-        roads,
+        &roads,
         connections,
         graph.2,
         source,
         target,
         (graph.0, graph.1),
-        preset_distance
+        preset_distance,
     );
 
     let reverse_station_mapping = transit_graph
@@ -138,7 +138,7 @@ mod tests {
             source,
             target,
             48000,
-            preset_distance
+            preset_distance,
         );
 
         println!("query graph constructed in {:?}", now.elapsed());
@@ -150,7 +150,7 @@ mod tests {
             source,
             target,
             (graph.0, graph.1),
-            preset_distance
+            preset_distance,
         );
 
         let reverse_station_mapping = transit_graph

@@ -1,13 +1,13 @@
 #[allow(unused)]
 pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
+    use crate::coord_int_convert::TEN_TO_14;
     use crate::road_dijkstras::*;
     use core::num;
     use geo::HaversineDistance;
     use osmpbfreader::objects::OsmObj;
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
-    use crate::coord_int_convert::TEN_TO_14;
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct Node {
@@ -34,7 +34,7 @@ pub mod road_graph_construction {
     #[derive(Debug, PartialEq, Clone)]
     pub struct RoadNetwork {
         //graph struct that will be used to route
-        pub nodes: HashMap<i64, Node>, // <node.id, node>
+        pub nodes: HashMap<i64, Node>,              // <node.id, node>
         pub edges: HashMap<i64, HashMap<i64, u64>>, // tail.id, <head.id, cost>
         pub raw_ways: Vec<Way>,
         pub nodes_by_coords: HashMap<(i64, i64), i64>,
@@ -97,9 +97,14 @@ pub mod road_graph_construction {
                     let head_id = way.refs[i + 1];
                     let head = nodes.get(&head_id);
                     if let (Some(tail), Some(head)) = (tail, head) {
-
-                        let head_point = geo::Point::new((head.lon as f64 / TEN_TO_14 ), (head.lat as f64 / TEN_TO_14));
-                        let tail_point = geo::Point::new((tail.lon as f64 / TEN_TO_14 ), (tail.lat as f64 / TEN_TO_14));
+                        let head_point = geo::Point::new(
+                            (head.lon as f64 / TEN_TO_14),
+                            (head.lat as f64 / TEN_TO_14),
+                        );
+                        let tail_point = geo::Point::new(
+                            (tail.lon as f64 / TEN_TO_14),
+                            (tail.lat as f64 / TEN_TO_14),
+                        );
 
                         let distance = head_point.haversine_distance(&tail_point);
 
@@ -173,11 +178,7 @@ pub mod road_graph_construction {
             }
 
             for way in ways {
-                if let Some((key, road_type)) = way
-                    .tags
-                    .iter()
-                    .find(|(k, _)| k.eq(&"highway"))
-                {
+                if let Some((key, road_type)) = way.tags.iter().find(|(k, _)| k.eq(&"highway")) {
                     if let Some(speed) = speed_calc(road_type.as_str()) {
                         new_ways.push(Way {
                             id: way.id.0,
@@ -185,10 +186,7 @@ pub mod road_graph_construction {
                             refs: way.nodes.into_iter().map(|x| x.0).collect(),
                         });
                     }
-                } else if let Some((key, road_type)) = way
-                    .tags
-                    .iter()
-                    .find(|(k, _)| k.eq(&"foot"))
+                } else if let Some((key, road_type)) = way.tags.iter().find(|(k, _)| k.eq(&"foot"))
                 {
                     new_ways.push(Way {
                         id: way.id.0,

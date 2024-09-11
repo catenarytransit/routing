@@ -67,10 +67,7 @@ impl RoadDijkstra {
         self.max_settled_nodes = max_settled;
     }
 
-    pub fn get_neighbors(
-        &self,
-        current: &RoadPathedNode,
-    ) -> Vec<(Node, u64)> {
+    pub fn get_neighbors(&self, current: &RoadPathedNode) -> Vec<(Node, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
         //need some case to handle neighbor to parent instead of just parent to neighbor
@@ -85,11 +82,7 @@ impl RoadDijkstra {
         paths
     }
 
-    pub fn dijkstra(
-        &mut self,
-        source_id: i64,
-        target_id: i64,
-    ) -> Option<RoadPathedNode> {
+    pub fn dijkstra(&mut self, source_id: i64, target_id: i64) -> Option<RoadPathedNode> {
         //(Option<RoadPathedNode>, HashMap<i64, i64>) {
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, RoadPathedNode)>> = BinaryHeap::new();
@@ -157,7 +150,6 @@ impl RoadDijkstra {
                         parent_node: Some(prev_node),
                     };
                     priority_queue.push(Reverse((temp_distance, tentative_new_node)));
-
                 }
             }
         }
