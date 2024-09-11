@@ -8,6 +8,7 @@ pub mod road_graph_construction {
     use osmpbfreader::objects::OsmObj;
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
+    use crate::coord_int_convert::*;
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct Node {
@@ -44,7 +45,8 @@ pub mod road_graph_construction {
         //for pedestrians
         //picks speed of highway based on given values, in km/h
         match highway {
-            "pedestrian" => Some(4),
+            "motorway" => None,
+            /*"pedestrian" => Some(4),
             "path" => Some(4),
             "footway" => Some(4),
             "steps" => Some(4),
@@ -66,8 +68,8 @@ pub mod road_graph_construction {
             "motorway_link" => Some(4),
             "trunk_link" => Some(4),
             "primary_link" => Some(4),
-            "secondary_link" => Some(4),
-            _ => Some(1),
+            "secondary_link" => Some(4),*/
+            _ => Some(4),
         }
     }
 
@@ -164,15 +166,16 @@ pub mod road_graph_construction {
             let mut nodes = HashMap::new();
             let ways = objs.ways;
 
-            let mut new_ways = vec![];
+            let mut new_ways = vec![];           
 
             for node in objs.nodes {
+                let node_coords = coord_to_int(node.lon(), node.lat()); //lon = 0, lat = 1
                 nodes.insert(
                     node.id.0,
                     Node {
                         id: node.id.0,
-                        lat: (node.lat() * f64::powi(10.0, 7)) as i64,
-                        lon: (node.lon() * f64::powi(10.0, 7)) as i64,
+                        lat: node_coords.1,
+                        lon: node_coords.0
                     },
                 );
             }
@@ -209,14 +212,15 @@ pub mod road_graph_construction {
             for obj in reader.iter().map(Result::unwrap) {
                 match obj {
                     OsmObj::Node(e) => {
-                        nodes.insert(
-                            e.id.0,
-                            Node {
-                                id: e.id.0,
-                                lat: (e.lat() * f64::powi(10.0, 7)) as i64,
-                                lon: (e.lon() * f64::powi(10.0, 7)) as i64,
-                            },
-                        );
+                        let node_coords = coord_to_int(e.lon(), e.lat()); //lon = 0, lat = 1
+                nodes.insert(
+                    e.id.0,
+                    Node {
+                        id: e.id.0,
+                        lat: node_coords.1,
+                        lon: node_coords.0
+                    },
+                );
                     }
                     OsmObj::Way(e) => {
                         if let Some((key, road_type)) =

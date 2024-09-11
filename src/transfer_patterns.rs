@@ -184,7 +184,7 @@ pub fn hub_selection(
     }
 
     let time_independent_graph = TimeExpandedGraph {
-        day_of_week: router.graph.day_of_week.clone(),
+        day_of_week:"".to_string(),
         transfer_buffer: router.graph.transfer_buffer,
         nodes: time_independent_nodes,
         edges: time_independent_edges,
@@ -315,10 +315,10 @@ pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
 }
 
 pub fn make_points_from_coords(
-    source_lat: f64,
     source_lon: f64,
-    target_lat: f64,
+    source_lat: f64,
     target_lon: f64,
+    target_lat: f64,
 ) -> (Point, Point) {
     let source = point!(x: source_lon, y:source_lat);
     let target = point!(x: target_lon, y:target_lat);
@@ -340,15 +340,16 @@ pub fn query_graph_construction_from_geodesic_points(
     .graph.nodes
     .iter()
     .filter(|node| {
-        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
-        source.haversine_distance(&node_coord) <= preset_distance
+        let conv = int_to_coord(node.lon, node.lat);
+        let node_coord = point!(x: conv.0, y: conv.1);
+        source.haversine_distance(&node_coord).abs() <= preset_distance
             && node.time >= Some(start_time)
-            && node.time <= Some(start_time + 7200) //2 hr waiting limit
     })
     .copied()
     .collect();
 
     println!("Possible starting nodes count: {}", sources.len());
+
     let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
 
     let targets:Vec<_> =
@@ -356,7 +357,7 @@ pub fn query_graph_construction_from_geodesic_points(
     .graph.nodes
     .iter()
     .filter(|node| {
-        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
+        let node_coord = Point::from(int_to_coord(node.lon, node.lat));
         target.haversine_distance(&node_coord) <= preset_distance
         && node.time >= earliest_departure
     })
@@ -541,10 +542,7 @@ pub fn query_graph_search(
 
     graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
 
-    if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
-        ((start.0.x * f64::powi(10.0, 14)) as i64),
-        ((start.0.y * f64::powi(10.0, 14)) as i64),
-    )) {
+    if let Some(start_road_node) = road_node_tree.nearest_neighbor(&coord_to_int(start.x(), start.y())) {
         for source in source_target_vecs.0.iter() {
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lon, source.lat))
             {
@@ -568,10 +566,7 @@ pub fn query_graph_search(
 
     let mut target_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
-    if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(
-        ((end.0.x * f64::powi(10.0, 14)) as i64),
-        ((end.0.y * f64::powi(10.0, 14)) as i64),
-    )) {
+    if let Some(end_road_node) = road_node_tree.nearest_neighbor(&coord_to_int(end.x(), end.y())) {
         for target in source_target_vecs.1.iter() {
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&(target.lon, target.lat))
             {
