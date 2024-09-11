@@ -456,6 +456,9 @@ pub fn query_graph_construction_from_geodesic_points(
     //);
 
     let tps = total_transfer_patterns.lock().unwrap();
+
+    println!("raw tps num {}", tps.len()):
+
     let paths = tps
         .iter()
         .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
