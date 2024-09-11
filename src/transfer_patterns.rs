@@ -10,6 +10,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
 //use std::time::Instant;
+use crate::coord_int_convert::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {

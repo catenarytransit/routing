@@ -145,7 +145,7 @@ mod tests {
         println!("query graph constructed in {:?}", now.elapsed());
 
         let yes = query_graph_search(
-            roads,
+            &roads,
             connections,
             graph.2,
             source,
