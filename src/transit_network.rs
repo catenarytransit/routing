@@ -5,6 +5,7 @@ use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
 };
+use std::collections::hash_map::Entry;
 
 use crate::NodeType;
 
@@ -244,24 +245,24 @@ impl TimeExpandedGraph {
             }
 
             trip_id += 1;
-            let route_id = trip.route_id.clone();
-
-            connection_table_per_line
-                .entry(route_id.clone())
-                .and_modify(|table| {
-                    table.route_id = route_id.clone();
+            let route_id = &trip.route_id;
+            match connection_table_per_line.entry(route_id.clone()) {
+                Entry::Occupied(mut o) => {
+                    let table = o.get_mut();
+                    table.route_id = route_id.to_string();
                     table.start_times.push(trip_start_time);
                     table
                         .times_from_start
                         .extend(stations_time_from_trip_start.iter());
-                })
-                .or_insert({
-                    LineConnectionTable {
-                        route_id,
+                }
+                Entry::Vacant(v) => {
+                    v.insert(LineConnectionTable {
+                        route_id: route_id.to_string(),
                         start_times: Vec::from([trip_start_time]),
                         times_from_start: stations_time_from_trip_start,
-                    }
-                });
+                    });
+                }
+            }
         }
         for (station_id, station) in nodes_per_station.iter_mut() {
             station.sort_by(|a, b| a.0.cmp(&b.0));
@@ -310,16 +311,18 @@ impl TimeExpandedGraph {
             }
             for (route_id, line) in connection_table_per_line.iter() {
                 if let Some((_, sequence_number)) = line.times_from_start.get(station_id) {
-                    lines_per_station
-                        .entry(*station_id)
-                        .and_modify(|map| {
-                            map.insert(route_id.clone(), *sequence_number);
-                        })
-                        .or_insert({
+                    match lines_per_station.entry(*station_id) {
+                        Entry::Occupied(mut o) => {
+                            let map = o.get_mut();
+                            map.insert(route_id.to_string(), *sequence_number);
+                        }
+                        Entry::Vacant(v) => {
+                            v.insert({
                             let mut map = HashMap::new();
-                            map.insert(route_id.clone(), *sequence_number);
-                            map
-                        });
+                            map.insert(route_id.to_string(), *sequence_number);
+                            map});
+                        }
+                    }
                 }
             }
         }

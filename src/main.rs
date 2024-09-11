@@ -96,6 +96,7 @@ mod tests {
     use std::collections::HashMap;
     use std::env;
     use std::time::Instant;
+    use transit_router::coord_int_convert::coord_to_int;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 
@@ -129,8 +130,8 @@ mod tests {
             41.80535590796691,
             -72.74897459174736,
         );
-
-        let preset_distance = 100.0;
+        
+        let preset_distance = 1000.0;
 
         let now = Instant::now();
         let graph = query_graph_construction_from_geodesic_points(
