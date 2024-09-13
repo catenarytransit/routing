@@ -9,8 +9,8 @@ use std::cmp::Reverse;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
+use std::time::Instant;
 //use std::time::Instant;
-use crate::coord_int_convert::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
@@ -233,7 +233,9 @@ pub fn num_transfer_patterns_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
+    start_time: Option<u64>
 ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+    if hubs.is_none() {println!("a");}
     let source_transfer_nodes: Option<Vec<NodeId>> = Some(
         router
             .graph
@@ -243,22 +245,20 @@ pub fn num_transfer_patterns_from_source(
             .iter()
             .filter(|(_, node)| {
                 node.node_type == NodeType::Transfer
-                 //   || (hubs.is_none() && node.node_type == NodeType::Arrival)
+                || (hubs.is_none() && node.node_type == NodeType::Arrival)
+                && node.time >= start_time
             })
             //must check for transfer nodes, but checking for arrival nodes may improve query time at expense of longer precompute
             .map(|(_, node)| *node)
             .collect(),
     );
+    if hubs.is_none() {println!("b");}
 
-    //let now = Instant::now();
-    //note: multilabel time_expanded_dijkstras are always slower due to label set maintenance
     let visited_nodes = router
         .time_expanded_dijkstra(None, source_transfer_nodes, None, hubs)
         .1;
 
-    //println!("get visiteds time {:?}", now.elapsed());
-
-    let mut transfer_patterns = HashMap::new();
+    if hubs.is_none() {println!("c");}
 
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = visited_nodes
         .iter()
@@ -271,7 +271,9 @@ pub fn num_transfer_patterns_from_source(
 
     arrival_loop(&mut arrival_nodes);
 
-    for (target, path, _) in arrival_nodes.iter() {
+    if hubs.is_none() {println!("d");}
+
+    /*for (target, path, _) in arrival_nodes.iter() {
         let mut transfers = Vec::new();
         transfers.push(*target);
         let mut previous_node: NodeId = *target;
@@ -287,9 +289,56 @@ pub fn num_transfer_patterns_from_source(
         transfers.reverse();
 
         transfer_patterns.insert((*transfers.first().unwrap(), *target), transfers);
+    }*/
+  
+    use std::sync::Mutex;
+    use std::thread;
+
+    let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+    let thread_num = 8;
+    let source_chunk_len = arrival_nodes.len();
+    let threaded_sources = Arc::new(arrival_nodes.clone());
+    let mut handles = vec![];
+    let now = Instant::now();
+
+    for x in 1..thread_num {
+        let source = Arc::clone(&threaded_sources);
+        let transfer_patterns = Arc::clone(&total_transfer_patterns);
+        let handle = thread::spawn(move || {
+            let src = source;
+            for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
+                ..(x * source_chunk_len / (thread_num - 1))
+            {
+                let (target, path, _) = src.get(i).unwrap();
+                let mut transfers = Vec::new();
+                transfers.push(*target);
+                let mut previous_node: NodeId = *target;
+                for &node in path {
+                    if previous_node.node_type == NodeType::Departure
+                        && node.node_type == NodeType::Transfer
+                    {
+                        transfers.push(node);
+                    }
+                    previous_node = node;
+                }
+
+                transfers.reverse();
+
+                transfer_patterns.lock().unwrap().insert((*transfers.first().unwrap(), *target), transfers);
+            }
+        });
+
+        handles.push(handle);
+    }    
+
+    for handle in handles {
+        handle.join().unwrap();
     }
 
-    transfer_patterns
+    if hubs.is_none(){println!("elapsed {:?}", now.elapsed());}
+
+    let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
+    lock.into_inner().expect("mutex could not be locked")
 }
 
 // Arrival chain algo: For each arrival node, see if cost can be approved
@@ -341,15 +390,13 @@ pub fn query_graph_construction_from_geodesic_points(
     .graph.nodes
     .iter()
     .filter(|node| {
-        let conv = int_to_coord(node.lon, node.lat);
-        let node_coord = point!(x: conv.0, y: conv.1);
-        source.haversine_distance(&node_coord).abs() <= preset_distance
+        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
+        source.haversine_distance(&node_coord) <= preset_distance
             && node.time >= Some(start_time)
+            && node.time <= Some(start_time + 7200) //2 hr arbitrary buffer for testing purposes
     })
     .copied()
     .collect();
-
-    println!("Possible starting nodes count: {}", sources.len());
 
     let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
 
@@ -358,9 +405,10 @@ pub fn query_graph_construction_from_geodesic_points(
     .graph.nodes
     .iter()
     .filter(|node| {
-        let node_coord = Point::from(int_to_coord(node.lon, node.lat));
+        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
         target.haversine_distance(&node_coord) <= preset_distance
         && node.time >= earliest_departure
+        && node.time <= Some(earliest_departure.unwrap() + 3600) //1 hr arbitrary buffer for testing purposes
     })
     .copied()
     .collect();
@@ -379,35 +427,6 @@ pub fn query_graph_construction_from_geodesic_points(
     use std::thread;
 
     let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-
-    //global transfer patterns from I(hubs) to to N(target())
-    let hub_chunk_len = hubs.len();
-    let arc_router = Arc::new(router.clone());
-    let threaded_hubs = Arc::new(hubs.clone().into_iter().collect::<Vec<_>>());
-    let mut handles = vec![];
-
-    for x in 1..thread_num {
-        let transfer_patterns = Arc::clone(&total_transfer_patterns);
-        let router = Arc::clone(&arc_router);
-        let hub_list = Arc::clone(&threaded_hubs);
-        let handle = thread::spawn(move || {
-            let src = hub_list;
-            for i in
-                (x - 1) * (hub_chunk_len / (thread_num - 1))..(x * hub_chunk_len / (thread_num - 1))
-            {
-                let hub_id = src.get(i).unwrap();
-                let g_tps = num_transfer_patterns_from_source(*hub_id, &router, None);
-
-                let mut ttp = transfer_patterns.lock().unwrap();
-                ttp.extend(g_tps.into_iter());
-            }
-        });
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
 
     //precompute local TP from N(source) to first hub (this min hub is access station)
     //attempt at multithreading to go faster
@@ -434,6 +453,7 @@ pub fn query_graph_construction_from_geodesic_points(
                     source_id.station_id,
                     &router,
                     Some(&hub_list),
+                    Some(start_time)
                 );
                 
                 let mut ttp = transfer_patterns.lock().unwrap();
@@ -442,11 +462,55 @@ pub fn query_graph_construction_from_geodesic_points(
         });
 
         handles.push(handle);
-    }
+    }    
 
     for handle in handles {
         handle.join().unwrap();
     }
+    
+    let mut tps = total_transfer_patterns.lock().unwrap();
+    let a: Vec<_>= tps.iter().map(|((_, t), _)| t.station_id).collect();
+    let used_hubs: Vec<_> = hubs.into_iter().filter(|n| a.contains(n)).collect();
+
+    //global transfer patterns from I(hubs) to to N(target())
+    let hub_chunk_len = used_hubs.len();
+    
+    println!("num hubs used {}", hub_chunk_len);
+
+    /*let arc_router = Arc::new(router.clone());
+    let threaded_hubs = Arc::new(used_hubs.clone());
+    let mut handles = vec![];
+
+    for x in 1..thread_num {
+        let transfer_patterns = Arc::clone(&total_transfer_patterns);
+        let router = Arc::clone(&arc_router);
+        let hub_list = Arc::clone(&threaded_hubs);
+        let handle = thread::spawn(move || {
+            let src = hub_list;
+            for i in
+                (x - 1) * (hub_chunk_len / (thread_num - 1))..(x * hub_chunk_len / (thread_num - 1))
+            {
+                let hub_id = src.get(i).unwrap();
+                let g_tps = num_transfer_patterns_from_source(*hub_id, &router, None);
+
+                let mut ttp = transfer_patterns.lock().unwrap();
+                ttp.extend(g_tps.into_iter());
+            }
+        });
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }*/
+
+    for hub in used_hubs.iter() {
+        println!("hub");
+        let g_tps = num_transfer_patterns_from_source(*hub, router, None, Some(start_time));
+        //tps.extend(g_tps.into_iter().filter(|((_,  t), _)| targets.contains(t)));
+        tps.extend(g_tps.into_iter());
+    }
+
     //time_tracker_for_multithreading_test.push(find_transfer_patterns.elapsed().as_secs_f32());
 
     //println!(
@@ -455,13 +519,11 @@ pub fn query_graph_construction_from_geodesic_points(
     //    thread_num
     //);
 
-    let tps = total_transfer_patterns.lock().unwrap();
-
-    println!("raw tps num {}", tps.len()):
+    println!("hubs raw tps num {}", tps.len());
 
     let paths = tps
         .iter()
-        .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
+        .filter(|((source, target), _)| sources.contains(source) || targets.contains(target))
         //.map(|(_, path)| path)
         .collect::<Vec<_>>();
 
@@ -529,8 +591,8 @@ pub fn query_graph_search(
     roads: &RoadNetwork,
     connections: DirectConnections,
     edges: HashMap<NodeId, Vec<NodeId>>,
-    start: Point,
-    end: Point,
+    source: Point,
+    target: Point,
     source_target_vecs: (Vec<NodeId>, Vec<NodeId>),
     preset_distance: f64,
 ) -> Option<(NodeId, NodeId, PathedNode)> {
@@ -546,10 +608,16 @@ pub fn query_graph_search(
 
     graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
 
-    if let Some(start_road_node) = road_node_tree.nearest_neighbor(&coord_to_int(start.x(), start.y())) {
+    if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
+        ((source.0.x * f64::powi(10.0, 14)) as i64),
+        ((source.0.y * f64::powi(10.0, 14)) as i64),
+    )) {
         for source in source_target_vecs.0.iter() {
+            println!("node {:?}", source.lon);
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lon, source.lat))
             {
+                println!("neighbor {:?}", station_sought.0);
+                //println!("{:?} versus {:?}", start_road_node, station_sought);
                 let road_source = *roads
                     .nodes_by_coords
                     .get(&(start_road_node.0, start_road_node.1))
@@ -570,7 +638,10 @@ pub fn query_graph_search(
 
     let mut target_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
-    if let Some(end_road_node) = road_node_tree.nearest_neighbor(&coord_to_int(end.x(), end.y())) {
+    if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(
+        ((target.0.x * f64::powi(10.0, 14)) as i64),
+        ((target.0.y * f64::powi(10.0, 14)) as i64),
+    )) {
         for target in source_target_vecs.1.iter() {
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&(target.lon, target.lat))
             {

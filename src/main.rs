@@ -10,6 +10,7 @@ fn main() {
     use transit_router::transit_dijkstras::TransitDijkstra;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_network::*};
+    use transit_router::road_dijkstras::*;
 
     let now = Instant::now();
     let gtfs = read_from_gtfs_zip("gtfs_stm.zip");
@@ -21,16 +22,14 @@ fn main() {
     let now = Instant::now();
 
     //read bytes from file ped-and-bike-north-america-canada-quebec.osm.bincode
-    let path = "./ped-and-bike-north-america-canada-quebec.osm.bincode";
+    //let path = "./ped-and-bike-north-america-canada-quebec.osm.bincode";
 
-    //read data from file
-
+    /*read data from file
     let bytes = fs::read(path).unwrap();
+    let data = RoadNetwork::from_bincode_file(&bytes);*/
 
-    //   let data = RoadNetwork::read_from_osm_file(path).unwrap();
-    let data = RoadNetwork::from_bincode_file(&bytes);
+    let data = RoadNetwork::read_from_osm_file("quebec1.pbf").unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
-    //roads = roads.reduce_to_largest_connected_component();
 
     println!("time for road {:?}", now.elapsed());
 
@@ -48,7 +47,62 @@ fn main() {
         x:-73.547620, y:45.559989
     };
 
-    println!("Starting graph construction");
+    let preset_distance = 500.0;
+    let start_time = 32400;
+
+    let sources:Vec<_>
+     = router
+    .graph.nodes
+    .iter()
+    .filter(|node| {
+        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
+        use geo::HaversineDistance;
+        source.haversine_distance(&node_coord) <= preset_distance
+            && node.time >= Some(start_time)
+            && node.time <= Some(start_time + 7200) //2 hr arbitrary buffer for testing purposes
+    })
+    .copied().collect();
+
+    println!("nodes {:?}", sources);
+
+    use rstar::RTree;
+
+    let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
+    let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| (n.lon, n.lat)).collect());
+
+    println!("Made rtree");
+
+    let mut graph = RoadDijkstra::new(&roads);
+
+    graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
+
+    if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
+        ((source.0.x * f64::powi(10.0, 14)) as i64),
+        ((source.0.y * f64::powi(10.0, 14)) as i64),
+    )) {
+        for source in sources.iter() {
+            println!("node {:?}", source.lon);
+            if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lon, source.lat))
+            {
+                println!("neighbor {:?}", station_sought.0);
+                //println!("{:?} versus {:?}", start_road_node, station_sought);
+                let road_source = *roads
+                    .nodes_by_coords
+                    .get(&(start_road_node.0, start_road_node.1))
+                    .unwrap();
+                let station = *roads
+                    .nodes_by_coords
+                    .get(&(station_sought.0, station_sought.1))
+                    .unwrap();
+                if let Some(result) = graph.dijkstra(road_source, station) {
+                    println!("{:?} to {:?}", source, result);
+                    source_paths.insert(source, result);
+                }
+            }
+        }
+    }
+
+    /*println!("Starting graph construction");
 
     let preset_distance = 500.0;
 
@@ -57,7 +111,7 @@ fn main() {
         &mut router,
         source,
         target,
-        //9h departure
+        //09:00 departure
         32400,
         preset_distance,
     );
@@ -88,7 +142,7 @@ fn main() {
         for node in path.0 {
             println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
         }
-    }
+    }*/
 }
 
 #[cfg(test)]

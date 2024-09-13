@@ -46,7 +46,7 @@ pub mod road_graph_construction {
         //picks speed of highway based on given values, in km/h
         match highway {
             "motorway" => None,
-            /*"pedestrian" => Some(4),
+            "pedestrian" => Some(4),
             "path" => Some(4),
             "footway" => Some(4),
             "steps" => Some(4),
@@ -68,7 +68,7 @@ pub mod road_graph_construction {
             "motorway_link" => Some(4),
             "trunk_link" => Some(4),
             "primary_link" => Some(4),
-            "secondary_link" => Some(4),*/
+            "secondary_link" => Some(4),
             _ => Some(4),
         }
     }
@@ -83,7 +83,7 @@ pub mod road_graph_construction {
         pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {
             //init new RoadNetwork based on results from reading .pbf file
             let mut edges: HashMap<i64, HashMap<i64, u64>> = HashMap::new();
-            for way in ways.iter() {
+            for way in ways.clone() {
                 let mut previous_head_node_now_tail: Option<&Node> = None;
                 let mut previous_head_node_index: usize = 0;
                 for i in 0..way.refs.len() - 1 {
@@ -99,18 +99,13 @@ pub mod road_graph_construction {
                     let head_id = way.refs[i + 1];
                     let head = nodes.get(&head_id);
                     if let (Some(tail), Some(head)) = (tail, head) {
-                        let head_point = geo::Point::new(
-                            (head.lon as f64 / TEN_TO_14),
-                            (head.lat as f64 / TEN_TO_14),
-                        );
-                        let tail_point = geo::Point::new(
-                            (tail.lon as f64 / TEN_TO_14),
-                            (tail.lat as f64 / TEN_TO_14),
-                        );
-
-                        let distance = head_point.haversine_distance(&tail_point);
-
-                        let cost = (distance / ((way.speed as f64) * 5.0 / 18.0)) as u64; //seconds to traverse segment based on road type
+                        //following math converts lon/lat into distance of segment
+                        let a = i128::pow(((head.lat - tail.lat) * 111229).into(), 2) as f64
+                            / f64::powi(10.0, 14);
+                        let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
+                            / f64::powi(10.0, 14);
+                        let c = (a + b).sqrt();
+                        let cost = (c as u64) / ((way.speed as f64) * 5.0 / 18.0) as u64; //seconds needed to traverse segment based on road type
                         let flag = false;
                         edges
                             .entry(tail_id)
@@ -212,21 +207,20 @@ pub mod road_graph_construction {
             for obj in reader.iter().map(Result::unwrap) {
                 match obj {
                     OsmObj::Node(e) => {
-                        let node_coords = coord_to_int(e.lon(), e.lat()); //lon = 0, lat = 1
-                nodes.insert(
-                    e.id.0,
-                    Node {
-                        id: e.id.0,
-                        lat: node_coords.1,
-                        lon: node_coords.0
-                    },
-                );
+                        nodes.insert(
+                            e.id.0,
+                            Node {
+                                id: e.id.0,
+                                lat: (e.lat() * f64::powi(10.0, 14)) as i64,
+                                lon: (e.lon() * f64::powi(10.0, 14)) as i64,
+                            },
+                        );
                     }
                     OsmObj::Way(e) => {
-                        if let Some((key, road_type)) =
-                            e.tags.iter().find(|(k, _)| k.eq(&"highway"))
+                        if let Some(road_type) =
+                            e.tags.clone().iter().find(|(k, _)| k.eq(&"highway"))
                         {
-                            if let Some(speed) = speed_calc(road_type.as_str()) {
+                            if let Some(speed) = speed_calc(road_type.1.as_str()) {
                                 ways.push(Way {
                                     id: e.id.0,
                                     speed,

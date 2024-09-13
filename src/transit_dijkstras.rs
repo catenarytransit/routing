@@ -60,6 +60,7 @@ impl TransitDijkstra {
         &self,
         current: &PathedNode,
         visited_nodes: &HashMap<NodeId, PathedNode>,
+        is_local: bool
     ) -> Vec<(NodeId, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
@@ -69,9 +70,10 @@ impl TransitDijkstra {
                     continue;
                 }
 
-                if current.transfer_count >= 1
+                if  current.transfer_count >= 1  //bast recommended 2
                     && current.node_self.node_type == NodeType::Transfer
                     && next_node_id.node_type == NodeType::Departure
+                   // && is_local
                 {
                     //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
                     continue;
@@ -104,7 +106,7 @@ impl TransitDijkstra {
         source_id: Option<NodeId>,
         source_id_set: Option<Vec<NodeId>>,
         target_id: Option<NodeId>, //if target == None, settles all reachable nodes
-        _hubs: Option<&HashSet<i64>>,
+        hubs: Option<&HashSet<i64>>,
     ) -> (Option<PathedNode>, HashMap<NodeId, PathedNode>) {
         //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
@@ -187,7 +189,7 @@ impl TransitDijkstra {
                 continue;
             }
 
-            for neighbor in self.get_neighbors(&pathed_current_node, &visited_nodes) {
+            for neighbor in self.get_neighbors(&pathed_current_node, &visited_nodes, hubs.is_some()) {
                 let temp_distance = current_cost + neighbor.1;
                 let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
 

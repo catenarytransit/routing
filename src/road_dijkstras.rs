@@ -175,9 +175,9 @@ impl RoadDijkstra {
         lon_max: f32,
     ) -> i64 {
         let lat_range =
-            (lat_min * f32::powi(10.0, 7)) as i64..(lat_max * f32::powi(10.0, 7)) as i64;
+            (lat_min * f32::powi(10.0, 14)) as i64..(lat_max * f32::powi(10.0, 14)) as i64;
         let lon_range =
-            (lon_min * f32::powi(10.0, 7)) as i64..(lon_max * f32::powi(10.0, 7)) as i64;
+            (lon_min * f32::powi(10.0, 14)) as i64..(lon_max * f32::powi(10.0, 14)) as i64;
         let mut found = false;
         let mut id = -1;
         while !found {
