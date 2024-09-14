@@ -45,7 +45,7 @@ pub mod road_graph_construction {
         //for pedestrians
         //picks speed of highway based on given values, in km/h
         match highway {
-            "motorway" => None,
+            //"motorway" => None,
             "pedestrian" => Some(4),
             "path" => Some(4),
             "footway" => Some(4),
@@ -227,7 +227,16 @@ pub mod road_graph_construction {
                                     refs: e.nodes.into_iter().map(|x| x.0).collect(),
                                 });
                             }
+                        } else if let Some(road_type) =
+                            e.tags.clone().iter().find(|(k, _)| k.eq(&"foot"))
+                        {
+                            ways.push(Way {
+                                id: e.id.0,
+                                speed: 4,
+                                refs: e.nodes.into_iter().map(|x| x.0).collect(),
+                            });
                         }
+                        
                     }
                     _ => {}
                 }

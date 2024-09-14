@@ -11,6 +11,7 @@ fn main() {
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_network::*};
     use transit_router::road_dijkstras::*;
+    use transit_router::coord_int_convert::*;
 
     let now = Instant::now();
     let gtfs = read_from_gtfs_zip("gtfs_stm.zip");
@@ -30,6 +31,7 @@ fn main() {
 
     let data = RoadNetwork::read_from_osm_file("quebec1.pbf").unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
+    roads = roads.reduce_to_largest_connected_component();
 
     println!("time for road {:?}", now.elapsed());
 
@@ -47,7 +49,7 @@ fn main() {
         x:-73.547620, y:45.559989
     };
 
-    let preset_distance = 500.0;
+    let preset_distance = 100.0;
     let start_time = 32400;
 
     let sources:Vec<_>
@@ -63,37 +65,41 @@ fn main() {
     })
     .copied().collect();
 
-    println!("nodes {:?}", sources);
+    //println!("nodes {:?}", sources);
 
     use rstar::RTree;
 
     let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
-    let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| (n.lon, n.lat)).collect());
+    let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| int_to_coord(n.lon, n.lat)).collect());
 
     println!("Made rtree");
 
     let mut graph = RoadDijkstra::new(&roads);
 
-    graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
+    //graph.set_cost_upper_bound((preset_distance *10 / (4.0 * 5.0 / 18.0))as u64);
 
+    let result = graph.dijkstra(12108046081, 2295353535);
+    println!("{:?} to {:?}", source, result);
+
+    
     if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
-        ((source.0.x * f64::powi(10.0, 14)) as i64),
-        ((source.0.y * f64::powi(10.0, 14)) as i64),
+        source.0.x,
+        source.0.y,
     )) {
         for source in sources.iter() {
-            println!("node {:?}", source.lon);
-            if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lon, source.lat))
+            if let Some(station_sought) = road_node_tree.nearest_neighbor(&int_to_coord(source.lon, source.lat))
             {
-                println!("neighbor {:?}", station_sought.0);
+                //println!("neighbor {:?}", station_sought);
                 //println!("{:?} versus {:?}", start_road_node, station_sought);
                 let road_source = *roads
                     .nodes_by_coords
-                    .get(&(start_road_node.0, start_road_node.1))
+                    .get(&coord_to_int(start_road_node.0, start_road_node.1))
                     .unwrap();
                 let station = *roads
                     .nodes_by_coords
-                    .get(&(station_sought.0, station_sought.1))
+                    .get(&coord_to_int(station_sought.0, station_sought.1))
                     .unwrap();
+                println!("{:?} to {:?}", road_source, station);
                 if let Some(result) = graph.dijkstra(road_source, station) {
                     println!("{:?} to {:?}", source, result);
                     source_paths.insert(source, result);
@@ -101,6 +107,7 @@ fn main() {
             }
         }
     }
+    
 
     /*println!("Starting graph construction");
 

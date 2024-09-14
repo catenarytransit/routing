@@ -10,7 +10,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
 use std::time::Instant;
-//use std::time::Instant;
+use crate::coord_int_convert::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
@@ -598,7 +598,7 @@ pub fn query_graph_search(
 ) -> Option<(NodeId, NodeId, PathedNode)> {
     let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
-    let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| (n.lon, n.lat)).collect());
+    let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| int_to_coord(n.lon, n.lat)).collect());
 
     println!("Made rtree");
 
@@ -609,22 +609,22 @@ pub fn query_graph_search(
     graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
 
     if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
-        ((source.0.x * f64::powi(10.0, 14)) as i64),
-        ((source.0.y * f64::powi(10.0, 14)) as i64),
+        source.0.x,
+        source.0.y,
     )) {
         for source in source_target_vecs.0.iter() {
-            println!("node {:?}", source.lon);
-            if let Some(station_sought) = road_node_tree.nearest_neighbor(&(source.lon, source.lat))
+            //println!("node {:?}", source.lon);
+            if let Some(station_sought) = road_node_tree.nearest_neighbor(&int_to_coord(source.lon, source.lat))
             {
-                println!("neighbor {:?}", station_sought.0);
+                //println!("neighbor {:?}", station_sought.0);
                 //println!("{:?} versus {:?}", start_road_node, station_sought);
                 let road_source = *roads
                     .nodes_by_coords
-                    .get(&(start_road_node.0, start_road_node.1))
+                    .get(&coord_to_int(start_road_node.0, start_road_node.1))
                     .unwrap();
                 let station = *roads
                     .nodes_by_coords
-                    .get(&(station_sought.0, station_sought.1))
+                    .get(&coord_to_int(station_sought.0, station_sought.1))
                     .unwrap();
                 if let Some(result) = graph.dijkstra(road_source, station) {
                    // println!("{:?} to {:?}", source, result);
@@ -639,19 +639,20 @@ pub fn query_graph_search(
     let mut target_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
     if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(
-        ((target.0.x * f64::powi(10.0, 14)) as i64),
-        ((target.0.y * f64::powi(10.0, 14)) as i64),
+        source.0.x,
+        source.0.y,
     )) {
-        for target in source_target_vecs.1.iter() {
-            if let Some(station_sought) = road_node_tree.nearest_neighbor(&(target.lon, target.lat))
+        for target in source_target_vecs.0.iter() {
+            //println!("node {:?}", target.lon);
+            if let Some(station_sought) = road_node_tree.nearest_neighbor(&int_to_coord(target.lon, target.lat))
             {
                 let road_target = *roads
                     .nodes_by_coords
-                    .get(&(end_road_node.0, end_road_node.1))
+                    .get(&coord_to_int(end_road_node.0, end_road_node.1))
                     .unwrap();
                 let station = *roads
                     .nodes_by_coords
-                    .get(&(station_sought.0, station_sought.1))
+                    .get(&coord_to_int(station_sought.0, station_sought.1))
                     .unwrap();
                 if let Some(result) = graph.dijkstra(station, road_target) {
                     target_paths.insert(target, result);
