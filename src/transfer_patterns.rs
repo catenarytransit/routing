@@ -606,7 +606,7 @@ pub fn query_graph_search(
 
     println!("Made graph of road dijkstras");
 
-    graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
+    //graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
 
     if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
         source.0.x,
