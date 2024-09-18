@@ -606,17 +606,16 @@ pub fn query_graph_search(
 
     println!("Made graph of road dijkstras");
 
-    graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
+    //graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
 
     if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
         source.0.x,
         source.0.y,
     )) {
         for source in source_target_vecs.0.iter() {
-            //println!("node {:?}", source.lon);
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&int_to_coord(source.lon, source.lat))
             {
-                //println!("neighbor {:?}", station_sought.0);
+                //println!("neighbor {:?}", station_sought);
                 //println!("{:?} versus {:?}", start_road_node, station_sought);
                 let road_source = *roads
                     .nodes_by_coords
@@ -626,8 +625,9 @@ pub fn query_graph_search(
                     .nodes_by_coords
                     .get(&coord_to_int(station_sought.0, station_sought.1))
                     .unwrap();
+                println!("{:?} to {:?}", road_source, station);
                 if let Some(result) = graph.dijkstra(road_source, station) {
-                   // println!("{:?} to {:?}", source, result);
+                    println!("{:?} to {:?}", source, result);
                     source_paths.insert(source, result);
                 }
             }
@@ -639,10 +639,10 @@ pub fn query_graph_search(
     let mut target_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
     if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(
-        source.0.x,
-        source.0.y,
+        target.0.x,
+        target.0.y,
     )) {
-        for target in source_target_vecs.0.iter() {
+        for target in source_target_vecs.1.iter() {
             //println!("node {:?}", target.lon);
             if let Some(station_sought) = road_node_tree.nearest_neighbor(&int_to_coord(target.lon, target.lat))
             {

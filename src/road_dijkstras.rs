@@ -83,7 +83,6 @@ impl RoadDijkstra {
     }
 
     pub fn dijkstra(&mut self, source_id: i64, target_id: i64) -> Option<RoadPathedNode> {
-        println!("costlim: {}", self.cost_upper_bound);
         //(Option<RoadPathedNode>, HashMap<i64, i64>) {
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, RoadPathedNode)>> = BinaryHeap::new();

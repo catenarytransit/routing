@@ -372,7 +372,10 @@ pub fn direct_connection_query(
         }
     }
 
-    let table = connections.route_tables.get(route).unwrap();
+    println!("start: {:?}", start);
+    println!("endoo: {:?}", end);
+
+    if let Some(table) = connections.route_tables.get(route) {
     let mut start_times = table.start_times.clone();
     let time_to_start = table.times_from_start.get(&start_station).unwrap().0;
     let time_to_end = table.times_from_start.get(&end_station).unwrap().0;
@@ -383,6 +386,9 @@ pub fn direct_connection_query(
         let arrival = first_valid_start_time + time_to_end;
         Some((departure, arrival))
     } else {
+        None
+    }}
+    else {
         None
     }
 }

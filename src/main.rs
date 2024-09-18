@@ -16,6 +16,7 @@ fn main() {
     let now = Instant::now();
     let gtfs = read_from_gtfs_zip("gtfs_stm.zip");
     let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
+    
     let mut router = TransitDijkstra::new(&transit_graph);
 
     println!("time for transit {:?}", now.elapsed());
@@ -76,40 +77,7 @@ fn main() {
 
     let mut graph = RoadDijkstra::new(&roads);
 
-    //graph.set_cost_upper_bound((preset_distance *10 / (4.0 * 5.0 / 18.0))as u64);
-
-    let result = graph.dijkstra(12108046081, 2295353535);
-    println!("{:?} to {:?}", source, result);
-
-    
-    if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(
-        source.0.x,
-        source.0.y,
-    )) {
-        for source in sources.iter() {
-            if let Some(station_sought) = road_node_tree.nearest_neighbor(&int_to_coord(source.lon, source.lat))
-            {
-                //println!("neighbor {:?}", station_sought);
-                //println!("{:?} versus {:?}", start_road_node, station_sought);
-                let road_source = *roads
-                    .nodes_by_coords
-                    .get(&coord_to_int(start_road_node.0, start_road_node.1))
-                    .unwrap();
-                let station = *roads
-                    .nodes_by_coords
-                    .get(&coord_to_int(station_sought.0, station_sought.1))
-                    .unwrap();
-                println!("{:?} to {:?}", road_source, station);
-                if let Some(result) = graph.dijkstra(road_source, station) {
-                    println!("{:?} to {:?}", source, result);
-                    source_paths.insert(source, result);
-                }
-            }
-        }
-    }
-    
-
-    /*println!("Starting graph construction");
+    println!("Starting graph construction");
 
     let preset_distance = 500.0;
 
@@ -149,7 +117,8 @@ fn main() {
         for node in path.0 {
             println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
         }
-    }*/
+    }
+    
 }
 
 #[cfg(test)]
