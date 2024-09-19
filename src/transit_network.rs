@@ -372,8 +372,8 @@ pub fn direct_connection_query(
         }
     }
 
-    println!("start: {:?}", start);
-    println!("endoo: {:?}", end);
+    //println!("start: {:?}", start);
+    //println!("endoo: {:?}", end);
 
     if let Some(table) = connections.route_tables.get(route) {
     let mut start_times = table.start_times.clone();

@@ -625,9 +625,9 @@ pub fn query_graph_search(
                     .nodes_by_coords
                     .get(&coord_to_int(station_sought.0, station_sought.1))
                     .unwrap();
-                println!("{:?} to {:?}", road_source, station);
+                //println!("{:?} to {:?}", road_source, station);
                 if let Some(result) = graph.dijkstra(road_source, station) {
-                    println!("{:?} to {:?}", source, result);
+                    //println!("{:?} to {:?}", source, result);
                     source_paths.insert(source, result);
                 }
             }

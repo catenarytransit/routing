@@ -115,7 +115,7 @@ fn main() {
     if let Some(stuff) = run_query {
         let path = stuff.2.get_path();
         for node in path.0 {
-            println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
+            println!("path: {}", reverse_station_mapping.get(&node.station_id).unwrap());
         }
     }
     
