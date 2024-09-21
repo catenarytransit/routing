@@ -20,7 +20,6 @@ fn main() {
     let mut router = TransitDijkstra::new(&transit_graph);
 
     println!("time for transit {:?}", now.elapsed());
-
     let now = Instant::now();
 
     //read bytes from file ped-and-bike-north-america-canada-quebec.osm.bincode
@@ -52,21 +51,6 @@ fn main() {
 
     let preset_distance = 100.0;
     let start_time = 32400;
-
-    let sources:Vec<_>
-     = router
-    .graph.nodes
-    .iter()
-    .filter(|node| {
-        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
-        use geo::HaversineDistance;
-        source.haversine_distance(&node_coord) <= preset_distance
-            && node.time >= Some(start_time)
-            && node.time <= Some(start_time + 7200) //2 hr arbitrary buffer for testing purposes
-    })
-    .copied().collect();
-
-    //println!("nodes {:?}", sources);
 
     use rstar::RTree;
 
@@ -123,8 +107,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use geo::point;
     use std::collections::HashMap;
     use std::env;
+    use std::f64::consts;
     use std::time::Instant;
     use transit_router::coord_int_convert::coord_to_int;
     use transit_router::RoadNetwork;
@@ -155,10 +141,10 @@ mod tests {
         );
 
         let (source, target) = make_points_from_coords(
-            41.84945654310709,
-            -72.81226042073773,
-            41.80535590796691,
-            -72.74897459174736,
+            -72.71973332600558,
+            41.86829675142084, 
+            -72.70049435551549,
+            41.76726348091365, 
         );
         
         let preset_distance = 1000.0;
@@ -168,7 +154,7 @@ mod tests {
             &mut router,
             source,
             target,
-            48000,
+            59400,
             preset_distance,
         );
 
@@ -190,12 +176,14 @@ mod tests {
             .map(|(name, id)| (id, name))
             .collect::<HashMap<_, _>>();
 
+        print!("path: \t");
         if let Some(stuff) = yes {
             let path = stuff.2.get_path();
             for node in path.0 {
-                println!("{}", reverse_station_mapping.get(&node.station_id).unwrap());
+                print!("{},", reverse_station_mapping.get(&node.station_id).unwrap());
             }
         }
+        println!(".");
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
@@ -232,22 +220,6 @@ mod tests {
         pareto_recompute(&mut set, (7, 2));
         println!("{:?}", set);
         */
-
-        //Direct-Connection Query Test
-        /*let connections = DirectConnections {
-            route_tables: HashMap::from([("L17".to_string(), LineConnectionTable {
-                route_id: "L17".to_string(),
-                times_from_start: HashMap::from([(154, (0, 1)), (97, (420, 2)), (987, (720, 3)), (111, (1260, 4))]),
-                start_times: Vec::from([297000,33300, 36900, 40800, 44400])
-            })]),
-            lines_per_station: HashMap::from([(97, HashMap::from([
-                    ("L8".to_string(), 4), ("L17".to_string(), 2),("L34".to_string(), 5), ("L87".to_string(), 17)])),
-                (111, HashMap::from([
-                    ("L9".to_string(), 1), ("L13".to_string(), 5),("L17".to_string(), 4), ("L55".to_string(), 16)
-                ]))])
-        };
-        let query = direct_connection_query(connections, 97, 111, 37200);
-        println!("{:?}", query);*/
 
         /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("ctt.zip");
@@ -382,5 +354,26 @@ mod tests {
         println!("aa{:?}", result);
 
         //println!("hubs \n{:?}", transfer_patterns.hubs);*/
+        
+        /*        
+        //Direct-Connection Query Test
+        let connections = DirectConnections {
+            route_tables: HashMap::from([("L17".to_string(), LineConnectionTable {
+                route_id: "L17".to_string(),
+                times_from_start: HashMap::from([(154, (0, 1)), (97, (420, 2)), (987, (720, 3)), (111, (1260, 4))]),
+                start_times: Vec::from([297000,33300, 36900, 40800, 44400])
+            })]),
+            lines_per_station: HashMap::from([(97, HashMap::from([
+                    ("L8".to_string(), 4), ("L17".to_string(), 2),("L34".to_string(), 5), ("L87".to_string(), 17)])),
+                (111, HashMap::from([
+                    ("L9".to_string(), 1), ("L13".to_string(), 5),("L17".to_string(), 4), ("L55".to_string(), 16)
+                ]))])
+        };
+        let query = direct_connection_query(&   connections, 97, 111, 37200);
+        println!("query results: {:?}", query);
+         */
+   
+   
+   
     }
 }

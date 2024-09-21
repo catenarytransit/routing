@@ -105,7 +105,7 @@ pub mod road_graph_construction {
                         let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
                             / f64::powi(10.0, 14);
                         let c = (a + b).sqrt();
-                        let cost = (c as u64) / ((way.speed as f64) * 5.0 / 18.0) as u64; //seconds needed to traverse segment based on road type
+                        let cost = (c / ((way.speed as f64) * 5.0 / 18.0)) as u64; //seconds needed to traverse segment based on road type
                         let flag = false;
                         edges
                             .entry(tail_id)

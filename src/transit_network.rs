@@ -108,8 +108,6 @@ impl TimeExpandedGraph {
             .map(|(trip_id, _)| trip_id.to_owned())
             .collect();
 
-        //TODO: add repetitions of trip_id for frequencies.txt if it exists
-
         for (iterator, stop_id) in (0_i64..).zip(gtfs.stops.iter()) {
             station_mapping.insert(stop_id.0.clone(), iterator);
         }
@@ -249,7 +247,7 @@ impl TimeExpandedGraph {
             match connection_table_per_line.entry(route_id.clone()) {
                 Entry::Occupied(mut o) => {
                     let table = o.get_mut();
-                    table.route_id = route_id.to_string();
+                    //table.route_id = route_id.to_string();
                     table.start_times.push(trip_start_time);
                     table
                         .times_from_start
@@ -371,10 +369,7 @@ pub fn direct_connection_query(
             }
         }
     }
-
-    //println!("start: {:?}", start);
-    //println!("endoo: {:?}", end);
-
+    
     if let Some(table) = connections.route_tables.get(route) {
     let mut start_times = table.start_times.clone();
     let time_to_start = table.times_from_start.get(&start_station).unwrap().0;

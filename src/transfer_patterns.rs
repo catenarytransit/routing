@@ -9,7 +9,7 @@ use std::cmp::Reverse;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Instant;
+//use std::time::Instant;
 use crate::coord_int_convert::*;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -21,8 +21,10 @@ pub struct TDDijkstra {
 }
 
 impl TDDijkstra {
-    //implementation of time_expanded_dijkstra's shortest path algorithm
+    //implementation of time dependent shortest path algorithm
     pub fn new(connections: DirectConnections, edges: HashMap<NodeId, Vec<NodeId>>) -> Self {
+        println!("dependent edges: {:?}", edges.len());
+        
         let visited_nodes = HashMap::new();
         Self {
             connections,
@@ -50,6 +52,8 @@ impl TDDijkstra {
                 ) {
                     let cost = arr - dept;
                     next_node_edges.insert(next_node, cost);
+                } else {
+                    //println!("cur: {:?}, next {:?}", current.node_self, next_node);
                 }
             }
         }
@@ -235,7 +239,6 @@ pub fn num_transfer_patterns_from_source(
     hubs: Option<&HashSet<i64>>,
     start_time: Option<u64>
 ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
-    if hubs.is_none() {println!("a");}
     let source_transfer_nodes: Option<Vec<NodeId>> = Some(
         router
             .graph
@@ -252,13 +255,9 @@ pub fn num_transfer_patterns_from_source(
             .map(|(_, node)| *node)
             .collect(),
     );
-    if hubs.is_none() {println!("b");}
-
     let visited_nodes = router
         .time_expanded_dijkstra(None, source_transfer_nodes, None, hubs)
         .1;
-
-    if hubs.is_none() {println!("c");}
 
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = visited_nodes
         .iter()
@@ -270,8 +269,6 @@ pub fn num_transfer_patterns_from_source(
         .collect();
 
     arrival_loop(&mut arrival_nodes);
-
-    if hubs.is_none() {println!("d");}
 
     /*for (target, path, _) in arrival_nodes.iter() {
         let mut transfers = Vec::new();
@@ -299,7 +296,6 @@ pub fn num_transfer_patterns_from_source(
     let source_chunk_len = arrival_nodes.len();
     let threaded_sources = Arc::new(arrival_nodes.clone());
     let mut handles = vec![];
-    let now = Instant::now();
 
     for x in 1..thread_num {
         let source = Arc::clone(&threaded_sources);
@@ -334,8 +330,6 @@ pub fn num_transfer_patterns_from_source(
     for handle in handles {
         handle.join().unwrap();
     }
-
-    if hubs.is_none(){println!("elapsed {:?}", now.elapsed());}
 
     let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
     lock.into_inner().expect("mutex could not be locked")
@@ -393,7 +387,7 @@ pub fn query_graph_construction_from_geodesic_points(
         let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
         source.haversine_distance(&node_coord) <= preset_distance
             && node.time >= Some(start_time)
-            && node.time <= Some(start_time + 7200) //2 hr arbitrary buffer for testing purposes
+            && node.time <= Some(start_time + 3600) //1 hr arbitrary buffer for testing purposes
     })
     .copied()
     .collect();
@@ -408,7 +402,7 @@ pub fn query_graph_construction_from_geodesic_points(
         let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
         target.haversine_distance(&node_coord) <= preset_distance
         && node.time >= earliest_departure
-        && node.time <= Some(earliest_departure.unwrap() + 3600) //1 hr arbitrary buffer for testing purposes
+        && node.time <= Some(earliest_departure.unwrap() + 7200) //2 hr arbitrary buffer for testing purposes
     })
     .copied()
     .collect();
@@ -472,10 +466,8 @@ pub fn query_graph_construction_from_geodesic_points(
     let a: Vec<_>= tps.iter().map(|((_, t), _)| t.station_id).collect();
     let used_hubs: Vec<_> = hubs.into_iter().filter(|n| a.contains(n)).collect();
 
-    //global transfer patterns from I(hubs) to to N(target())
-    let hub_chunk_len = used_hubs.len();
-    
-    println!("num hubs used {}", hub_chunk_len);
+    //global transfer patterns from I(hubs) to to N(target())    
+    println!("num hubs used {:?}", used_hubs.len());
 
     /*let arc_router = Arc::new(router.clone());
     let threaded_hubs = Arc::new(used_hubs.clone());
@@ -505,7 +497,6 @@ pub fn query_graph_construction_from_geodesic_points(
     }*/
 
     for hub in used_hubs.iter() {
-        println!("hub");
         let g_tps = num_transfer_patterns_from_source(*hub, router, None, Some(start_time));
         //tps.extend(g_tps.into_iter().filter(|((_,  t), _)| targets.contains(t)));
         tps.extend(g_tps.into_iter());
@@ -521,6 +512,7 @@ pub fn query_graph_construction_from_geodesic_points(
 
     println!("hubs raw tps num {}", tps.len());
 
+
     let paths = tps
         .iter()
         .filter(|((source, target), _)| sources.contains(source) || targets.contains(target))
@@ -528,6 +520,9 @@ pub fn query_graph_construction_from_geodesic_points(
         .collect::<Vec<_>>();
 
     println!("paths num {}", paths.len());
+
+    //println!("{:?}", tps);
+
     //}
 
     /*
@@ -557,7 +552,7 @@ pub fn query_graph_construction_from_geodesic_points(
         .map(|(_, path)| path)
         .collect::<Vec<_>>();
     */
-    let mut raw_edges = HashMap::new();
+    let mut raw_edges = HashMap::new();  //tail, heads
 
     for path in paths.iter() {
         let mut prev = None;
@@ -565,12 +560,12 @@ pub fn query_graph_construction_from_geodesic_points(
             if let Some(prev) = prev {
                 match raw_edges.entry(prev) {
                     Entry::Occupied(mut o) => {
-                        let tails: &mut Vec<NodeId> = o.get_mut();
-                        tails.push(*node);
+                        let heads: &mut Vec<NodeId> = o.get_mut();
+                        heads.push(*node);
                     }
                     Entry::Vacant(v) => {
-                        let tails = Vec::from([*node]);
-                        v.insert(tails);
+                        let heads = Vec::from([*node]);
+                        v.insert(heads);
                     }
                 }
             }
@@ -594,7 +589,7 @@ pub fn query_graph_search(
     source: Point,
     target: Point,
     source_target_vecs: (Vec<NodeId>, Vec<NodeId>),
-    preset_distance: f64,
+    _preset_distance: f64,
 ) -> Option<(NodeId, NodeId, PathedNode)> {
     let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
 
