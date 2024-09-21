@@ -147,14 +147,14 @@ mod tests {
             41.76726348091365, 
         );
         
-        let preset_distance = 1000.0;
+        let preset_distance = 500.0;
 
         let now = Instant::now();
         let graph = query_graph_construction_from_geodesic_points(
             &mut router,
             source,
             target,
-            59400,
+            18600,
             preset_distance,
         );
 

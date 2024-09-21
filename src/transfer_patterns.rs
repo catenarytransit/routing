@@ -392,6 +392,8 @@ pub fn query_graph_construction_from_geodesic_points(
     .copied()
     .collect();
 
+    println!("Possible ending nodes count: {}", sources.len());
+
     let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
 
     let targets:Vec<_> =
@@ -402,7 +404,7 @@ pub fn query_graph_construction_from_geodesic_points(
         let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
         target.haversine_distance(&node_coord) <= preset_distance
         && node.time >= earliest_departure
-        && node.time <= Some(earliest_departure.unwrap() + 7200) //2 hr arbitrary buffer for testing purposes
+        && node.time <= Some(earliest_departure.unwrap() + 3600) //1 hr arbitrary buffer for testing purposes
     })
     .copied()
     .collect();
@@ -521,7 +523,7 @@ pub fn query_graph_construction_from_geodesic_points(
 
     println!("paths num {}", paths.len());
 
-    //println!("{:?}", tps);
+    println!("{:?}", tps.iter().next());
 
     //}
 
@@ -591,7 +593,7 @@ pub fn query_graph_search(
     source_target_vecs: (Vec<NodeId>, Vec<NodeId>),
     _preset_distance: f64,
 ) -> Option<(NodeId, NodeId, PathedNode)> {
-    let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
+    let mut source_paths: HashMap<i64, RoadPathedNode> = HashMap::new();
 
     let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| int_to_coord(n.lon, n.lat)).collect());
 
@@ -623,7 +625,7 @@ pub fn query_graph_search(
                 //println!("{:?} to {:?}", road_source, station);
                 if let Some(result) = graph.dijkstra(road_source, station) {
                     //println!("{:?} to {:?}", source, result);
-                    source_paths.insert(source, result);
+                    source_paths.insert(source.station_id, result);
                 }
             }
         }
@@ -631,7 +633,7 @@ pub fn query_graph_search(
 
     println!("source paths {}", source_paths.len());
 
-    let mut target_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
+    let mut target_paths: HashMap<i64, RoadPathedNode> = HashMap::new();
 
     if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(
         target.0.x,
@@ -650,7 +652,7 @@ pub fn query_graph_search(
                     .get(&coord_to_int(station_sought.0, station_sought.1))
                     .unwrap();
                 if let Some(result) = graph.dijkstra(station, road_target) {
-                    target_paths.insert(target, result);
+                    target_paths.insert(target.station_id, result);
                 }
             }
         }
@@ -663,9 +665,9 @@ pub fn query_graph_search(
     let mut returned_val: Option<(NodeId, NodeId, PathedNode)> = None; //source, target, path
 
     for source_id in source_target_vecs.0.iter() {
-        let source_path = source_paths.get(source_id).unwrap();
+        let source_path = source_paths.get(&source_id.station_id).unwrap();
         for target_id in source_target_vecs.1.iter() {
-            let target_path = target_paths.get(target_id).unwrap();
+            let target_path = target_paths.get(&target_id.station_id).unwrap();
             let path = router.time_dependent_dijkstra(*source_id, *target_id);
             if let Some(transit_path) = path {
                 let new_cost = transit_path.cost_from_start
