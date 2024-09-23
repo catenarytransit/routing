@@ -53,7 +53,7 @@ impl TDDijkstra {
                     let cost = arr - dept;
                     next_node_edges.insert(next_node, cost);
                 } else {
-                    //println!("cur: {:?}, next {:?}", current.node_self, next_node);
+                    println!("cur: {:?}, next {:?}", current.node_self, next_node);
                 }
             }
         }
@@ -465,6 +465,7 @@ pub fn query_graph_construction_from_geodesic_points(
     }
     
     let mut tps = total_transfer_patterns.lock().unwrap();
+    println!("hubs raw tps num {}", tps.len());
     let a: Vec<_>= tps.iter().map(|((_, t), _)| t.station_id).collect();
     let used_hubs: Vec<_> = hubs.into_iter().filter(|n| a.contains(n)).collect();
 
@@ -522,8 +523,6 @@ pub fn query_graph_construction_from_geodesic_points(
         .collect::<Vec<_>>();
 
     println!("paths num {}", paths.len());
-
-    println!("{:?}", tps.iter().next());
 
     //}
 

@@ -49,7 +49,6 @@ fn main() {
         x:-73.547620, y:45.559989
     };
 
-    let preset_distance = 100.0;
     let start_time = 32400;
 
     use rstar::RTree;
@@ -125,8 +124,15 @@ mod tests {
         let mut router = TransitDijkstra::new(&transit_graph);
 
         println!("time for transit {:?}", now.elapsed());
+        let start_station = *transit_graph.station_mapping.get("9079").unwrap();
+        let end_station = *transit_graph.station_mapping.get("1682").unwrap();
 
-        let now = Instant::now();
+        println!("s info {:?}", router.graph.nodes_per_station.get(&start_station));
+
+        let x = direct_connection_query(&connections, start_station, end_station, 19450);
+        println!("result {:?}", x);
+
+        /*let now = Instant::now();
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
@@ -139,7 +145,6 @@ mod tests {
             "# of edges: {}",
             roads.edges.values().map(|edges| edges.len()).sum::<usize>()
         );
-
         let (source, target) = make_points_from_coords(
             -72.71973332600558,
             41.86829675142084, 
@@ -147,7 +152,7 @@ mod tests {
             41.76726348091365, 
         );
         
-        let preset_distance = 500.0;
+        let preset_distance = 250.0;
 
         let now = Instant::now();
         let graph = query_graph_construction_from_geodesic_points(
@@ -170,19 +175,13 @@ mod tests {
             preset_distance,
         );
 
-        let reverse_station_mapping = transit_graph
-            .station_mapping
-            .iter()
-            .map(|(name, id)| (id, name))
-            .collect::<HashMap<_, _>>();
-
         print!("path: \t");
         if let Some(stuff) = yes {
             let path = stuff.2.get_path();
             for node in path.0 {
                 print!("{},", reverse_station_mapping.get(&node.station_id).unwrap());
             }
-        }
+        }*/
         println!(".");
 
         //Pareto-se t ordering

@@ -70,7 +70,7 @@ impl TransitDijkstra {
                     continue;
                 }
 
-                if  current.transfer_count >= 1  //bast recommended 2
+                if  current.transfer_count >= 2 
                     && current.node_self.node_type == NodeType::Transfer
                     && next_node_id.node_type == NodeType::Departure
                     //&& is_local
