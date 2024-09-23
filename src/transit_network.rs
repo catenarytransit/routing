@@ -1,11 +1,11 @@
 //constructs and preprocesses the graph struct from OSM data
 use crate::coord_int_convert::coord_to_int;
 use gtfs_structures::*;
+use std::collections::hash_map::Entry;
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
 };
-use std::collections::hash_map::Entry;
 
 use crate::NodeType;
 
@@ -316,9 +316,10 @@ impl TimeExpandedGraph {
                         }
                         Entry::Vacant(v) => {
                             v.insert({
-                            let mut map = HashMap::new();
-                            map.insert(route_id.to_string(), *sequence_number);
-                            map});
+                                let mut map = HashMap::new();
+                                map.insert(route_id.to_string(), *sequence_number);
+                                map
+                            });
                         }
                     }
                 }
@@ -360,9 +361,6 @@ pub fn direct_connection_query(
     let start = connections.lines_per_station.get(&start_station).unwrap();
     let end = connections.lines_per_station.get(&end_station).unwrap();
 
-
-    println!("s: {:?}", start);
-    
     let mut route = "";
     for (s_route, s_seq) in start {
         for (e_route, e_seq) in end {
@@ -372,21 +370,25 @@ pub fn direct_connection_query(
             }
         }
     }
-    
+
     if let Some(table) = connections.route_tables.get(route) {
-    let mut start_times = table.start_times.clone();
-    let time_to_start = table.times_from_start.get(&start_station).unwrap().0;
-    let time_to_end = table.times_from_start.get(&end_station).unwrap().0;
-    start_times.sort();
-    if let Some(first_valid_start_time) = start_times.iter().find(|&&s| s > (time - time_to_start))
-    {
-        let departure = first_valid_start_time + time_to_start;
-        let arrival = first_valid_start_time + time_to_end;
-        Some((departure, arrival))
+        let mut start_times = table.start_times.clone();
+        let time_to_start = table.times_from_start.get(&start_station).unwrap().0;
+        let time_to_end = table.times_from_start.get(&end_station).unwrap().0;
+        start_times.sort();
+        if let Some(first_valid_start_time) =
+            start_times.iter().find(|&&s| s > (time - time_to_start))
+        {
+            let departure = first_valid_start_time + time_to_start;
+            let arrival = first_valid_start_time + time_to_end;
+            Some((departure, arrival))
+        } else {
+            println!("invalid start time");
+            None
+        }
     } else {
-        None
-    }}
-    else {
+        println!("route empty");
         None
     }
 }
+

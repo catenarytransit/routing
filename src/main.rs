@@ -114,6 +114,7 @@ mod tests {
     use transit_router::coord_int_convert::coord_to_int;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
+    use transit_router::NodeType;
 
     #[test]
     fn test() {
@@ -127,9 +128,7 @@ mod tests {
         let start_station = *transit_graph.station_mapping.get("9079").unwrap();
         let end_station = *transit_graph.station_mapping.get("1682").unwrap();
 
-        println!("s info {:?}", router.graph.nodes_per_station.get(&start_station));
-
-        let x = direct_connection_query(&connections, start_station, end_station, 19450);
+        let x = direct_connection_query(&connections, start_station, end_station, 25761);
         println!("result {:?}", x);
 
         /*let now = Instant::now();
@@ -175,14 +174,20 @@ mod tests {
             preset_distance,
         );
 
+        let reverse_station_mapping = transit_graph
+            .station_mapping
+            .iter()
+            .map(|(name, id)| (id, name))
+            .collect::<HashMap<_, _>>();
+
         print!("path: \t");
         if let Some(stuff) = yes {
             let path = stuff.2.get_path();
             for node in path.0 {
                 print!("{},", reverse_station_mapping.get(&node.station_id).unwrap());
             }
-        }*/
-        println!(".");
+        }
+        println!(".");*/
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

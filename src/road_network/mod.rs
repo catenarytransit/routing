@@ -2,13 +2,13 @@
 pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
     use crate::coord_int_convert::TEN_TO_14;
+    use crate::coord_int_convert::*;
     use crate::road_dijkstras::*;
     use core::num;
     use geo::HaversineDistance;
     use osmpbfreader::objects::OsmObj;
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
-    use crate::coord_int_convert::*;
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
     pub struct Node {
@@ -161,7 +161,7 @@ pub mod road_graph_construction {
             let mut nodes = HashMap::new();
             let ways = objs.ways;
 
-            let mut new_ways = vec![];           
+            let mut new_ways = vec![];
 
             for node in objs.nodes {
                 let node_coords = coord_to_int(node.lon(), node.lat()); //lon = 0, lat = 1
@@ -170,7 +170,7 @@ pub mod road_graph_construction {
                     Node {
                         id: node.id.0,
                         lat: node_coords.1,
-                        lon: node_coords.0
+                        lon: node_coords.0,
                     },
                 );
             }
@@ -236,7 +236,6 @@ pub mod road_graph_construction {
                                 refs: e.nodes.into_iter().map(|x| x.0).collect(),
                             });
                         }
-                        
                     }
                     _ => {}
                 }
