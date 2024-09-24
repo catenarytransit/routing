@@ -1,5 +1,6 @@
 use crate::NodeType;
 //THE FINAL BOSS
+use crate::coord_int_convert::*;
 use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
 use geo::algorithm::haversine_distance::*;
 use geo::point;
@@ -8,7 +9,6 @@ use rstar::*;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
-use crate::coord_int_convert::*;
 
 use crate::RoadNetwork;
 

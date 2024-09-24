@@ -7,16 +7,16 @@ fn main() {
     use geo::point;
     use std::collections::HashMap;
     use std::time::Instant;
+    use transit_router::coord_int_convert::*;
+    use transit_router::road_dijkstras::*;
     use transit_router::transit_dijkstras::TransitDijkstra;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_network::*};
-    use transit_router::road_dijkstras::*;
-    use transit_router::coord_int_convert::*;
 
     let now = Instant::now();
     let gtfs = read_from_gtfs_zip("gtfs_stm.zip");
     let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
-    
+
     let mut router = TransitDijkstra::new(&transit_graph);
 
     println!("time for transit {:?}", now.elapsed());
@@ -54,7 +54,13 @@ fn main() {
     use rstar::RTree;
 
     let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
-    let road_node_tree = RTree::bulk_load(roads.nodes.values().map(|n| int_to_coord(n.lon, n.lat)).collect());
+    let road_node_tree = RTree::bulk_load(
+        roads
+            .nodes
+            .values()
+            .map(|n| int_to_coord(n.lon, n.lat))
+            .collect(),
+    );
 
     println!("Made rtree");
 
@@ -98,10 +104,12 @@ fn main() {
     if let Some(stuff) = run_query {
         let path = stuff.2.get_path();
         for node in path.0 {
-            println!("path: {}", reverse_station_mapping.get(&node.station_id).unwrap());
+            println!(
+                "path: {}",
+                reverse_station_mapping.get(&node.station_id).unwrap()
+            );
         }
     }
-    
 }
 
 #[cfg(test)]
@@ -112,9 +120,9 @@ mod tests {
     use std::f64::consts;
     use std::time::Instant;
     use transit_router::coord_int_convert::coord_to_int;
+    use transit_router::NodeType;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
-    use transit_router::NodeType;
 
     #[test]
     fn test() {
@@ -124,12 +132,17 @@ mod tests {
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
         let mut router = TransitDijkstra::new(&transit_graph);
 
-        /*println!("time for transit {:?}", now.elapsed());
-        let start_station = *transit_graph.station_mapping.get("9079").unwrap();
-        let end_station = *transit_graph.station_mapping.get("1682").unwrap();
+        let reverse_station_mapping = transit_graph
+            .station_mapping
+            .iter()
+            .map(|(name, id)| (id, name))
+            .collect::<HashMap<_, _>>();
 
-        let x = direct_connection_query(&connections, start_station, end_station, 25680
-        );
+        /*println!("time for transit {:?}", now.elapsed());
+        let start_station = *transit_graph.station_mapping.get("58").unwrap();
+        let end_station = *transit_graph.station_mapping.get("12636").unwrap();
+
+        let x = direct_connection_query(&connections, start_station, end_station, 26950);
         println!("result {:?}", x);*/
 
         let now = Instant::now();
@@ -147,11 +160,11 @@ mod tests {
         );
         let (source, target) = make_points_from_coords(
             -72.71973332600558,
-            41.86829675142084, 
+            41.86829675142084,
             -72.70049435551549,
-            41.76726348091365, 
+            41.76726348091365,
         );
-        
+
         let preset_distance = 250.0;
 
         let now = Instant::now();
@@ -174,12 +187,6 @@ mod tests {
             (graph.0, graph.1),
             preset_distance,
         );
-
-        let reverse_station_mapping = transit_graph
-            .station_mapping
-            .iter()
-            .map(|(name, id)| (id, name))
-            .collect::<HashMap<_, _>>();
 
         print!("path: \t");
         if let Some(stuff) = yes {
@@ -281,8 +288,8 @@ mod tests {
         println!("aa{:?}", result);
 
         //println!("hubs \n{:?}", transfer_patterns.hubs);*/
-        
-        /*        
+
+        /*
         //Direct-Connection Query Test
         let connections = DirectConnections {
             route_tables: HashMap::from([("L17".to_string(), LineConnectionTable {
@@ -299,8 +306,5 @@ mod tests {
         let query = direct_connection_query(&   connections, 97, 111, 37200);
         println!("query results: {:?}", query);
          */
-   
-   
-   
     }
 }

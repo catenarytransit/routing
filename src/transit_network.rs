@@ -86,7 +86,7 @@ impl TimeExpandedGraph {
         let mut edges: HashMap<NodeId, HashMap<NodeId, u64>> = HashMap::new();
         let mut station_mapping: HashMap<String, i64> = HashMap::new();
         let mut nodes_per_station: HashMap<i64, Vec<(u64, NodeId)>> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
-        
+
         let mut route_tables: HashMap<String, LineConnectionTable> = HashMap::new();
         let mut lines_per_station: HashMap<i64, HashMap<String, u16>> = HashMap::new();
 
@@ -376,4 +376,3 @@ pub fn direct_connection_query(
         None
     }
 }
-
