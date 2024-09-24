@@ -54,19 +54,15 @@ pub fn calendar_date_filter(
 #[derive(Debug, PartialEq, Clone)]
 pub struct TimeExpandedGraph {
     //graph struct that will be used to route
-    pub day_of_week: String,
-    pub transfer_buffer: u64,
     pub nodes: HashSet<NodeId>,
     pub edges: HashMap<NodeId, HashMap<NodeId, u64>>, // tail.id, <head.id, cost>
     pub station_mapping: HashMap<String, i64>, //station_id string, internal station_id (assigned number)
     pub nodes_per_station: HashMap<i64, Vec<(u64, NodeId)>>,
-    pub trip_mapping: HashMap<u64, String>, //internal trip_id (assigned number), trip_id string
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct LineConnectionTable {
     //node that references parent nodes, used to create path from goal node to start node
-    pub route_id: String,
     pub times_from_start: HashMap<i64, (u64, u16)>, //<stationid, (time from start, sequence number)>
     pub start_times: Vec<u64>,                      //start times for vehicle from first station
 }
@@ -77,6 +73,7 @@ pub struct DirectConnections {
     pub lines_per_station: HashMap<i64, HashMap<String, u16>>, //<stationid, <routeid, stop sequence#>>
 }
 
+//init new transit network graph based on results from reading GTFS zip
 impl TimeExpandedGraph {
     pub fn new(
         mut gtfs: Gtfs,
@@ -84,14 +81,14 @@ impl TimeExpandedGraph {
         transfer_buffer: u64,
     ) -> (Self, DirectConnections) {
         day_of_week = day_of_week.to_lowercase();
-        //init new transit network graph based on results from reading GTFS zip
+
         let mut nodes: HashSet<NodeId> = HashSet::new(); //maps GTFS stop id string to sequential numeric stop id
         let mut edges: HashMap<NodeId, HashMap<NodeId, u64>> = HashMap::new();
         let mut station_mapping: HashMap<String, i64> = HashMap::new();
         let mut nodes_per_station: HashMap<i64, Vec<(u64, NodeId)>> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
-        let mut connection_table_per_line: HashMap<String, LineConnectionTable> = HashMap::new();
+        
+        let mut route_tables: HashMap<String, LineConnectionTable> = HashMap::new();
         let mut lines_per_station: HashMap<i64, HashMap<String, u16>> = HashMap::new();
-        let mut trip_mapping: HashMap<u64, String> = HashMap::new();
 
         let service_ids_of_given_day: HashSet<String> = gtfs
             .calendar
@@ -120,8 +117,6 @@ impl TimeExpandedGraph {
                 continue;
             }
 
-            trip_mapping.insert(trip_id, trip.id.clone());
-
             let mut id;
 
             let mut prev_departure: Option<(NodeId, u64)> = None;
@@ -141,15 +136,10 @@ impl TimeExpandedGraph {
             for stoptime in trip.stop_times.iter() {
                 id = *station_mapping.get(&stoptime.stop.id).unwrap();
 
-                //write a function that traces up parent stations for lat and lon if unwrap fails (optional value)
-                //if let Some(other_stop_id) = stoptime.stop.parent_station {
-                //
-                //} else{
                 let (lon, lat) = coord_to_int(
                     stoptime.stop.longitude.unwrap(),
                     stoptime.stop.latitude.unwrap(),
                 );
-                //}
 
                 let arrival_time: u64 = stoptime.arrival_time.unwrap().into();
                 let departure_time: u64 = stoptime.departure_time.unwrap().into();
@@ -244,10 +234,9 @@ impl TimeExpandedGraph {
 
             trip_id += 1;
             let route_id = &trip.route_id;
-            match connection_table_per_line.entry(route_id.clone()) {
+            match route_tables.entry(route_id.clone()) {
                 Entry::Occupied(mut o) => {
                     let table = o.get_mut();
-                    //table.route_id = route_id.to_string();
                     table.start_times.push(trip_start_time);
                     table
                         .times_from_start
@@ -255,7 +244,6 @@ impl TimeExpandedGraph {
                 }
                 Entry::Vacant(v) => {
                     v.insert(LineConnectionTable {
-                        route_id: route_id.to_string(),
                         start_times: Vec::from([trip_start_time]),
                         times_from_start: stations_time_from_trip_start,
                     });
@@ -307,7 +295,7 @@ impl TimeExpandedGraph {
                     }
                 }
             }
-            for (route_id, line) in connection_table_per_line.iter() {
+            for (route_id, line) in route_tables.iter() {
                 if let Some((_, sequence_number)) = line.times_from_start.get(station_id) {
                     match lines_per_station.entry(*station_id) {
                         Entry::Occupied(mut o) => {
@@ -328,16 +316,13 @@ impl TimeExpandedGraph {
 
         (
             Self {
-                day_of_week,
-                transfer_buffer,
                 nodes,
                 edges,
                 station_mapping,
                 nodes_per_station,
-                trip_mapping,
             },
             DirectConnections {
-                route_tables: connection_table_per_line,
+                route_tables,
                 lines_per_station,
             },
         )

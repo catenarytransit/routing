@@ -124,14 +124,15 @@ mod tests {
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
         let mut router = TransitDijkstra::new(&transit_graph);
 
-        println!("time for transit {:?}", now.elapsed());
+        /*println!("time for transit {:?}", now.elapsed());
         let start_station = *transit_graph.station_mapping.get("9079").unwrap();
         let end_station = *transit_graph.station_mapping.get("1682").unwrap();
 
-        let x = direct_connection_query(&connections, start_station, end_station, 25761);
-        println!("result {:?}", x);
+        let x = direct_connection_query(&connections, start_station, end_station, 25680
+        );
+        println!("result {:?}", x);*/
 
-        /*let now = Instant::now();
+        let now = Instant::now();
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
@@ -187,7 +188,7 @@ mod tests {
                 print!("{},", reverse_station_mapping.get(&node.station_id).unwrap());
             }
         }
-        println!(".");*/
+        println!(".");
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
@@ -254,84 +255,6 @@ mod tests {
             "average station preprocess time in seconds {}",
             precomp_time_per_station.iter().sum::<f32>() / precomp_time_per_station.len() as f32
         );*/
-
-        /*let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();
-        let mut station = vec![
-            (755, 1),
-            (755, 1),
-            (800, 2),
-            (800, 2),
-            (800, 3),
-            (800, 3),
-            (802, 2),
-            (807, 2),
-            (807, 3),
-            (812, 3),
-            (817, 2)
-        ];
-        station.sort_by(|a, b| a.0.cmp(&b.0));
-        let time_chunks = station.chunk_by_mut(|a, b| a.0 == b.0);
-
-        let mut station_nodes_by_time: Vec<(u64, i64)> = Vec::new();
-
-        for chunk in time_chunks {
-            chunk.sort_by(|a, b| (a.1).cmp(&(b.1)));
-            station_nodes_by_time.append(&mut chunk.to_vec().to_owned())
-        }
-        println!("{:?}", station_nodes_by_time);
-        let mut prev_transfer_node: Option<(u64, i64)> = None;
-        let mut current_index: usize = 0;
-        for node in station_nodes_by_time.iter() {
-            println!("{:?}", node);
-            current_index += 1;
-            if node.1 == 2 {
-                if let Some((prev_tranfer_time, prev_transfer_id)) = prev_transfer_node {
-                    println!("waiting");
-                    edges //waiting (arrival to transfer)
-                        .entry(prev_transfer_id) //tail
-                        .and_modify(|inner| {
-                            inner.insert(node.1, (node.0 - prev_tranfer_time, true));
-                            //head
-                        })
-                        .or_insert({
-                            let mut a = HashMap::new();
-                            a.insert(node.1, (node.0 - prev_tranfer_time, true)); //head
-                            a
-                        });
-                }
-
-                prev_transfer_node = Some(*node);
-                println!("new tf {:?}", prev_transfer_node);
-
-                for index in current_index..station_nodes_by_time.len() {
-                    let node = station_nodes_by_time.get(index).unwrap();
-                    println!("l{:?}", node);
-
-                    if node.1 == 2 {
-                        break;
-                    }
-
-                    if node.1 == 3 {
-                        if let Some((prev_tranfer_time, prev_transfer_id)) = prev_transfer_node {
-                            println!("boarding");
-                            edges //boarding (arrival to transfer)
-                                .entry(prev_transfer_id) //tail
-                                .and_modify(|inner| {
-                                    inner.insert(node.1, (node.0 - prev_tranfer_time, true));
-                                    //head
-                                })
-                                .or_insert({
-                                    let mut a = HashMap::new();
-                                    a.insert(node.1, (node.0 - prev_tranfer_time, true)); //head
-                                    a
-                                });
-                            prev_transfer_node = Some(*node)
-                        }
-                    }
-                }
-            }
-        }
-        println!("{:?}", edges); */
 
         /*let now = Instant::now();
         let gtfs = read_from_gtfs_zip("test.zip");

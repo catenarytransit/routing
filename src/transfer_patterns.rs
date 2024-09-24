@@ -66,13 +66,11 @@ pub fn hub_selection(
     }
 
     let time_independent_graph = TimeExpandedGraph {
-        day_of_week: "".to_string(),
-        transfer_buffer: router.graph.transfer_buffer,
+        //transfer_buffer: router.graph.transfer_buffer,
         nodes: time_independent_nodes,
         edges: time_independent_edges,
         station_mapping: HashMap::from([]),
         nodes_per_station: HashMap::from([]),
-        trip_mapping: HashMap::from([]),
     };
 
     let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
