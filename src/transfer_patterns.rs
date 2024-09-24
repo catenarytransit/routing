@@ -290,21 +290,15 @@ pub fn query_graph_construction_from_geodesic_points(
     println!("Possible ending nodes count: {}", targets.len());
 
     //get hubs of important stations I(hubs)
-    let hubs = hub_selection(router, 10000, 54000); //cost limit at 15 hours, arbitrary
+    let hubs = hub_selection(router, 10000, 36000); //cost limit at 10 hours, arbitrary
 
-    let thread_num = 9;
-
-    //let mut time_tracker_for_multithreading_test = Vec::new();
-    //for _ in 1..50 {
-    //let find_transfer_patterns = Instant::now();
     use std::sync::Mutex;
     use std::thread;
-
+    let thread_num = 9;
     let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+    router.node_deactivator(&hubs);
 
     //precompute local TP from N(source) to first hub (this min hub is access station)
-    //attempt at multithreading to go faster
-    router.node_deactivator(&hubs);
 
     let source_chunk_len = sources.len();
     let threaded_sources = Arc::new(sources.clone());
@@ -379,62 +373,27 @@ pub fn query_graph_construction_from_geodesic_points(
 
     for hub in used_hubs.iter() {
         let g_tps = num_transfer_patterns_from_source(*hub, router, None, Some(start_time));
-        //tps.extend(g_tps.into_iter().filter(|((_,  t), _)| targets.contains(t)));
-        tps.extend(g_tps.into_iter());
+        tps.extend(g_tps.into_iter().filter(|((_, t), _)| targets.contains(t)));
+        //tps.extend(g_tps.into_iter());
     }
-
-    //time_tracker_for_multithreading_test.push(find_transfer_patterns.elapsed().as_secs_f32());
-
-    //println!(
-    //    "avg time {:?} vs thread num {}",
-    //    time_tracker_for_multithreading_test.iter().sum::<f32>() / time_tracker_for_multithreading_test.len() as f32,
-    //    thread_num
-    //);
 
     println!("hubs raw tps num {}", tps.len());
 
     let paths = tps
         .iter()
         .filter(|((source, target), _)| sources.contains(source) || targets.contains(target))
-        //.map(|(_, path)| path)
+        .map(|(_, path)| path)
         .collect::<Vec<_>>();
 
     println!("paths num {}", paths.len());
 
     //}
 
-    /*
-    let mut total_transfer_patterns = HashMap::new();
-    for hub in hubs.iter() {
-        let tps = num_transfer_patterns_from_source(*hub, router, None);
-        total_transfer_patterns.extend(tps.into_iter());
-    }
-
-    router.node_deactivator(&hubs);
-
-    let hubs = Some(hubs);
-    for source in sources.iter() {
-        let tps = num_transfer_patterns_from_source(source.station_id, router, hubs.as_ref());
-        total_transfer_patterns.extend(tps.into_iter());
-    }
-
-    println!(
-        "tps length {}, time for tps {:?}",
-        total_transfer_patterns.len(),
-        find_transfer_patterns.elapsed()
-    );
-
-    let paths = total_transfer_patterns
-        .iter()
-        .filter(|((source, target), _)| sources.contains(source) && targets.contains(target))
-        .map(|(_, path)| path)
-        .collect::<Vec<_>>();
-    */
     let mut raw_edges = HashMap::new(); //tail, heads
 
     for path in paths.iter() {
         let mut prev = None;
-        for node in path.1.iter() {
+        for node in path.iter() {
             if let Some(prev) = prev {
                 match raw_edges.entry(prev) {
                     Entry::Occupied(mut o) => {
@@ -450,12 +409,6 @@ pub fn query_graph_construction_from_geodesic_points(
             prev = Some(*node);
         }
     }
-
-    // let mut sources: Vec<_> = paths.iter().map(|((s, _), _)| *s).collect();
-    //let mut targets: Vec<_> = paths.iter().map(|((_, t), _)| *t).collect();
-
-    //sources.dedup();
-    // targets.dedup();
 
     (sources, targets, raw_edges)
 }
@@ -492,8 +445,6 @@ pub fn query_graph_search(
             if let Some(station_sought) =
                 road_node_tree.nearest_neighbor(&int_to_coord(source.lon, source.lat))
             {
-                //println!("neighbor {:?}", station_sought);
-                //println!("{:?} versus {:?}", start_road_node, station_sought);
                 let road_source = *roads
                     .nodes_by_coords
                     .get(&coord_to_int(start_road_node.0, start_road_node.1))
@@ -502,9 +453,8 @@ pub fn query_graph_search(
                     .nodes_by_coords
                     .get(&coord_to_int(station_sought.0, station_sought.1))
                     .unwrap();
-                //println!("{:?} to {:?}", road_source, station);
+
                 if let Some(result) = graph.dijkstra(road_source, station) {
-                    //println!("{:?} to {:?}", source, result);
                     source_paths.insert(source.station_id, result);
                 }
             }
@@ -517,7 +467,6 @@ pub fn query_graph_search(
 
     if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(target.0.x, target.0.y)) {
         for target in source_target_vecs.1.iter() {
-            //println!("node {:?}", target.lon);
             if let Some(station_sought) =
                 road_node_tree.nearest_neighbor(&int_to_coord(target.lon, target.lat))
             {

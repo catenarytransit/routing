@@ -109,7 +109,7 @@ impl TimeExpandedGraph {
             station_mapping.insert(stop_id.0.clone(), iterator);
         }
 
-        let mut trip_id: u64 = 0; //custom counter like with stop_id
+        let mut custom_trip_id: u64 = 0; //custom counter like with stop_id
         let mut nodes_by_time: Vec<(u64, NodeId)> = Vec::new();
 
         for (_, trip) in gtfs.trips.iter_mut() {
@@ -132,6 +132,8 @@ impl TimeExpandedGraph {
                 .unwrap()
                 .into();
             let mut stations_time_from_trip_start = HashMap::new();
+
+            let trip_id: u64 = trip.id.parse().unwrap_or(custom_trip_id);
 
             for stoptime in trip.stop_times.iter() {
                 id = *station_mapping.get(&stoptime.stop.id).unwrap();
@@ -232,7 +234,7 @@ impl TimeExpandedGraph {
                 prev_departure = Some((departure_node, departure_time));
             }
 
-            trip_id += 1;
+            custom_trip_id += 1;
             let route_id = &trip.route_id;
             match route_tables.entry(route_id.clone()) {
                 Entry::Occupied(mut o) => {
@@ -368,7 +370,6 @@ pub fn direct_connection_query(
             let arrival = first_valid_start_time + time_to_end;
             Some((departure, arrival))
         } else {
-            println!("invalid start time");
             None
         }
     } else {

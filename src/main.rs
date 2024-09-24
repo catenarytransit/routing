@@ -132,20 +132,35 @@ mod tests {
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
         let mut router = TransitDijkstra::new(&transit_graph);
 
-        let reverse_station_mapping = transit_graph
-            .station_mapping
-            .iter()
-            .map(|(name, id)| (id, name))
-            .collect::<HashMap<_, _>>();
+        println!("time for transit {:?}", now.elapsed());
+        let start_station = *transit_graph.station_mapping.get("9079").unwrap();
+        let end_station = *transit_graph.station_mapping.get("1682").unwrap();
 
-        /*println!("time for transit {:?}", now.elapsed());
-        let start_station = *transit_graph.station_mapping.get("58").unwrap();
-        let end_station = *transit_graph.station_mapping.get("12636").unwrap();
+        let x = direct_connection_query(&connections, start_station, end_station, 25680);
+        println!("result {:?}", x);
 
-        let x = direct_connection_query(&connections, start_station, end_station, 26950);
-        println!("result {:?}", x);*/
+        let source_id = NodeId {
+            node_type: NodeType::Transfer,
+            station_id: 13381,
+            time: Some(19210),
+            trip_id: 1758411,
+            lat: 4166852100000000,
+            lon: -7278128300000000,
+        };
+        let target_id = NodeId {
+            node_type: NodeType::Arrival,
+            station_id: 9738,
+            time: Some(19515),
+            trip_id: 1758411,
+            lat: 4165989000000000,
+            lon: -7278441000000000,
+        };
 
-        let now = Instant::now();
+        let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None);
+
+        println!("routing {:?}", d);
+
+        /*let now = Instant::now();
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
@@ -188,6 +203,12 @@ mod tests {
             preset_distance,
         );
 
+        let reverse_station_mapping = transit_graph
+            .station_mapping
+            .iter()
+            .map(|(name, id)| (id, name))
+            .collect::<HashMap<_, _>>();
+
         print!("path: \t");
         if let Some(stuff) = yes {
             let path = stuff.2.get_path();
@@ -196,6 +217,8 @@ mod tests {
             }
         }
         println!(".");
+
+        */
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

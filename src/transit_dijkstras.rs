@@ -243,22 +243,6 @@ impl TransitDijkstra {
         let random: usize = rng.gen_range(0..full_node_list.len());
         full_node_list.get(random).copied()
     }
-
-    /*pub fn get_random_end(&self, start_time: u64) -> Option<NodeId> {
-        //returns ID of a random valid node from a graph
-        let full_node_list: Vec<_> = self
-            .graph
-            .nodes
-            .iter()
-            .filter(|id| {
-                id.node_type == 3 && id.time > Some(start_time) && id.time < Some(75600)
-            })
-            .copied()
-            .collect();
-        let mut rng = rand::thread_rng();
-        let mut random: usize = rng.gen_range(0..full_node_list.len());
-        full_node_list.get(random).copied()
-    }*/
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
@@ -289,7 +273,7 @@ impl TDDijkstra {
         //return node id of neighbors
         let mut paths = Vec::new();
         let mut next_node_edges = HashMap::new();
-        //need some case to handle neighbor to parent instead of just parent to neighbor
+
         if let Some(arcs) = self.edges.get(&current.node_self) {
             for next_node in arcs {
                 if let Some((dept, arr)) = direct_connection_query(
@@ -300,8 +284,6 @@ impl TDDijkstra {
                 ) {
                     let cost = arr - dept;
                     next_node_edges.insert(next_node, cost);
-                } else {
-                    println!("cur: {:?}, next {:?}", current.node_self, next_node);
                 }
             }
         }
