@@ -12,7 +12,7 @@ use std::sync::Arc;
 
 use crate::RoadNetwork;
 
-//only calculate global time_expanded_dijkstra from hubs (important stations) to save complexity
+//only calculate global time expanded dijkstra from hubs (important stations) to save complexity
 //picks important hubs if they are more often visted from Dijkstras-until-all-nodes-settled
 pub fn hub_selection(
     router: &TransitDijkstra,
@@ -33,8 +33,6 @@ pub fn hub_selection(
             station_id: tail.station_id,
             time: None,
             trip_id: 0,
-            lat: tail.lat,
-            lon: tail.lon,
         };
         time_independent_nodes.insert(ti_tail);
         for (head, cost) in edge {
@@ -43,8 +41,6 @@ pub fn hub_selection(
                 station_id: head.station_id,
                 time: None,
                 trip_id: 0,
-                lat: head.lat,
-                lon: head.lon,
             };
             time_independent_nodes.insert(ti_head);
             time_independent_edges
@@ -70,7 +66,7 @@ pub fn hub_selection(
         nodes: time_independent_nodes,
         edges: time_independent_edges,
         station_mapping: HashMap::from([]),
-        nodes_per_station: HashMap::from([]),
+        station_info: HashMap::from([]),
     };
 
     let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
@@ -117,9 +113,10 @@ pub fn num_transfer_patterns_from_source(
     let source_transfer_nodes: Option<Vec<NodeId>> = Some(
         router
             .graph
-            .nodes_per_station
+            .station_info
             .get(&source_station_id)
             .unwrap()
+            .nodes
             .iter()
             .filter(|(_, node)| {
                 node.node_type == NodeType::Transfer
@@ -259,32 +256,26 @@ pub fn query_graph_construction_from_geodesic_points(
     //compute sets of N(source) and N(target) of stations N= near
     let sources:Vec<_> =
     router
-    .graph.nodes
+    .graph.station_info
     .iter()
-    .filter(|node| {
-        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
+    .filter(|(_, station)| {
+        let node_coord = point!(x: station.lon as f64 / f64::powi(10.0, 14), y: station.lat as f64 / f64::powi(10.0, 14));
         source.haversine_distance(&node_coord) <= preset_distance
-            && node.time >= Some(start_time)
-            && node.time <= Some(start_time + 3600) //1 hr arbitrary buffer for testing purposes
     })
-    .copied()
     .collect();
 
     println!("Possible ending nodes count: {}", sources.len());
 
-    let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
+    //let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
 
     let targets:Vec<_> =
     router
-    .graph.nodes
+    .graph.station_info
     .iter()
-    .filter(|node| {
-        let node_coord = point!(x: node.lon as f64 / f64::powi(10.0, 14), y: node.lat as f64 / f64::powi(10.0, 14));
+    .filter(|(_, station)| {
+        let node_coord = point!(x: station.lon as f64 / f64::powi(10.0, 14), y: station.lat as f64 / f64::powi(10.0, 14));
         target.haversine_distance(&node_coord) <= preset_distance
-        && node.time >= earliest_departure
-        && node.time <= Some(earliest_departure.unwrap() + 3600) //1 hr arbitrary buffer for testing purposes
     })
-    .copied()
     .collect();
 
     println!("Possible ending nodes count: {}", targets.len());
@@ -318,7 +309,7 @@ pub fn query_graph_construction_from_geodesic_points(
             {
                 let source_id = src.get(i).unwrap();
                 let l_tps = num_transfer_patterns_from_source(
-                    source_id.station_id,
+                    *source_id.0,
                     &router,
                     Some(&hub_list),
                     Some(start_time),
@@ -373,15 +364,17 @@ pub fn query_graph_construction_from_geodesic_points(
 
     for hub in used_hubs.iter() {
         let g_tps = num_transfer_patterns_from_source(*hub, router, None, Some(start_time));
-        tps.extend(g_tps.into_iter().filter(|((_, t), _)| targets.contains(t)));
-        //tps.extend(g_tps.into_iter());
+        tps.extend(g_tps.into_iter());
     }
 
     println!("hubs raw tps num {}", tps.len());
 
+    let node_sources: Vec<_> = sources.iter().flat_map(|(_, info)| info.nodes.iter().map(|(_, node)| node).collect::<Vec<_>>()).collect();
+    let node_targets: Vec<_> = targets.iter().flat_map(|(_, info)| info.nodes.iter().map(|(_, node)| node).collect::<Vec<_>>()).collect();
+
     let paths = tps
         .iter()
-        .filter(|((source, target), _)| sources.contains(source) || targets.contains(target))
+        .filter(|((source, target), _)| node_sources.contains(&source) || node_targets.contains(&target))
         .map(|(_, path)| path)
         .collect::<Vec<_>>();
 

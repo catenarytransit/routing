@@ -9,7 +9,7 @@ use std::sync::Arc;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TransitDijkstra {
-    //handle time_expanded_dijkstra calculations
+    //handle time expanded dijkstra calculations
     pub graph: TimeExpandedGraph,
     cost_upper_bound: u64,
     inactive_nodes: HashSet<NodeId>,
@@ -60,7 +60,7 @@ impl TransitDijkstra {
         &self,
         current: &PathedNode,
         visited_nodes: &HashMap<NodeId, PathedNode>,
-        _is_local: bool,
+        is_local: bool,
     ) -> Vec<(NodeId, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
@@ -73,7 +73,7 @@ impl TransitDijkstra {
                 if current.transfer_count >= 2
                     && current.node_self.node_type == NodeType::Transfer
                     && next_node_id.node_type == NodeType::Departure
-                //&& is_local
+                    && is_local
                 {
                     //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
                     continue;
@@ -186,6 +186,7 @@ impl TransitDijkstra {
 
             //cost is higher than current path (not optimal)
             if current_cost > *gscore.get(&idx).unwrap_or(&u64::MAX) {
+                
                 continue;
             }
 
@@ -246,7 +247,7 @@ impl TransitDijkstra {
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
-    //handle time_expanded_dijkstra calculations
+    //handle time dependentdijkstra calculations
     pub connections: DirectConnections,
     pub edges: HashMap<NodeId, Vec<NodeId>>,
     pub visited_nodes: HashMap<NodeId, PathedNode>,
@@ -304,16 +305,19 @@ impl TDDijkstra {
     ) -> Option<PathedNode> {
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
+
         let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
 
         //stores distances of node relative to target
         let mut gscore: HashMap<NodeId, u64> = HashMap::new();
 
         self.visited_nodes.clear();
+        
+        let mut current_cost = 0;
 
         let source_node: PathedNode = PathedNode {
             node_self: (source_id),
-            cost_from_start: 0,
+            cost_from_start: current_cost,
             parent_node: (None),
             transfer_count: 0,
         };
@@ -321,8 +325,6 @@ impl TDDijkstra {
         gscore.insert(source_id, 0);
 
         priority_queue.push(Reverse((0, source_node)));
-
-        let mut current_cost;
 
         while !priority_queue.is_empty() {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
