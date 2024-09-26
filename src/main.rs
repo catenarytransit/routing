@@ -158,6 +158,7 @@ mod tests {
         println!("routing {:?}", d);
 
         //full routing test
+        //https://maps.app.goo.gl/eMPChcoGx6Fqze5x7
         /*
         let now = Instant::now();
         let path = "ct.pbf";
@@ -172,10 +173,12 @@ mod tests {
             "# of edges: {}",
             roads.edges.values().map(|edges| edges.len()).sum::<usize>()
         );
-        let (source, target) = make_points_from_coords(
+
+        //pepperidge farm to harriet beecher stowe center
+        let (source, target) = make_points_from_coords( 
             -72.71973332600558,
             41.86829675142084,
-            -72.70049435551549,
+            -72.70049435551549, 
             41.76726348091365,
         );
 
@@ -186,7 +189,7 @@ mod tests {
             &mut router,
             source,
             target,
-            18600,
+            18600, //5:10 AM
             preset_distance,
         );
 
