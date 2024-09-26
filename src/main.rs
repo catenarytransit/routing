@@ -158,7 +158,8 @@ mod tests {
         println!("routing {:?}", d);
 
         //full routing test
-        //https://maps.app.goo.gl/eMPChcoGx6Fqze5x7
+        //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
+        //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
         /*
         let now = Instant::now();
         let path = "ct.pbf";
