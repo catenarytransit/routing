@@ -6,6 +6,7 @@ use geo::algorithm::haversine_distance::*;
 use geo::point;
 use geo::Point;
 use rstar::*;
+use std::clone;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
@@ -116,7 +117,7 @@ pub fn num_transfer_patterns_from_source(
             .station_info
             .get(&source_station_id)
             .unwrap()
-            .nodes
+            .1
             .iter()
             .filter(|(_, node)| {
                 node.node_type == NodeType::Transfer
@@ -244,41 +245,53 @@ pub fn make_points_from_coords(
     (source, target)
 }
 
+pub struct QueryGraphItem {
+    source: Point,
+    target: Point,
+    edges: HashMap<NodeId, Vec<NodeId>>,
+    source_stations: Vec<StationInfo>,
+    target_stations: Vec<StationInfo>,
+    source_nodes: Vec<NodeId>,
+    target_nodes: Vec<NodeId>,
+}
+
 pub fn query_graph_construction_from_geodesic_points(
     router: &mut TransitDijkstra,
     source: Point,
     target: Point,
     start_time: u64,
     preset_distance: f64, //in meters
-) -> (Vec<NodeId>, Vec<NodeId>, HashMap<NodeId, Vec<NodeId>>) {
+) -> QueryGraphItem {
     //source nodes, target nodes, edges
 
     //compute sets of N(source) and N(target) of stations N= near
-    let sources:Vec<_> =
+    let (source_ids, (source_stations, nodes_per_source)): (Vec<i64>, (Vec<_>, Vec<_>))=
     router
     .graph.station_info
-    .iter()
+    .clone()
+    .into_iter()
     .filter(|(_, station)| {
-        let node_coord = point!(x: station.lon as f64 / f64::powi(10.0, 14), y: station.lat as f64 / f64::powi(10.0, 14));
+        let node_coord = point!(x: station.0.lon as f64 / f64::powi(10.0, 14), y: station.0.lat as f64 / f64::powi(10.0, 14));
         source.haversine_distance(&node_coord) <= preset_distance
     })
-    .collect();
+    .unzip();
 
-    println!("Possible ending nodes count: {}", sources.len());
+    println!("Possible ending nodes count: {}", source_ids.len());
 
     //let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
 
-    let targets:Vec<_> =
+    let (target_ids, (target_stations, nodes_per_target)): (Vec<i64>, (Vec<_>, Vec<_>))=
     router
     .graph.station_info
-    .iter()
+    .clone()
+    .into_iter()
     .filter(|(_, station)| {
-        let node_coord = point!(x: station.lon as f64 / f64::powi(10.0, 14), y: station.lat as f64 / f64::powi(10.0, 14));
+        let node_coord = point!(x: station.0.lon as f64 / f64::powi(10.0, 14), y: station.0.lat as f64 / f64::powi(10.0, 14));
         target.haversine_distance(&node_coord) <= preset_distance
     })
-    .collect();
+    .unzip();
 
-    println!("Possible ending nodes count: {}", targets.len());
+    println!("Possible ending nodes count: {}", target_ids.len());
 
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 36000); //cost limit at 10 hours, arbitrary
@@ -291,8 +304,8 @@ pub fn query_graph_construction_from_geodesic_points(
 
     //precompute local TP from N(source) to first hub (this min hub is access station)
 
-    let source_chunk_len = sources.len();
-    let threaded_sources = Arc::new(sources.clone());
+    let source_chunk_len = source_ids.len();
+    let threaded_sources = Arc::new(source_ids);
     let arc_router = Arc::new(router.clone());
     let threaded_hubs = Arc::new(hubs.clone());
     let mut handles = vec![];
@@ -309,7 +322,7 @@ pub fn query_graph_construction_from_geodesic_points(
             {
                 let source_id = src.get(i).unwrap();
                 let l_tps = num_transfer_patterns_from_source(
-                    *source_id.0,
+                    *source_id,
                     &router,
                     Some(&hub_list),
                     Some(start_time),
@@ -369,12 +382,35 @@ pub fn query_graph_construction_from_geodesic_points(
 
     println!("hubs raw tps num {}", tps.len());
 
-    let node_sources: Vec<_> = sources.iter().flat_map(|(_, info)| info.nodes.iter().map(|(_, node)| node).collect::<Vec<_>>()).collect();
-    let node_targets: Vec<_> = targets.iter().flat_map(|(_, info)| info.nodes.iter().map(|(_, node)| node).collect::<Vec<_>>()).collect();
+    let source_nodes: Vec<_> = nodes_per_source
+        .into_iter()
+        .flat_map(|x| {
+            x.into_iter()
+                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
+                .1
+        })
+        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
+        .collect();
+
+    let earliest_departure = source_nodes.iter().min_by_key(|a| a.time).unwrap().time;
+
+    let target_nodes: Vec<_> = nodes_per_target
+        .into_iter()
+        .flat_map(|x| {
+            x.into_iter()
+                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
+                .1
+        })
+        .filter(|node| {
+            node.time >= earliest_departure && node.time <= Some(earliest_departure.unwrap() + 3600)
+        })
+        .collect();
 
     let paths = tps
         .iter()
-        .filter(|((source, target), _)| node_sources.contains(&source) || node_targets.contains(&target))
+        .filter(|((source, target), _)| {
+            source_nodes.contains(source) || target_nodes.contains(target)
+        })
         .map(|(_, path)| path)
         .collect::<Vec<_>>();
 
@@ -382,13 +418,13 @@ pub fn query_graph_construction_from_geodesic_points(
 
     //}
 
-    let mut raw_edges = HashMap::new(); //tail, heads
+    let mut edges = HashMap::new(); //tail, heads
 
     for path in paths.iter() {
         let mut prev = None;
         for node in path.iter() {
             if let Some(prev) = prev {
-                match raw_edges.entry(prev) {
+                match edges.entry(prev) {
                     Entry::Occupied(mut o) => {
                         let heads: &mut Vec<NodeId> = o.get_mut();
                         heads.push(*node);
@@ -403,16 +439,21 @@ pub fn query_graph_construction_from_geodesic_points(
         }
     }
 
-    (sources, targets, raw_edges)
+    QueryGraphItem {
+        source,
+        target,
+        edges,
+        source_stations,
+        target_stations,
+        source_nodes,
+        target_nodes,
+    }
 }
 
 pub fn query_graph_search(
     roads: &RoadNetwork,
     connections: DirectConnections,
-    edges: HashMap<NodeId, Vec<NodeId>>,
-    source: Point,
-    target: Point,
-    source_target_vecs: (Vec<NodeId>, Vec<NodeId>),
+    query_info: QueryGraphItem,
     _preset_distance: f64,
 ) -> Option<(NodeId, NodeId, PathedNode)> {
     let mut source_paths: HashMap<i64, RoadPathedNode> = HashMap::new();
@@ -433,8 +474,8 @@ pub fn query_graph_search(
 
     //graph.set_cost_upper_bound((preset_distance / (4.0 * 5.0 / 18.0)) as u64);
 
-    if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(source.0.x, source.0.y)) {
-        for source in source_target_vecs.0.iter() {
+    if let Some(start_road_node) = road_node_tree.nearest_neighbor(&(query_info.source.0.x_y())) {
+        for source in query_info.source_stations.iter() {
             if let Some(station_sought) =
                 road_node_tree.nearest_neighbor(&int_to_coord(source.lon, source.lat))
             {
@@ -448,7 +489,7 @@ pub fn query_graph_search(
                     .unwrap();
 
                 if let Some(result) = graph.dijkstra(road_source, station) {
-                    source_paths.insert(source.station_id, result);
+                    source_paths.insert(source.id, result);
                 }
             }
         }
@@ -458,8 +499,8 @@ pub fn query_graph_search(
 
     let mut target_paths: HashMap<i64, RoadPathedNode> = HashMap::new();
 
-    if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(target.0.x, target.0.y)) {
-        for target in source_target_vecs.1.iter() {
+    if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(query_info.target.0.x_y())) {
+        for target in query_info.target_stations.iter() {
             if let Some(station_sought) =
                 road_node_tree.nearest_neighbor(&int_to_coord(target.lon, target.lat))
             {
@@ -472,7 +513,7 @@ pub fn query_graph_search(
                     .get(&coord_to_int(station_sought.0, station_sought.1))
                     .unwrap();
                 if let Some(result) = graph.dijkstra(station, road_target) {
-                    target_paths.insert(target.station_id, result);
+                    target_paths.insert(target.id, result);
                 }
             }
         }
@@ -481,12 +522,12 @@ pub fn query_graph_search(
     println!("targ paths {}", target_paths.len());
 
     let mut min_cost = 0;
-    let mut router = TDDijkstra::new(connections, edges);
+    let mut router = TDDijkstra::new(connections, query_info.edges);
     let mut returned_val: Option<(NodeId, NodeId, PathedNode)> = None; //source, target, path
 
-    for source_id in source_target_vecs.0.iter() {
+    for source_id in query_info.source_nodes.iter() {
         let source_path = source_paths.get(&source_id.station_id).unwrap();
-        for target_id in source_target_vecs.1.iter() {
+        for target_id in query_info.target_nodes.iter() {
             let target_path = target_paths.get(&target_id.station_id).unwrap();
             let path = router.time_dependent_dijkstra(*source_id, *target_id);
             if let Some(transit_path) = path {

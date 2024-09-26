@@ -186,7 +186,6 @@ impl TransitDijkstra {
 
             //cost is higher than current path (not optimal)
             if current_cost > *gscore.get(&idx).unwrap_or(&u64::MAX) {
-                
                 continue;
             }
 
@@ -312,7 +311,7 @@ impl TDDijkstra {
         let mut gscore: HashMap<NodeId, u64> = HashMap::new();
 
         self.visited_nodes.clear();
-        
+
         let mut current_cost = 0;
 
         let source_node: PathedNode = PathedNode {

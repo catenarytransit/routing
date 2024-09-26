@@ -20,7 +20,7 @@ pub struct NodeId {
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, PartialOrd, Ord)]
 pub struct StationInfo {
-    pub nodes: Vec<(u64, NodeId)>,
+    pub id: i64,
     pub lat: i64, //f64 * f64::powi(10.0, 14) as i64
     pub lon: i64, //f64 * f64::powi(10.0, 14) as i64
 }
@@ -62,7 +62,7 @@ pub struct TimeExpandedGraph {
     pub nodes: HashSet<NodeId>,
     pub edges: HashMap<NodeId, HashMap<NodeId, u64>>, // tail.id, <head.id, cost>
     pub station_mapping: HashMap<String, i64>, //station_id string, internal station_id (assigned number)
-    pub station_info: HashMap<i64, StationInfo>, //station_id, <cost, node>
+    pub station_info: HashMap<i64, (StationInfo, Vec<(u64, NodeId)>)>, //station_id, <cost, node>
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -90,7 +90,7 @@ impl TimeExpandedGraph {
         let mut nodes: HashSet<NodeId> = HashSet::new(); //maps GTFS stop id string to sequential numeric stop id
         let mut edges: HashMap<NodeId, HashMap<NodeId, u64>> = HashMap::new();
         let mut station_mapping: HashMap<String, i64> = HashMap::new();
-        let mut station_info: HashMap<i64, StationInfo> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
+        let mut station_info: HashMap<i64, (StationInfo, Vec<(u64, NodeId)>)> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
 
         let mut route_tables: HashMap<String, LineConnectionTable> = HashMap::new();
         let mut lines_per_station: HashMap<i64, HashMap<String, u16>> = HashMap::new();
@@ -226,11 +226,12 @@ impl TimeExpandedGraph {
                 station_info
                     .entry(id)
                     .and_modify(|inner| {
-                        inner.nodes.extend(node_list.iter());
-                        inner.lat = lat;
-                        inner.lon = lon;
+                        inner.1.extend(node_list.iter());
+                        inner.0.id = id;
+                        inner.0.lat = lat;
+                        inner.0.lon = lon;
                     })
-                    .or_insert(StationInfo { nodes: node_list, lat, lon});
+                    .or_insert((StationInfo { id, lat, lon }, node_list));
 
                 prev_departure = Some((departure_node, departure_time));
             }
@@ -254,8 +255,8 @@ impl TimeExpandedGraph {
             }
         }
         for (station_id, station) in station_info.iter_mut() {
-            station.nodes.sort_by(|a, b| a.0.cmp(&b.0));
-            let time_chunks = station.nodes.chunk_by_mut(|a, b| a.0 == b.0);
+            station.1.sort_by(|a, b| a.0.cmp(&b.0));
+            let time_chunks = station.1.chunk_by_mut(|a, b| a.0 == b.0);
 
             let mut station_nodes_by_time: Vec<(u64, NodeId)> = Vec::new();
             for chunk in time_chunks {

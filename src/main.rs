@@ -91,7 +91,8 @@ fn main() {
         graph.2,
         source,
         target,
-        (graph.0, graph.1),
+        graph.0,
+        graph.1,
         preset_distance,
     );
 
@@ -144,23 +145,19 @@ mod tests {
             station_id: 13381,
             time: Some(19210),
             trip_id: 1758411,
-            lat: 4166852100000000,
-            lon: -7278128300000000,
         };
         let target_id = NodeId {
             node_type: NodeType::Arrival,
             station_id: 9738,
             time: Some(19515),
             trip_id: 1758411,
-            lat: 4165989000000000,
-            lon: -7278441000000000,
         };
 
         let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None);
 
         println!("routing {:?}", d);
 
-        /*let now = Instant::now();
+        let now = Instant::now();
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
@@ -193,13 +190,14 @@ mod tests {
 
         println!("query graph constructed in {:?}", now.elapsed());
 
-        let yes = query_graph_search(
+        let run_query = query_graph_search(
             &roads,
             connections,
             graph.2,
             source,
             target,
-            (graph.0, graph.1),
+            graph.0,
+            graph.1,
             preset_distance,
         );
 
@@ -210,15 +208,16 @@ mod tests {
             .collect::<HashMap<_, _>>();
 
         print!("path: \t");
-        if let Some(stuff) = yes {
+        if let Some(stuff) = run_query {
             let path = stuff.2.get_path();
             for node in path.0 {
-                print!("{},", reverse_station_mapping.get(&node.station_id).unwrap());
+                print!(
+                    "{},",
+                    reverse_station_mapping.get(&node.station_id).unwrap()
+                );
             }
         }
         println!(".");
-
-        */
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
