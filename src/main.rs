@@ -88,11 +88,7 @@ fn main() {
     let run_query = query_graph_search(
         &roads,
         connections,
-        graph.2,
-        source,
-        target,
-        graph.0,
-        graph.1,
+        graph,
         preset_distance,
     );
 
@@ -193,11 +189,7 @@ mod tests {
         let run_query = query_graph_search(
             &roads,
             connections,
-            graph.2,
-            source,
-            target,
-            graph.0,
-            graph.1,
+            graph,
             preset_distance,
         );
 
