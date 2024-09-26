@@ -274,7 +274,7 @@ pub fn query_graph_construction_from_geodesic_points(
     })
     .unzip();
 
-    println!("Possible ending nodes count: {}", source_ids.len());
+    println!("Possible start nodes count: {}", source_ids.len());
 
     //let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
 
@@ -289,7 +289,7 @@ pub fn query_graph_construction_from_geodesic_points(
     })
     .unzip();
 
-    println!("Possible ending nodes count: {}", target_ids.len());
+    println!("Possible end nodes count: {}", target_ids.len());
 
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 36000); //cost limit at 10 hours, arbitrary
@@ -339,7 +339,7 @@ pub fn query_graph_construction_from_geodesic_points(
     }
 
     let mut tps = total_transfer_patterns.lock().unwrap();
-    println!("hubs raw tps num {}", tps.len());
+    println!("source to hub tps num {}", tps.len());
     let a: Vec<_> = tps.iter().map(|((_, t), _)| t.station_id).collect();
     let used_hubs: Vec<_> = hubs.into_iter().filter(|n| a.contains(n)).collect();
 
@@ -351,7 +351,7 @@ pub fn query_graph_construction_from_geodesic_points(
         tps.extend(g_tps.into_iter());
     }
 
-    println!("hubs raw tps num {}", tps.len());
+    println!("plus hubs to target tps num {}", tps.len());
 
     let source_nodes: Vec<_> = nodes_per_source
         .into_iter()

@@ -375,7 +375,7 @@ pub fn direct_connection_query(
             None
         }
     } else {
-        println!("route empty");
+        println!("err ");
         None
     }
 }

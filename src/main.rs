@@ -129,20 +129,24 @@ mod tests {
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
         let mut router = TransitDijkstra::new(&transit_graph);
 
+        //connection tests, these should be valid transfers
+        
+        //https://maps.app.goo.gl/eXf4S5edPM8vgvVt9
         println!("time for transit {:?}", now.elapsed());
-        let start_station = *transit_graph.station_mapping.get("9079").unwrap();
-        let end_station = *transit_graph.station_mapping.get("1682").unwrap();
-
-        let x = direct_connection_query(&connections, start_station, end_station, 25680);
+        let start_station = *transit_graph.station_mapping.get("9079").unwrap(); //Blue Hills Ave @ Home Goods
+        let end_station = *transit_graph.station_mapping.get("1682").unwrap(); //Bloomfield Ave @ Advo
+        
+        let x = direct_connection_query(&connections, start_station, end_station, 25680);//7:08 AM
         println!("result {:?}", x);
 
-        let source_id = NodeId {
+        //https://maps.app.goo.gl/szffQJAEALqSeHNF7
+        let source_id = NodeId { //Downtown New Britain Station @ Columbus Blvd Bay
             node_type: NodeType::Transfer,
             station_id: 13381,
-            time: Some(19210),
+            time: Some(19210), //5:20 AM, 10 second transfer buffer
             trip_id: 1758411,
         };
-        let target_id = NodeId {
+        let target_id = NodeId { //Hart St @ Camp St
             node_type: NodeType::Arrival,
             station_id: 9738,
             time: Some(19515),
@@ -153,6 +157,8 @@ mod tests {
 
         println!("routing {:?}", d);
 
+        //full routing test
+        /*
         let now = Instant::now();
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
@@ -210,6 +216,12 @@ mod tests {
             }
         }
         println!(".");
+        */
+
+
+
+
+
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
@@ -246,62 +258,6 @@ mod tests {
         pareto_recompute(&mut set, (7, 2));
         println!("{:?}", set);
         */
-
-        /*let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("ctt.zip");
-        let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
-        let time = now.elapsed().as_secs_f32();
-
-        println!("time {}", time);
-        println!("# of nodes: {}", graph.nodes.len());
-        println!(
-            "# of edges: {}",
-            graph.edges.values().map(|edges| edges.len()).sum::<usize>()
-        );
-
-        let mut router = TransitDijkstra::new(&graph);
-        let hubs = hub_selection(&router, 10000, 54000);
-        router.node_deactivator(&hubs);
-        let mut precomp_time_per_station = Vec::new();
-
-        for h in 0..10 {
-            let h = router.get_random_start().unwrap().station_id;
-            let now = Instant::now();
-            let result = num_transfer_patterns_from_source(h, &router, Some(&hubs));
-            let time = now.elapsed().as_secs_f32();
-            precomp_time_per_station.push(time);
-        }
-
-        println!(
-            "average station preprocess time in seconds {}",
-            precomp_time_per_station.iter().sum::<f32>() / precomp_time_per_station.len() as f32
-        );*/
-
-        /*let now = Instant::now();
-        let gtfs = read_from_gtfs_zip("test.zip");
-        let graph = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10).0;
-        let mut router = TransitDijkstra::new(&graph);
-
-        println!("{:?}\n# of nodes: {}", now, graph.nodes.len());
-        println!(
-            "# of edges: {}",
-            graph.edges.values().map(|edges| edges.len())
-                .sum::<usize>()
-        );
-
-        //println!("edges {:?}\n", router.graph.edges);
-
-        println!("stations {:?}\n", router.graph.station_mapping);
-
-        let &source_id = router.graph.station_mapping.get("A").unwrap();
-        //let &target_id = router.graph.station_mapping.get("F").unwrap();
-
-        let hubs = hub_selection(&router, 1, 60);
-        let result = num_transfer_patterns_from_source(source_id, &mut router, Some(&hubs));
-
-        println!("aa{:?}", result);
-
-        //println!("hubs \n{:?}", transfer_patterns.hubs);*/
 
         /*
         //Direct-Connection Query Test
