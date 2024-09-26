@@ -2,16 +2,14 @@ use crate::NodeType;
 //THE FINAL BOSS
 use crate::coord_int_convert::*;
 use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
+use crate::RoadNetwork;
 use geo::algorithm::haversine_distance::*;
 use geo::point;
 use geo::Point;
 use rstar::*;
-use std::clone;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
-
-use crate::RoadNetwork;
 
 //only calculate global time expanded dijkstra from hubs (important stations) to save complexity
 //picks important hubs if they are more often visted from Dijkstras-until-all-nodes-settled
@@ -347,33 +345,6 @@ pub fn query_graph_construction_from_geodesic_points(
 
     //global transfer patterns from I(hubs) to to N(target())
     println!("num hubs used {:?}", used_hubs.len());
-
-    /*let arc_router = Arc::new(router.clone());
-    let threaded_hubs = Arc::new(used_hubs.clone());
-    let mut handles = vec![];
-
-    for x in 1..thread_num {
-        let transfer_patterns = Arc::clone(&total_transfer_patterns);
-        let router = Arc::clone(&arc_router);
-        let hub_list = Arc::clone(&threaded_hubs);
-        let handle = thread::spawn(move || {
-            let src = hub_list;
-            for i in
-                (x - 1) * (hub_chunk_len / (thread_num - 1))..(x * hub_chunk_len / (thread_num - 1))
-            {
-                let hub_id = src.get(i).unwrap();
-                let g_tps = num_transfer_patterns_from_source(*hub_id, &router, None);
-
-                let mut ttp = transfer_patterns.lock().unwrap();
-                ttp.extend(g_tps.into_iter());
-            }
-        });
-        handles.push(handle);
-    }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }*/
 
     for hub in used_hubs.iter() {
         let g_tps = num_transfer_patterns_from_source(*hub, router, None, Some(start_time));
