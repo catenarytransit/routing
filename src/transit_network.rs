@@ -68,7 +68,7 @@ pub struct TimeExpandedGraph {
 #[derive(Debug, PartialEq, Clone)]
 pub struct LineConnectionTable {
     //node that references parent nodes, used to create path from goal node to start node
-    pub times_from_start: HashMap<i64, (u64, u16)>, //<stationid, (time from start, sequence number)>
+    pub times_from_start: Vec<(i64, (u64, u16))>, //<stationid, (time from start, sequence number)>
     pub start_times: Vec<u64>,                      //start times for vehicle from first station
 }
 
@@ -138,7 +138,7 @@ impl TimeExpandedGraph {
                 .arrival_time
                 .unwrap()
                 .into();
-            let mut stations_time_from_trip_start = HashMap::new();
+            let mut stations_time_from_trip_start = Vec::new();
 
             for stoptime in trip.stop_times.iter() {
                 let id = *station_mapping.get(&stoptime.stop.id).unwrap();
@@ -152,7 +152,7 @@ impl TimeExpandedGraph {
                 let departure_time: u64 = stoptime.departure_time.unwrap().into();
 
                 stations_time_from_trip_start
-                    .insert(id, (arrival_time - trip_start_time, stoptime.stop_sequence));
+                    .push((id, (arrival_time - trip_start_time, stoptime.stop_sequence)));
 
                 let arrival_node = NodeId {
                     node_type: NodeType::Arrival,
@@ -299,16 +299,16 @@ impl TimeExpandedGraph {
                 }
             }
             for (route_id, line) in route_tables.iter() {
-                if let Some((_, sequence_number)) = line.times_from_start.get(station_id) {
+                if let Ok(index) = line.times_from_start.binary_search_by(|(station, _)| station.cmp(station_id)) {
                     match lines_per_station.entry(*station_id) {
                         Entry::Occupied(mut o) => {
                             let map = o.get_mut();
-                            map.insert(route_id.to_string(), *sequence_number);
+                            map.insert(route_id.to_string(), line.times_from_start.get(index).unwrap().1.1);
                         }
                         Entry::Vacant(v) => {
                             v.insert({
                                 let mut map = HashMap::new();
-                                map.insert(route_id.to_string(), *sequence_number);
+                                map.insert(route_id.to_string(), line.times_from_start.get(index).unwrap().1.1);
                                 map
                             });
                         }
@@ -358,11 +358,17 @@ pub fn direct_connection_query(
             }
         }
     }
+    
+    if route == "" {
+        println!("cant find lines per station");
+    }
 
     if let Some(table) = connections.route_tables.get(route) {
         let mut start_times = table.start_times.clone();
-        let time_to_start = table.times_from_start.get(&start_station).unwrap().0;
-        let time_to_end = table.times_from_start.get(&end_station).unwrap().0;
+        let index_time_to_start = table.times_from_start.binary_search_by(|(station, _)| station.cmp(&start_station)).ok();
+        let index_time_to_end = table.times_from_start.binary_search_by(|(station, _)| station.cmp(&end_station)).ok();
+        let time_to_start = table.times_from_start.get(index_time_to_start.unwrap()).unwrap().1.0;
+        let time_to_end = table.times_from_start.get(index_time_to_end.unwrap()).unwrap().1.0;
         start_times.sort();
         if let Some(first_valid_start_time) =
             start_times.iter().find(|&&s| s > (time - time_to_start))

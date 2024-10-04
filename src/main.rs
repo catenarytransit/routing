@@ -137,7 +137,7 @@ mod tests {
         let end_station = *transit_graph.station_mapping.get("1682").unwrap(); //Bloomfield Ave @ Advo
         
         let x = direct_connection_query(&connections, start_station, end_station, 25680);//7:08 AM
-        println!("result {:?}", x);
+        println!("dc query {:?}", x);
 
         //https://maps.app.goo.gl/szffQJAEALqSeHNF7
         let source_id = NodeId { //Downtown New Britain Station @ Columbus Blvd Bay
