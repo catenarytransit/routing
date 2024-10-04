@@ -60,7 +60,7 @@ impl TransitDijkstra {
         &self,
         current: &PathedNode,
         visited_nodes: &HashMap<NodeId, PathedNode>,
-        _is_local: bool,
+        is_local: bool,
     ) -> Vec<(NodeId, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
@@ -73,7 +73,7 @@ impl TransitDijkstra {
                 if current.transfer_count >= 2
                     && current.node_self.node_type == NodeType::Transfer
                     && next_node_id.node_type == NodeType::Departure
-                    //&& is_local
+                    && is_local
                 {
                     //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
                     continue;

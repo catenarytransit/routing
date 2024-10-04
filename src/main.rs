@@ -149,11 +149,11 @@ mod tests {
         let target_id = NodeId { //Hart St @ Camp St
             node_type: NodeType::Arrival,
             station_id: 9738,
-            time: Some(19515),
+            time: Some(19500),
             trip_id: 1758411,
         };
 
-        let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None);
+        let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None).0;
 
         println!("routing {:?}", d);
 

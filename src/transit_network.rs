@@ -122,7 +122,9 @@ impl TimeExpandedGraph {
                 continue;
             }
 
-            let mut id;
+            let trip_id: u64 = trip.id.parse().unwrap_or({
+                custom_trip_id += 1;
+                custom_trip_id});
 
             let mut prev_departure: Option<(NodeId, u64)> = None;
 
@@ -138,10 +140,8 @@ impl TimeExpandedGraph {
                 .into();
             let mut stations_time_from_trip_start = HashMap::new();
 
-            let trip_id: u64 = trip.id.parse().unwrap_or(custom_trip_id);
-
             for stoptime in trip.stop_times.iter() {
-                id = *station_mapping.get(&stoptime.stop.id).unwrap();
+                let id = *station_mapping.get(&stoptime.stop.id).unwrap();
 
                 let (lon, lat) = coord_to_int(
                     stoptime.stop.longitude.unwrap(),
@@ -236,7 +236,6 @@ impl TimeExpandedGraph {
                 prev_departure = Some((departure_node, departure_time));
             }
 
-            custom_trip_id += 1;
             let route_id = &trip.route_id;
             match route_tables.entry(route_id.clone()) {
                 Entry::Occupied(mut o) => {
