@@ -4,6 +4,7 @@
 use std::fs;
 
 fn main() {
+    /*
     use geo::point;
     use std::collections::HashMap;
     use std::time::Instant;
@@ -106,7 +107,7 @@ fn main() {
                 reverse_station_mapping.get(&node.station_id).unwrap()
             );
         }
-    }
+    }*/
 }
 
 #[cfg(test)]

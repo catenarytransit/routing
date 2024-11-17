@@ -127,6 +127,7 @@ impl TransitDijkstra {
                 parent_node: (None),
                 transfer_count: 0,
             };
+            self.graph.nodes.get(&source_id);
 
             gscore.insert(source_id, 0);
 
@@ -168,7 +169,8 @@ impl TransitDijkstra {
 
             //stop search for local TP if all unsettled NodeIds are inactive -->
             //all unvisited nodes should become subset of inactive nodes
-            //this cool math solution was thought of by a server-mate on Discord, thank you!
+            //this cool math solution was thought of by a server-mate on Discord, thank you! 
+            //NEW NOTE: THIS METHOD MIGHT NOT WORK, NEED TO CHECK ON NODE-BY-NODE CASE
             /*if hubs.is_some()
                 && (self.graph.nodes.len()
                     - visited_nodes.len()
