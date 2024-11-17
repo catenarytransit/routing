@@ -76,7 +76,7 @@ pub struct LineConnectionTable {
 pub struct DirectConnections {
     //helps find quick transfers between two different lines/routes by matching the station where two lines intersect --> used by Direct Connection Query
     pub route_tables: HashMap<String, LineConnectionTable>, //route_id, table
-    pub lines_per_station: HashMap<i64, HashMap<String, u16>>, //<stationid, <routeid, stop sequence number>> //gives lines operating at this station
+    pub lines_per_station: HashMap<i64, Vec<(String, u16)>>, //<stationid, <routeid, stop sequence number>> //gives lines operating at this station
 }
 
 //init new transit network graph based on results from reading GTFS zip
@@ -94,7 +94,7 @@ impl TimeExpandedGraph {
         let mut station_info: HashMap<i64, (StationInfo, Vec<(u64, NodeId)>)> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
 
         let mut route_tables: HashMap<String, LineConnectionTable> = HashMap::new();
-        let mut lines_per_station: HashMap<i64, HashMap<String, u16>> = HashMap::new();
+        let mut lines_per_station: HashMap<i64, Vec<(String, u16)>> = HashMap::new();
 
         let service_ids_of_given_day: HashSet<String> = gtfs
             .calendar
@@ -160,12 +160,12 @@ impl TimeExpandedGraph {
                 match lines_per_station.entry(id) {
                     Entry::Occupied(mut o) => {
                         let map = o.get_mut();
-                        map.insert(route_id.to_string(), stoptime.stop_sequence);
+                        map.push((route_id.to_string(), stoptime.stop_sequence));
                     }
                     Entry::Vacant(v) => {
                         v.insert({
-                            let mut map = HashMap::new();
-                            map.insert(route_id.to_string(), stoptime.stop_sequence);
+                            let mut map = Vec::new();
+                            map.push((route_id.to_string(), stoptime.stop_sequence));
                             map
                         });
                     }
@@ -367,9 +367,7 @@ pub fn direct_connection_query(
 
     let mut route = "";
     for (s_route, s_seq) in start {
-        println!("s {} {}", s_route, s_seq);
         for (e_route, e_seq) in end {
-            println!("e {} {}", e_route, e_seq);
             if s_route == e_route && s_seq <= e_seq {
                 route = s_route;
                 break;
