@@ -122,9 +122,12 @@ impl TransitDijkstra {
 
         let source_id = self.graph.nodes.get(&source_id.unwrap());
         if source_id.is_none() {
-            println!("wth");
+            println!("s wth");
         }
         let target_id = self.graph.nodes.get(&target_id.unwrap());
+        if target_id.is_none() {
+            println!("t wth");
+        }
 
         if let Some(source_id) = source_id {
             let source_node: PathedNode = PathedNode {

@@ -1,6 +1,7 @@
 //constructs and preprocesses the graph struct from OSM data
 use crate::coord_int_convert::coord_to_int;
 use gtfs_structures::*;
+
 use std::collections::hash_map::Entry;
 use std::{
     collections::{HashMap, HashSet},
@@ -112,7 +113,8 @@ impl TimeExpandedGraph {
             .collect();
 
         for (iterator, stop_id) in (0_i64..).zip(gtfs.stops.iter()) {
-            station_mapping.insert(stop_id.0.clone(), iterator);
+            station_mapping.insert(stop_id.0.clone(), stop_id.0.parse().unwrap_or(
+                iterator));
         }
 
         let mut custom_trip_id: u64 = 0; //custom counter like with stop_id

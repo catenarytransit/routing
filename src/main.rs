@@ -150,7 +150,7 @@ mod tests {
         let target_id = NodeId { //Hart St @ Camp St
             node_type: NodeType::Arrival,
             station_id: 9738,
-            time: Some(19500),
+            time: Some(19515),
             trip_id: 1758411,
         };
 
