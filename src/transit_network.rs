@@ -164,9 +164,7 @@ impl TimeExpandedGraph {
                     }
                     Entry::Vacant(v) => {
                         v.insert({
-                            let mut map = Vec::new();
-                            map.push((route_id.to_string(), stoptime.stop_sequence));
-                            map
+                            vec![(route_id.to_string(), stoptime.stop_sequence)]
                         });
                     }
                 }
@@ -331,6 +329,11 @@ impl TimeExpandedGraph {
                     }
                 }
             }*/
+        }
+        
+        for (_, stop_sequence) in lines_per_station.iter_mut() {
+            stop_sequence.sort();
+            stop_sequence.dedup();
         }
 
         (

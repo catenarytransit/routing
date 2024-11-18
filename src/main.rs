@@ -142,9 +142,9 @@ mod tests {
 
         //https://maps.app.goo.gl/szffQJAEALqSeHNF7
         let source_id = NodeId { //Downtown New Britain Station @ Columbus Blvd Bay
-            node_type: NodeType::Transfer,
+            node_type: NodeType::Arrival,
             station_id: 13381,
-            time: Some(19210), //5:20 AM, 10 second transfer buffer
+            time: Some(19200), //5:20 AM, 10 second transfer buffer
             trip_id: 1758411,
         };
         let target_id = NodeId { //Hart St @ Camp St
@@ -154,9 +154,10 @@ mod tests {
             trip_id: 1758411,
         };
 
-        let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None).0;
+        let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None);
 
-        println!("routing {:?}", d);
+
+        println!("routing {:?} and visted count {}", d.0, d.1.len());
 
         //full routing test
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)

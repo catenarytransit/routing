@@ -69,7 +69,7 @@ impl TransitDijkstra {
                 if visited_nodes.contains_key(next_node_id) {
                     continue;
                 }
-
+                
                 if current.transfer_count >= 2
                     && current.node_self.node_type == NodeType::Transfer
                     && next_node_id.node_type == NodeType::Departure
@@ -120,16 +120,21 @@ impl TransitDijkstra {
         //resets list of settled nodes for new computation
         visited_nodes.clear();
 
+        let source_id = self.graph.nodes.get(&source_id.unwrap());
+        if source_id.is_none() {
+            println!("wth");
+        }
+        let target_id = self.graph.nodes.get(&target_id.unwrap());
+
         if let Some(source_id) = source_id {
             let source_node: PathedNode = PathedNode {
-                node_self: (source_id),
+                node_self: (*source_id),
                 cost_from_start: 0,
                 parent_node: (None),
                 transfer_count: 0,
             };
-            self.graph.nodes.get(&source_id);
 
-            gscore.insert(source_id, 0);
+            gscore.insert(*source_id, 0);
 
             priority_queue.push(Reverse((0, source_node)));
         } else if let Some(source_id_set) = source_id_set {
@@ -145,6 +150,7 @@ impl TransitDijkstra {
                 priority_queue.push(Reverse((0, source_node)));
             }
         }
+
 
         let mut current_cost;
         //let mut num_visited_inactive = 0;
@@ -162,7 +168,7 @@ impl TransitDijkstra {
 
             //found target node
             if let Some(target_id) = target_id {
-                if idx.eq(&target_id) {
+                if idx.eq(target_id) {
                     return (Some(pathed_current_node), visited_nodes);
                 }
             }
@@ -183,6 +189,7 @@ impl TransitDijkstra {
             //stop conditions
             //cost or # of settled nodes goes over limit
             if current_cost > self.cost_upper_bound {
+                println!("cost over");
                 return (None, visited_nodes);
             }
 
@@ -217,6 +224,7 @@ impl TransitDijkstra {
                 }
             }
         }
+        println!("no path exists");
         (None, visited_nodes)
     }
 
