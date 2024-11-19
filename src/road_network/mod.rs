@@ -18,11 +18,11 @@ pub mod road_graph_construction {
         pub lon: i64,
     }
 
-    pub struct I64Point {
+    /*pub struct I64Point {
         //used to store coordinates of nodes
         pub lat: i64,
         pub lon: i64,
-    }
+    }*/
 
     #[derive(Debug, PartialEq, Hash, Eq, Clone)]
     pub struct Way {
@@ -60,24 +60,24 @@ pub mod road_graph_construction {
             "residential" => Some(4),
             "unsurfaced" => Some(4),
             "living_street" => Some(4),
-            "service" => Some(4),
-            "trunk" => Some(4),
-            "primary" => Some(4),
-            "secondary" => Some(4),
-            "tertiary" => Some(4),
-            "motorway_link" => Some(4),
-            "trunk_link" => Some(4),
-            "primary_link" => Some(4),
-            "secondary_link" => Some(4),
+            //"service" => Some(4),
+            //"trunk" => Some(4),
+            //"primary" => Some(4),
+            //"secondary" => Some(4),
+            //"tertiary" => Some(4),
+            //"motorway_link" => Some(4),
+            //"trunk_link" => Some(4),
+            //"primary_link" => Some(4),
+            //"secondary_link" => Some(4),
             _ => Some(4),
         }
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, Clone)]
+    /*#[derive(serde::Serialize, serde::Deserialize, Clone)]
     struct ExportOsm {
         nodes: Vec<osmpbfreader::Node>,
         ways: Vec<osmpbfreader::Way>,
-    }
+    }*/
 
     impl RoadNetwork {
         pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {
@@ -154,7 +154,7 @@ pub mod road_graph_construction {
             }
         }
 
-        pub fn from_bincode_file(data: &[u8]) -> (HashMap<i64, Node>, Vec<Way>) {
+        /*pub fn from_bincode_file(data: &[u8]) -> (HashMap<i64, Node>, Vec<Way>) {
             //reads bincode file, values are used to make RoadNetwork
             let objs = bincode::deserialize::<ExportOsm>(data).unwrap();
 
@@ -195,7 +195,7 @@ pub mod road_graph_construction {
             }
 
             (nodes, new_ways)
-        }
+        }*/
 
         pub fn read_from_osm_file(path: &str) -> Option<(HashMap<i64, Node>, Vec<Way>)> {
             //reads osm.pbf file, values are used to make RoadNetwork

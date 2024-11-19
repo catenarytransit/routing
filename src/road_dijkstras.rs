@@ -128,7 +128,6 @@ impl RoadDijkstra {
             if cost > self.cost_upper_bound
                 || self.visited_nodes.len() > self.max_settled_nodes as usize
             {
-                println!("costfail");
                 return None;
                 //return (None, previous_nodes);
             }
@@ -154,7 +153,6 @@ impl RoadDijkstra {
                 }
             }
         }
-        println!("findfail");
         None
         //(None, previous_nodes)
     }

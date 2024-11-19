@@ -125,6 +125,8 @@ mod tests {
     #[test]
     fn test() {
         let now = Instant::now();
+        println!("generating transit network graph");
+
         let gtfs = read_from_gtfs_zip("ctt.zip");
         let (transit_graph, connections) =
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
@@ -157,13 +159,16 @@ mod tests {
         let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None);
         
 
-        println!("routing {:#?} and visted count {}", d.0.unwrap().get_path(), d.1.len());*/
+        println!("routing {:#?} and visted count {}", d.0.unwrap().get_path(), d.1.len());
+        */
 
         //full routing test
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
         //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
         
-        /*let now = Instant::now();
+        let now = Instant::now();
+        println!("generating street network graph");
+
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
@@ -221,7 +226,7 @@ mod tests {
                 );
             }
         }
-        println!(".");*/
+        println!(".");
         
 
 
@@ -261,9 +266,8 @@ mod tests {
         println!("{:?}", set);
         */
 
-        
         //early stage Direct-Connection Query Test
-        let connections = DirectConnections {
+        /*let connections = DirectConnections {
             route_tables: HashMap::from([("L17".to_string(), LineConnectionTable {
                 times_from_start: HashMap::from([(154,0), (97,420), (987, 720), (111,1260)]),
                 start_times: Vec::from([29700, 33300, 36900, 40800, 44400])
@@ -275,7 +279,7 @@ mod tests {
                 ]))])
         };
         let query = direct_connection_query(&   connections, 97, 111, 37200);
-        println!("aa query results: {:?}", query);
+        println!("aa query results: {:?}", query);*/
         
     }
 }

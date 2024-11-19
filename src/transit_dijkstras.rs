@@ -120,24 +120,24 @@ impl TransitDijkstra {
         //resets list of settled nodes for new computation
         visited_nodes.clear();
 
-        let source_id = self.graph.nodes.get(&source_id.unwrap());
+        /*let source_id = self.graph.nodes.get(&source_id.unwrap());
         if source_id.is_none() {
             println!("s wth");
         }
         let target_id = self.graph.nodes.get(&target_id.unwrap());
         if target_id.is_none() {
             println!("t wth");
-        }
+        }*/
 
         if let Some(source_id) = source_id {
             let source_node: PathedNode = PathedNode {
-                node_self: (*source_id),
+                node_self: (source_id),
                 cost_from_start: 0,
                 parent_node: (None),
                 transfer_count: 0,
             };
 
-            gscore.insert(*source_id, 0);
+            gscore.insert(source_id, 0);
 
             priority_queue.push(Reverse((0, source_node)));
         } else if let Some(source_id_set) = source_id_set {
@@ -171,7 +171,7 @@ impl TransitDijkstra {
 
             //found target node
             if let Some(target_id) = target_id {
-                if idx.eq(target_id) {
+                if idx.eq(&target_id) {
                     return (Some(pathed_current_node), visited_nodes);
                 }
             }
