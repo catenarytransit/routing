@@ -130,8 +130,8 @@ mod tests {
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
         let mut router = TransitDijkstra::new(&transit_graph);
 
-        //connection tests, these should be valid transfers
-        
+        //connection tests, these should be valid transfers --> success!
+        /*
         //https://maps.app.goo.gl/eXf4S5edPM8vgvVt9
         println!("time for transit {:?}", now.elapsed());
         let start_station = *transit_graph.station_mapping.get("9079").unwrap(); //Blue Hills Ave @ Home Goods
@@ -155,15 +155,15 @@ mod tests {
         };
 
         let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None);
+        
 
-
-        println!("routing {:?} and visted count {}", d.0, d.1.len());
+        println!("routing {:#?} and visted count {}", d.0.unwrap().get_path(), d.1.len());*/
 
         //full routing test
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
         //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
-        /*
-        let now = Instant::now();
+        
+        /*let now = Instant::now();
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
         let mut roads = RoadNetwork::new(data.0, data.1);
@@ -221,12 +221,8 @@ mod tests {
                 );
             }
         }
-        println!(".");
-        */
-
-
-
-
+        println!(".");*/
+        
 
 
         //Pareto-se t ordering
@@ -265,22 +261,21 @@ mod tests {
         println!("{:?}", set);
         */
 
-        /*
-        //Direct-Connection Query Test
+        
+        //early stage Direct-Connection Query Test
         let connections = DirectConnections {
             route_tables: HashMap::from([("L17".to_string(), LineConnectionTable {
-                route_id: "L17".to_string(),
-                times_from_start: HashMap::from([(154, (0, 1)), (97, (420, 2)), (987, (720, 3)), (111, (1260, 4))]),
-                start_times: Vec::from([297000,33300, 36900, 40800, 44400])
+                times_from_start: HashMap::from([(154,0), (97,420), (987, 720), (111,1260)]),
+                start_times: Vec::from([29700, 33300, 36900, 40800, 44400])
             })]),
-            lines_per_station: HashMap::from([(97, HashMap::from([
+            lines_per_station: HashMap::from([(97, Vec::from([
                     ("L8".to_string(), 4), ("L17".to_string(), 2),("L34".to_string(), 5), ("L87".to_string(), 17)])),
-                (111, HashMap::from([
+                (111, Vec::from([
                     ("L9".to_string(), 1), ("L13".to_string(), 5),("L17".to_string(), 4), ("L55".to_string(), 16)
                 ]))])
         };
         let query = direct_connection_query(&   connections, 97, 111, 37200);
-        println!("query results: {:?}", query);
-         */
+        println!("aa query results: {:?}", query);
+        
     }
 }
