@@ -7,6 +7,8 @@ use geo::algorithm::haversine_distance::*;
 use geo::point;
 use geo::Point;
 use rstar::*;
+use serde::Deserialize;
+use serde::Serialize;
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
@@ -243,6 +245,7 @@ pub fn make_points_from_coords(
     (source, target)
 }
 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct QueryGraphItem {
     source: Point,
     target: Point,

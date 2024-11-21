@@ -1,6 +1,7 @@
 //constructs and preprocesses the graph struct from OSM data
 use crate::coord_int_convert::coord_to_int;
 use gtfs_structures::*;
+use serde::{Deserialize, Serialize};
 
 use std::collections::hash_map::Entry;
 use std::{
@@ -10,7 +11,7 @@ use std::{
 
 use crate::NodeType;
 
-#[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct NodeId {
     //0 = "untyped"    1 = "arrival"   2 = "transfer"  3 = "departure"
     pub node_type: NodeType,
@@ -19,7 +20,7 @@ pub struct NodeId {
     pub trip_id: u64,
 }
 
-#[derive(Debug, PartialEq, Hash, Eq, Clone, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Hash, Eq, Clone, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct StationInfo {
     pub id: i64,
     pub lat: i64, //f64 * f64::powi(10.0, 14) as i64

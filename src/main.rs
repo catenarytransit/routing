@@ -201,7 +201,8 @@ mod tests {
             preset_distance,
         );
 
-        println!("query graph constructed in {:?}", now.elapsed());
+        println!("{} query graph constructed in {:?}", now.elapsed(), println!("{}", 
+            serde_json::to_string(&graph).unwrap()););
 
         let run_query = query_graph_search(
             &roads,
@@ -227,8 +228,6 @@ mod tests {
             }
         }
         println!(".");
-        
-
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

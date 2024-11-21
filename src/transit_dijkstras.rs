@@ -227,7 +227,7 @@ impl TransitDijkstra {
                 }
             }
         }
-        println!("no path exists");
+        //println!("no path exists");
         (None, visited_nodes)
     }
 
@@ -259,7 +259,7 @@ impl TransitDijkstra {
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
-    //handle time dependentdijkstra calculations
+    //handle time dependent dijkstra calculations
     pub connections: DirectConnections,
     pub edges: HashMap<NodeId, Vec<NodeId>>,
     pub visited_nodes: HashMap<NodeId, PathedNode>,
