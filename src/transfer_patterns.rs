@@ -3,12 +3,9 @@ use crate::NodeType;
 use crate::coord_int_convert::*;
 use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
 use crate::RoadNetwork;
-use geo::algorithm::haversine_distance::*;
-use geo::point;
-use geo::Point;
+use geo::{Haversine, Distance, point, Point};
 use rstar::*;
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
@@ -273,7 +270,7 @@ pub fn query_graph_construction_from_geodesic_points(
     .into_iter()
     .filter(|(_, station)| {
         let node_coord = point!(x: station.0.lon as f64 / f64::powi(10.0, 14), y: station.0.lat as f64 / f64::powi(10.0, 14));
-        source.haversine_distance(&node_coord) <= preset_distance
+        Haversine::distance(source, node_coord) <= preset_distance
     })
     .unzip();
 
@@ -288,7 +285,7 @@ pub fn query_graph_construction_from_geodesic_points(
     .into_iter()
     .filter(|(_, station)| {
         let node_coord = point!(x: station.0.lon as f64 / f64::powi(10.0, 14), y: station.0.lat as f64 / f64::powi(10.0, 14));
-        target.haversine_distance(&node_coord) <= preset_distance
+        Haversine::distance(target, node_coord) <= preset_distance
     })
     .unzip();
 

@@ -634,7 +634,6 @@ dependencies = [
  "num-traits",
  "robust",
  "rstar",
- "serde",
  "spade",
 ]
 
