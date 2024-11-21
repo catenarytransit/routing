@@ -5,7 +5,7 @@ use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
 use crate::RoadNetwork;
 use geo::{Haversine, Distance, point, Point};
 use rstar::*;
-use serde::{Deserialize, Serialize};
+//use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
@@ -242,7 +242,7 @@ pub fn make_points_from_coords(
     (source, target)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+//#[derive(Serialize, Deserialize, Debug)]
 pub struct QueryGraphItem {
     source: Point,
     target: Point,
