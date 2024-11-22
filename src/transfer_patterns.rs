@@ -1,9 +1,9 @@
 use crate::NodeType;
 //THE FINAL BOSS
 use crate::coord_int_convert::*;
-use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
 use crate::RoadNetwork;
-use geo::{Haversine, Distance, point, Point};
+use crate::{road_dijkstras::*, transit_dijkstras::*, transit_network::*};
+use geo::{point, Distance, Haversine, Point};
 use rstar::*;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;

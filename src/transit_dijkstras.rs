@@ -69,7 +69,7 @@ impl TransitDijkstra {
                 if visited_nodes.contains_key(next_node_id) {
                     continue;
                 }
-                
+
                 if current.transfer_count >= 2
                     && current.node_self.node_type == NodeType::Transfer
                     && next_node_id.node_type == NodeType::Departure
@@ -154,7 +154,6 @@ impl TransitDijkstra {
             }
         }
 
-
         let mut current_cost;
         //let mut num_visited_inactive = 0;
 
@@ -178,7 +177,7 @@ impl TransitDijkstra {
 
             //stop search for local TP if all unsettled NodeIds are inactive -->
             //all unvisited nodes should become subset of inactive nodes
-            //this cool math solution was thought of by a server-mate on Discord, thank you! 
+            //this cool math solution was thought of by a server-mate on Discord, thank you!
             //NEW NOTE: THIS METHOD MIGHT NOT WORK, NEED TO CHECK ON NODE-BY-NODE CASE
             /*if hubs.is_some()
                 && (self.graph.nodes.len()

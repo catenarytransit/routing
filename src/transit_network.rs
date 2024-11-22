@@ -71,7 +71,7 @@ pub struct TimeExpandedGraph {
 pub struct LineConnectionTable {
     //for a single line/route, gives the following information:
     pub times_from_start: HashMap<i64, u64>, //<stationid, time from start> for every station along the line/route
-    pub start_times: Vec<u64>,               //start times for vehicle from first station of this line
+    pub start_times: Vec<u64>, //start times for vehicle from first station of this line
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -114,8 +114,7 @@ impl TimeExpandedGraph {
             .collect();
 
         for (iterator, stop_id) in (0_i64..).zip(gtfs.stops.iter()) {
-            station_mapping.insert(stop_id.0.clone(), stop_id.0.parse().unwrap_or(
-                iterator));
+            station_mapping.insert(stop_id.0.clone(), stop_id.0.parse().unwrap_or(iterator));
         }
 
         let mut custom_trip_id: u64 = 0; //custom counter like with stop_id
@@ -128,7 +127,8 @@ impl TimeExpandedGraph {
 
             let trip_id: u64 = trip.id.parse().unwrap_or({
                 custom_trip_id += 1;
-                custom_trip_id});
+                custom_trip_id
+            });
 
             let mut prev_departure: Option<(NodeId, u64)> = None;
 
@@ -157,8 +157,7 @@ impl TimeExpandedGraph {
                 let arrival_time: u64 = stoptime.arrival_time.unwrap().into();
                 let departure_time: u64 = stoptime.departure_time.unwrap().into();
 
-                stations_time_from_trip_start
-                    .insert(id, arrival_time - trip_start_time);
+                stations_time_from_trip_start.insert(id, arrival_time - trip_start_time);
 
                 match lines_per_station.entry(id) {
                     Entry::Occupied(mut o) => {
@@ -166,9 +165,7 @@ impl TimeExpandedGraph {
                         map.push((route_id.to_string(), stoptime.stop_sequence));
                     }
                     Entry::Vacant(v) => {
-                        v.insert({
-                            vec![(route_id.to_string(), stoptime.stop_sequence)]
-                        });
+                        v.insert({ vec![(route_id.to_string(), stoptime.stop_sequence)] });
                     }
                 }
 
@@ -265,7 +262,7 @@ impl TimeExpandedGraph {
                 Entry::Vacant(v) => {
                     v.insert(LineConnectionTable {
                         times_from_start: stations_time_from_trip_start,
-                        start_times: Vec::from([trip_start_time])
+                        start_times: Vec::from([trip_start_time]),
                     });
                 }
             }
@@ -333,7 +330,7 @@ impl TimeExpandedGraph {
                 }
             }*/
         }
-        
+
         for (_, stop_sequence) in lines_per_station.iter_mut() {
             stop_sequence.sort();
             stop_sequence.dedup();
@@ -380,8 +377,8 @@ pub fn direct_connection_query(
             }
         }
     }
-    
-    if route.is_empty(){
+
+    if route.is_empty() {
         println!("cant find lines per station");
     }
 

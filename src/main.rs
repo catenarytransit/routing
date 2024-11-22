@@ -138,7 +138,7 @@ mod tests {
         println!("time for transit {:?}", now.elapsed());
         let start_station = *transit_graph.station_mapping.get("9079").unwrap(); //Blue Hills Ave @ Home Goods
         let end_station = *transit_graph.station_mapping.get("1682").unwrap(); //Bloomfield Ave @ Advo
-        
+
         let x = direct_connection_query(&connections, start_station, end_station, 25680);//7:08 AM
         println!("dc query {:?}", x);
 
@@ -157,7 +157,7 @@ mod tests {
         };
 
         let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None);
-        
+
 
         println!("routing {:#?} and visted count {}", d.0.unwrap().get_path(), d.1.len());
         */
@@ -165,7 +165,7 @@ mod tests {
         //full routing test
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
         //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
-        
+
         let now = Instant::now();
         println!("generating street network graph");
 
@@ -183,10 +183,10 @@ mod tests {
         );
 
         //pepperidge farm to harriet beecher stowe center
-        let (source, target) = make_points_from_coords( 
+        let (source, target) = make_points_from_coords(
             -72.71973332600558,
             41.86829675142084,
-            -72.70049435551549, 
+            -72.70049435551549,
             41.76726348091365,
         );
 
@@ -204,12 +204,7 @@ mod tests {
         println!("{:?} query graph constructed in {}", now.elapsed(), println!("{}", 
             serde_json::to_string(&graph).unwrap()););
 
-        let run_query = query_graph_search(
-            &roads,
-            connections,
-            graph,
-            preset_distance,
-        );
+        let run_query = query_graph_search(&roads, connections, graph, preset_distance);
 
         let reverse_station_mapping = transit_graph
             .station_mapping
@@ -279,6 +274,5 @@ mod tests {
         };
         let query = direct_connection_query(&   connections, 97, 111, 37200);
         println!("aa query results: {:?}", query);*/
-        
     }
 }
