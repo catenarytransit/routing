@@ -201,8 +201,8 @@ mod tests {
             preset_distance,
         );
 
-        //println!("{:?} query graph constructed in {}", now.elapsed(), println!("{}", 
-            //serde_json::to_string(&graph).unwrap()););
+        println!("{:?} query graph constructed in {}", now.elapsed(), println!("{}", 
+            serde_json::to_string(&graph).unwrap()););
 
         let run_query = query_graph_search(
             &roads,

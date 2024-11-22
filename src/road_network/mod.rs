@@ -5,7 +5,6 @@ pub mod road_graph_construction {
     use crate::coord_int_convert::*;
     use crate::road_dijkstras::*;
     use core::num;
-    use geo::HaversineDistance;
     use osmpbfreader::objects::OsmObj;
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
