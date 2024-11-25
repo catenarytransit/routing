@@ -2,6 +2,7 @@
 use crate::coord_int_convert::coord_to_int;
 use gtfs_structures::*;
 use serde::{Deserialize, Serialize};
+use serde_with::*;
 
 use std::collections::hash_map::Entry;
 use std::{
@@ -12,6 +13,7 @@ use std::{
 use crate::NodeType;
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(into = "String")]
 pub struct NodeId {
     //0 = "untyped"    1 = "arrival"   2 = "transfer"  3 = "departure"
     pub node_type: NodeType,
@@ -19,6 +21,31 @@ pub struct NodeId {
     pub time: Option<u64>,
     pub trip_id: u64,
 }
+
+impl From<String> for NodeId {
+    fn from(read_val: String) -> Self {
+        let v: Vec<&str> = read_val.rsplit(',').collect();
+        NodeId { 
+            node_type: (*v.first().unwrap_or(&"")).to_string().into(),
+            station_id: (*v.get(1).unwrap_or(&"")).parse().unwrap_or(0), 
+            time: (*v.get(2).unwrap_or(&"")).parse().ok(), 
+            trip_id: (*v.get(3).unwrap_or(&"")).parse().unwrap_or(0)
+        }
+    }
+}
+
+impl From<NodeId> for String {
+    fn from(val: NodeId) -> Self {
+        format!("{},{},{},{}", 
+            <crate::common_enums::NodeType as std::convert::Into<String>>::into(val.node_type),
+            val.station_id,
+            val.time.unwrap_or(0),
+            val.trip_id
+        )
+    }
+}
+
+
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct StationInfo {
@@ -165,7 +192,7 @@ impl TimeExpandedGraph {
                         map.push((route_id.to_string(), stoptime.stop_sequence));
                     }
                     Entry::Vacant(v) => {
-                        v.insert({ vec![(route_id.to_string(), stoptime.stop_sequence)] });
+                        v.insert(vec![(route_id.to_string(), stoptime.stop_sequence)]);
                     }
                 }
 

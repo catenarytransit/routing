@@ -1,7 +1,9 @@
 #![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
-use std::fs;
+use std::fs::File;
+use serde_json::{Result, Value};
+
 
 fn main() {
     /*
@@ -121,9 +123,14 @@ mod tests {
     use transit_router::NodeType;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
+    use std::fs::File;
+    use std::io::Write;
 
     #[test]
     fn test() {
+        
+        let path = "results.json";
+        let mut output = File::create(path).unwrap();
         let now = Instant::now();
         println!("generating transit network graph");
 
@@ -201,10 +208,11 @@ mod tests {
             preset_distance,
         );
 
-        println!("{:?} query graph constructed in {}", now.elapsed(), println!("{}", 
-            serde_json::to_string(&graph).unwrap()););
+        println!("query graph constructed in {:?}", now.elapsed());
+        let data = serde_json::to_string(&graph).unwrap();
+        write!(output, "{}", data);
 
-        let run_query = query_graph_search(&roads, connections, graph, preset_distance);
+        /*let run_query = query_graph_search(&roads, connections, graph, preset_distance);
 
         let reverse_station_mapping = transit_graph
             .station_mapping
@@ -212,7 +220,7 @@ mod tests {
             .map(|(name, id)| (id, name))
             .collect::<HashMap<_, _>>();
 
-        print!("path: \t");
+        println!("path: \t");
         if let Some(stuff) = run_query {
             let path = stuff.2.get_path();
             for node in path.0 {
@@ -222,7 +230,7 @@ mod tests {
                 );
             }
         }
-        println!(".");
+        println!(".");*/
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

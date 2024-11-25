@@ -7,3 +7,26 @@ pub enum NodeType {
     Transfer = 2,
     Departure = 3,
 }
+
+impl From<String> for NodeType {
+    fn from(read_val: String) -> Self {
+        match read_val.as_str() {
+            "Untyped" => NodeType::Untyped,
+            "Arrival" => NodeType::Arrival,
+            "Transfer" => NodeType::Transfer,
+            "Departure" => NodeType::Departure,
+            &_ => NodeType::Untyped,
+        }
+    }
+}
+
+impl From<NodeType> for String {
+    fn from(v: NodeType) -> String {
+        match v {
+            NodeType::Untyped => "Untyped".to_string(),
+            NodeType::Arrival => "Arrival".to_string(),
+            NodeType::Transfer => "Transfer".to_string(),
+            NodeType::Departure =>"Departure".to_string(),
+        }
+    }
+}
