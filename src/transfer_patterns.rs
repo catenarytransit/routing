@@ -101,7 +101,7 @@ pub fn hub_selection(
 }
 
 // Precompute transfer patterns from a given station to all other stations.
-// Return the transfer patterns & numbers of ybetween each station pair.
+// Return the transfer patterns & numbers between each station pair.
 pub fn num_transfer_patterns_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
@@ -125,9 +125,11 @@ pub fn num_transfer_patterns_from_source(
             .map(|(_, node)| *node)
             .collect(),
     );
+    println!("start d");
     let visited_nodes = router
         .time_expanded_dijkstra(None, source_transfer_nodes, None, hubs)
         .1;
+    println!("end d");
 
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = visited_nodes
         .iter()

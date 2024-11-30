@@ -120,15 +120,6 @@ impl TransitDijkstra {
         //resets list of settled nodes for new computation
         visited_nodes.clear();
 
-        /*let source_id = self.graph.nodes.get(&source_id.unwrap());
-        if source_id.is_none() {
-            println!("s wth");
-        }
-        let target_id = self.graph.nodes.get(&target_id.unwrap());
-        if target_id.is_none() {
-            println!("t wth");
-        }*/
-
         if let Some(source_id) = source_id {
             let source_node: PathedNode = PathedNode {
                 node_self: (source_id),
@@ -156,6 +147,7 @@ impl TransitDijkstra {
 
         let mut current_cost;
         //let mut num_visited_inactive = 0;
+        let mut inactive_nodes: HashSet<NodeId> = HashSet::new();
 
         while !priority_queue.is_empty() {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
@@ -177,6 +169,14 @@ impl TransitDijkstra {
 
             //stop search for local TP if all unsettled NodeIds are inactive -->
             //all unvisited nodes should become subset of inactive nodes
+            if hubs.is_some() {
+                let a = visited_nodes.keys().collect::<HashSet<_>>();
+                let b = inactive_nodes.iter().collect();
+                let c = a.union(&b);      
+                if self.graph.nodes.len() == c.count() {
+                    return (None, visited_nodes);
+                }
+            }
             //this cool math solution was thought of by a server-mate on Discord, thank you!
             //NEW NOTE: THIS METHOD MIGHT NOT WORK, NEED TO CHECK ON NODE-BY-NODE CASE
             /*if hubs.is_some()
@@ -202,6 +202,9 @@ impl TransitDijkstra {
 
             for neighbor in self.get_neighbors(&pathed_current_node, &visited_nodes, hubs.is_some())
             {
+                if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id)) && pathed_current_node.node_self.node_type == NodeType::Transfer {
+                    inactive_nodes.insert(neighbor.0);
+                }
                 let temp_distance = current_cost + neighbor.1;
                 let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
 

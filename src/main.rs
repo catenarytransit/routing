@@ -3,7 +3,7 @@
 // Cleaned up somewhat by Kyler Chin
 use std::fs::File;
 use serde_json::{Result, Value};
-
+use std::io::BufReader;
 
 fn main() {
     /*
@@ -123,17 +123,17 @@ mod tests {
     use transit_router::NodeType;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
-    use std::fs::File;
+    use std::fs::*;
     use std::io::Write;
+    use std::io::BufReader;
+
 
     #[test]
     fn test() {
-        
-        let path = "results.json";
-        let mut output = File::create(path).unwrap();
         let now = Instant::now();
-        println!("generating transit network graph");
+        let path = "results.json";
 
+        println!("generating transit network graph");
         let gtfs = read_from_gtfs_zip("ctt.zip");
         let (transit_graph, connections) =
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
@@ -188,7 +188,8 @@ mod tests {
             "# of edges: {}",
             roads.edges.values().map(|edges| edges.len()).sum::<usize>()
         );
-
+        let preset_distance = 250.0;
+        
         //pepperidge farm to harriet beecher stowe center
         let (source, target) = make_points_from_coords(
             -72.71973332600558,
@@ -196,8 +197,6 @@ mod tests {
             -72.70049435551549,
             41.76726348091365,
         );
-
-        let preset_distance = 250.0;
 
         let now = Instant::now();
         let graph = query_graph_construction_from_geodesic_points(
@@ -208,11 +207,15 @@ mod tests {
             preset_distance,
         );
 
+        let mut output = File::create(path).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        let data = serde_json::to_string(&graph).unwrap();
-        write!(output, "{}", data);
+        serde_json::to_writer(output, &graph).unwrap();
 
-        /*let run_query = query_graph_search(&roads, connections, graph, preset_distance);
+        /*let file = File::open(path).ok().unwrap();
+        let reader = BufReader::new(file);
+        let mut graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();*/
+
+        let run_query = query_graph_search(&roads, connections, graph, preset_distance);
 
         let reverse_station_mapping = transit_graph
             .station_mapping
@@ -230,7 +233,7 @@ mod tests {
                 );
             }
         }
-        println!(".");*/
+        println!(".");
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
