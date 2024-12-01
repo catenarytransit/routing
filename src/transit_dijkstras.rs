@@ -12,7 +12,6 @@ pub struct TransitDijkstra {
     //handle time expanded dijkstra calculations
     pub graph: TimeExpandedGraph,
     cost_upper_bound: u64,
-    inactive_nodes: HashSet<NodeId>,
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
@@ -44,11 +43,9 @@ impl PathedNode {
 impl TransitDijkstra {
     //implementation of time expanded dijkstra's shortest path algorithm
     pub fn new(graph: &TimeExpandedGraph) -> Self {
-        let inactive_nodes = HashSet::new();
         Self {
             graph: graph.clone(),
             cost_upper_bound: u64::MAX,
-            inactive_nodes,
         }
     }
 
@@ -85,26 +82,9 @@ impl TransitDijkstra {
         paths
     }
 
-    pub fn node_deactivator(&mut self, hubs: &HashSet<i64>) {
-        for (u, edges) in self.graph.edges.iter() {
-            if u.node_type == NodeType::Transfer && hubs.contains(&u.station_id) {
-                for v in edges.keys() {
-                    self.inactive_nodes.insert(*v);
-                }
-            } else {
-                for v in edges.keys() {
-                    if v.node_type == NodeType::Transfer && hubs.contains(&v.station_id) {
-                        self.inactive_nodes.insert(*u);
-                    }
-                }
-            }
-        }
-    }
-
     pub fn time_expanded_dijkstra(
         &self,
-        source_id: Option<NodeId>,
-        source_id_set: Option<Vec<NodeId>>,
+        source_id_set: Vec<NodeId>,
         target_id: Option<NodeId>, //if target == None, settles all reachable nodes
         hubs: Option<&HashSet<i64>>,
     ) -> (Option<PathedNode>, HashMap<NodeId, PathedNode>) {
@@ -113,50 +93,30 @@ impl TransitDijkstra {
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
         let mut visited_nodes: HashMap<NodeId, PathedNode> = HashMap::new();
+        let mut inactive_nodes: HashSet<NodeId> = HashSet::new();
 
         //stores distances of node relative to target
         let mut gscore: HashMap<NodeId, u64> = HashMap::new();
-
-        //resets list of settled nodes for new computation
-        visited_nodes.clear();
-
-        if let Some(source_id) = source_id {
+        for source_id in source_id_set {
             let source_node: PathedNode = PathedNode {
-                node_self: (source_id),
+                node_self: source_id,
                 cost_from_start: 0,
-                parent_node: (None),
+                parent_node: None,
                 transfer_count: 0,
             };
 
             gscore.insert(source_id, 0);
-
             priority_queue.push(Reverse((0, source_node)));
-        } else if let Some(source_id_set) = source_id_set {
-            for source_id in source_id_set {
-                let source_node: PathedNode = PathedNode {
-                    node_self: source_id,
-                    cost_from_start: 0,
-                    parent_node: None,
-                    transfer_count: 0,
-                };
-
-                gscore.insert(source_id, 0);
-                priority_queue.push(Reverse((0, source_node)));
-            }
         }
-
+    
         let mut current_cost;
         //let mut num_visited_inactive = 0;
-        let mut inactive_nodes: HashSet<NodeId> = HashSet::new();
 
         while !priority_queue.is_empty() {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
             current_cost = pathed_current_node.cost_from_start;
             let idx = pathed_current_node.node_self;
 
-            /*if self.inactive_nodes.contains(&pathed_current_node.node_self) {
-                num_visited_inactive += 1
-            }*/
 
             visited_nodes.insert(idx, pathed_current_node.clone());
 
