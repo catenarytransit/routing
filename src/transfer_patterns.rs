@@ -499,17 +499,19 @@ pub fn query_graph_search(
     let mut returned_val: Option<(NodeId, NodeId, PathedNode)> = None; //source, target, path
 
     for source_id in query_info.source_nodes.iter() {
-        let source_path = source_paths.get(&source_id.station_id).unwrap();
-        for target_id in query_info.target_nodes.iter() {
-            let target_path = target_paths.get(&target_id.station_id).unwrap();
-            let path = router.time_dependent_dijkstra(*source_id, *target_id);
-            if let Some(transit_path) = path {
-                let new_cost = transit_path.cost_from_start
-                    + source_path.distance_from_start
-                    + target_path.distance_from_start;
-                if new_cost > min_cost {
-                    min_cost = new_cost;
-                    returned_val = Some((*source_id, *target_id, transit_path));
+        if let Some(source_path) = source_paths.get(&source_id.station_id){
+            for target_id in query_info.target_nodes.iter() {
+                if let Some(target_path) = target_paths.get(&target_id.station_id){
+                    let path = router.time_dependent_dijkstra(*source_id, *target_id);
+                    if let Some(transit_path) = path {
+                        let new_cost = transit_path.cost_from_start
+                            + source_path.distance_from_start
+                            + target_path.distance_from_start;
+                        if new_cost > min_cost {
+                            min_cost = new_cost;
+                            returned_val = Some((*source_id, *target_id, transit_path));
+                        }
+                    }
                 }
             }
         }

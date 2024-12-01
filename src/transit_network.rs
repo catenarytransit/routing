@@ -14,6 +14,7 @@ use crate::NodeType;
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(into = "String")]
+#[serde(from = "String")]
 pub struct NodeId {
     //0 = "untyped"    1 = "arrival"   2 = "transfer"  3 = "departure"
     pub node_type: NodeType,

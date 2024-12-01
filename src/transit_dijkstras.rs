@@ -177,16 +177,6 @@ impl TransitDijkstra {
                     return (None, visited_nodes);
                 }
             }
-            //this cool math solution was thought of by a server-mate on Discord, thank you!
-            //NEW NOTE: THIS METHOD MIGHT NOT WORK, NEED TO CHECK ON NODE-BY-NODE CASE
-            /*if hubs.is_some()
-                && (self.graph.nodes.len()
-                    - visited_nodes.len()
-                    - (self.inactive_nodes.len() - num_visited_inactive)
-                    == 0)
-            {
-                return (None, visited_nodes);
-            }*/
 
             //stop conditions
             //cost or # of settled nodes goes over limit

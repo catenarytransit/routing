@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn test() {
         let now = Instant::now();
-        let path = "results.json";
+        let savepath = "results.json";
 
         println!("generating transit network graph");
         let gtfs = read_from_gtfs_zip("ctt.zip");
@@ -190,6 +190,7 @@ mod tests {
         );
         let preset_distance = 250.0;
         
+        /*
         //pepperidge farm to harriet beecher stowe center
         let (source, target) = make_points_from_coords(
             -72.71973332600558,
@@ -207,13 +208,13 @@ mod tests {
             preset_distance,
         );
 
-        let mut output = File::create(path).unwrap();
+        let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();
+        serde_json::to_writer(output, &graph).unwrap();*/
 
-        /*let file = File::open(path).ok().unwrap();
+        let file = File::open(savepath).ok().unwrap();
         let reader = BufReader::new(file);
-        let mut graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();*/
+        let mut graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();
 
         let run_query = query_graph_search(&roads, connections, graph, preset_distance);
 
