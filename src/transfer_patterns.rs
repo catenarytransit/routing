@@ -145,7 +145,7 @@ pub fn num_transfer_patterns_from_source(
     use std::thread;
 
     let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-    let thread_num = 10;
+    let thread_num = 8;
     let source_chunk_len = arrival_nodes.len();
     let threaded_sources = Arc::new(arrival_nodes.clone());
     let mut handles = vec![];
@@ -323,10 +323,11 @@ pub fn query_graph_construction_from_geodesic_points(
     let mut tps = total_transfer_patterns.lock().unwrap();
     
     println!("source to hub tps num {}", tps.len());
-    let used_hubs: Vec<_> = hubs.into_iter().filter(|n| source_ids.contains(n)).collect();
+    let reached: Vec<_> = tps.iter().map(|((_, t), _)| t.station_id).collect();
+    let used_hubs: Vec<_> = hubs.into_iter().filter(|n| reached.contains(n)).collect();
 
     //global transfer patterns from I(hubs) to to N(target())
-    println!("num hubs used {:?}", used_hubs.len());
+    println!("num hubs used {:?}", used_hubs);
 
     for hub in used_hubs.iter() {
         let g_tps = num_transfer_patterns_from_source(*hub, router, None, Some(start_time));
