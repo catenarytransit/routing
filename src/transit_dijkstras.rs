@@ -63,14 +63,10 @@ impl TransitDijkstra {
         let mut paths = Vec::new();
         if let Some(connections) = self.graph.edges.get(&current.node_self) {
             for (next_node_id, cost) in connections {
-                if visited_nodes.contains_key(next_node_id) {
-                    continue;
-                }
-
-                if current.transfer_count >= 2
+                if visited_nodes.contains_key(next_node_id) || (current.transfer_count >= 2
                     && current.node_self.node_type == NodeType::Transfer
                     && next_node_id.node_type == NodeType::Departure
-                    && is_local
+                    && is_local)
                 {
                     //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
                     continue;

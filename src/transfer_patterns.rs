@@ -141,29 +141,11 @@ pub fn num_transfer_patterns_from_source(
     arrival_loop(&mut arrival_nodes);
     println!("d\t");
 
-    /*for (target, path, _) in arrival_nodes.iter() {
-        let mut transfers = Vec::new();
-        transfers.push(*target);
-        let mut previous_node: NodeId = *target;
-        for &node in path {
-            if previous_node.node_type == NodeType::Departure
-                && node.node_type == NodeType::Transfer
-            {
-                transfers.push(node);
-            }
-            previous_node = node;
-        }
-
-        transfers.reverse();
-
-        transfer_patterns.insert((*transfers.first().unwrap(), *target), transfers);
-    }*/
-
     use std::sync::Mutex;
     use std::thread;
 
     let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-    let thread_num = 8;
+    let thread_num = 10;
     let source_chunk_len = arrival_nodes.len();
     let threaded_sources = Arc::new(arrival_nodes.clone());
     let mut handles = vec![];
@@ -335,12 +317,11 @@ pub fn query_graph_construction_from_geodesic_points(
 
         handles.push(handle);
     }
-
     for handle in handles {
         handle.join().unwrap();
     }
-
     let mut tps = total_transfer_patterns.lock().unwrap();
+    
     println!("source to hub tps num {}", tps.len());
     let used_hubs: Vec<_> = hubs.into_iter().filter(|n| source_ids.contains(n)).collect();
 
