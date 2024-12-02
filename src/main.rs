@@ -225,6 +225,7 @@ mod tests {
             .collect::<HashMap<_, _>>();
 
         println!("path: \t");
+        //i think the hub pathway is broken, need to verify that the path from the source to hub is being extended correctly
         if let Some(stuff) = run_query {
             let path = stuff.2.get_path();
             for node in path.0 {
