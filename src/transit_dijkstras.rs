@@ -133,6 +133,7 @@ impl TransitDijkstra {
                     return (None, visited_nodes);
                 }
             }
+        
 
             //stop conditions
             //cost or # of settled nodes goes over limit

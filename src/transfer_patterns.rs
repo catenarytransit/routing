@@ -124,11 +124,11 @@ pub fn num_transfer_patterns_from_source(
             //must check for transfer nodes, but checking for arrival nodes may improve query time at expense of longer precompute
             .map(|(_, node)| *node)
             .collect();
-    println!("a\t");
+    println!("found sources \t");
     let visited_nodes = router
         .time_expanded_dijkstra(source_transfer_nodes, None, hubs)
         .1;
-    println!("b\t");
+    println!("visited nodes\t");
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = visited_nodes
         .iter()
         .filter(|(node, _)| node.node_type == NodeType::Arrival)
@@ -137,9 +137,9 @@ pub fn num_transfer_patterns_from_source(
             (*node, path, cost)
         })
         .collect();
-    println!("c\t");
+    println!("filtered arrivals\t");
     arrival_loop(&mut arrival_nodes);
-    println!("d\t");
+    println!("arrival loop\t");
 
     use std::sync::Mutex;
     use std::thread;
@@ -186,13 +186,13 @@ pub fn num_transfer_patterns_from_source(
     for handle in handles {
         handle.join().unwrap();
     }
-    println!("e\t");
+    println!("found transfers\t");
 
     let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
     lock.into_inner().expect("mutex could not be locked")
 }
 
-// Arrival chain algo: For each arrival node, see if cost can be approved
+// Arrival chain algo: For each arrival node, see if cost can be improved
 // by simply waiting from an earlier arrival time. (favors less travel time)
 pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
     arrival_nodes.sort_unstable_by(|a, b| a.0.station_id.cmp(&b.0.station_id));
@@ -277,6 +277,8 @@ pub fn query_graph_construction_from_geodesic_points(
 
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 10000, 36000); //cost limit at 10 hours, arbitrary
+
+    println!("hubs: {:?}", hubs);
 
     use std::sync::Mutex;
     use std::thread;

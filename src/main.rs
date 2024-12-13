@@ -192,6 +192,9 @@ mod tests {
             preset_distance,
         );
 
+        //dec 13: wtf happened to the hubs why are there no edges from/to hubs in the results.json? 
+        //must investigate that tmrw. sleep now
+
         let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
         serde_json::to_writer(output, &graph).unwrap();
