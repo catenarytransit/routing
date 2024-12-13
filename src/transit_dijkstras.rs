@@ -106,7 +106,6 @@ impl TransitDijkstra {
         }
     
         let mut current_cost;
-        //let mut num_visited_inactive = 0;
 
         while !priority_queue.is_empty() {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()

@@ -8,7 +8,6 @@ use rstar::*;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
-use std::hash::Hash;
 use std::sync::Arc;
 
 //only calculate global time expanded dijkstra from hubs (important stations) to save complexity
@@ -146,7 +145,7 @@ pub fn num_transfer_patterns_from_source(
     arrival_loop(&mut arrival_nodes);
     println!("arrival loop\t");
 
-    if hubs.is_some(){
+    if hubs.is_none(){
         let mut total_transfer_patterns = HashMap::new();
         for (target, path, _) in arrival_nodes {
             let mut transfers = Vec::new();

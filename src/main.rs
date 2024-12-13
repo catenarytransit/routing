@@ -176,7 +176,7 @@ mod tests {
         let preset_distance = 250.0;
         
         //pepperidge farm to harriet beecher stowe center
-        let (source, target) = make_points_from_coords(
+        /*let (source, target) = make_points_from_coords(
             -72.71973332600558,
             41.86829675142084,
             -72.70049435551549,
@@ -188,18 +188,19 @@ mod tests {
             &mut router,
             source,
             target,
-            18000,
             18600, //5:10 AM
+            18000,
             preset_distance,
         );
 
 
         let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();
+        serde_json::to_writer(output, &graph).unwrap();*/
 
         //part 2
-        /*let file = File::open(savepath).ok().unwrap();
+
+        let file = File::open(savepath).ok().unwrap();
         let reader = BufReader::new(file);
         let mut graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();
 
@@ -229,6 +230,9 @@ mod tests {
 
         println!("path: \t");
         //i think the hub pathway is broken, need to verify that the path from the source to hub is being extended correctly
+        
+        //tried extending hub run did not work
+        //make it longer? and only accept hubs that reach target to reduce computation of num_tps fn?
         if let Some(stuff) = run_query {
             let path = stuff.2.get_path();
             for node in path.0 {
@@ -238,7 +242,7 @@ mod tests {
                 );
             }
         }
-        println!(".");*/
+        println!(".");
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
