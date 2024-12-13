@@ -8,6 +8,7 @@ use rstar::*;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::hash::Hash;
 use std::sync::Arc;
 
 //only calculate global time expanded dijkstra from hubs (important stations) to save complexity
@@ -97,6 +98,9 @@ pub fn hub_selection(
         let hub = sorted_hubs.pop().unwrap();
         selected_hubs.insert(hub.1.station_id);
     }
+
+    time_independent_router.set_cost_upper_bound(u64::MAX); //reset cost upper bound to max
+    
     selected_hubs
 }
 
@@ -108,6 +112,7 @@ pub fn num_transfer_patterns_from_source(
     hubs: Option<&HashSet<i64>>,
     start_time: Option<u64>,
 ) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+    println!("start tp calc \t");
     let source_transfer_nodes: Vec<NodeId> = 
         router
             .graph
@@ -141,56 +146,78 @@ pub fn num_transfer_patterns_from_source(
     arrival_loop(&mut arrival_nodes);
     println!("arrival loop\t");
 
-    use std::sync::Mutex;
-    use std::thread;
-
-    let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-    let thread_num = 8;
-    let source_chunk_len = arrival_nodes.len();
-    let threaded_sources = Arc::new(arrival_nodes.clone());
-    let mut handles = vec![];
-
-    for x in 1..thread_num {
-        let source = Arc::clone(&threaded_sources);
-        let transfer_patterns = Arc::clone(&total_transfer_patterns);
-        let handle = thread::spawn(move || {
-            let src = source;
-            for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
-                ..(x * source_chunk_len / (thread_num - 1))
-            {
-                let (target, path, _) = src.get(i).unwrap();
-                let mut transfers = Vec::new();
-                transfers.push(*target);
-                let mut previous_node: NodeId = *target;
-                for &node in path {
-                    if previous_node.node_type == NodeType::Departure
-                        && node.node_type == NodeType::Transfer
-                    {
-                        transfers.push(node);
+    if hubs.is_some(){
+        let mut total_transfer_patterns = HashMap::new();
+        for (target, path, _) in arrival_nodes {
+            let mut transfers = Vec::new();
+                    transfers.push(target);
+                    let mut previous_node: NodeId = target;
+                    for node in path {
+                        if previous_node.node_type == NodeType::Departure
+                            && node.node_type == NodeType::Transfer
+                        {
+                            transfers.push(node);
+                        }
+                        previous_node = node;
                     }
-                    previous_node = node;
+
+                    transfers.reverse();
+                    total_transfer_patterns.insert((*transfers.first().unwrap(), target), transfers);
+        }
+        total_transfer_patterns
+    }
+    else {
+        use std::sync::Mutex;
+        use std::thread;
+        let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+        let thread_num = 5;
+        let source_chunk_len = arrival_nodes.len();
+        let threaded_sources = Arc::new(arrival_nodes.clone());
+        let mut handles = vec![];
+
+        for x in 1..thread_num {
+            let source = Arc::clone(&threaded_sources);
+            let transfer_patterns = Arc::clone(&total_transfer_patterns);
+            let handle = thread::spawn(move || {
+                let src = source;
+                for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
+                    ..(x * source_chunk_len / (thread_num - 1))
+                {
+                    let (target, path, _) = src.get(i).unwrap();
+                    let mut transfers = Vec::new();
+                    transfers.push(*target);
+                    let mut previous_node: NodeId = *target;
+                    for &node in path {
+                        if previous_node.node_type == NodeType::Departure
+                            && node.node_type == NodeType::Transfer
+                        {
+                            transfers.push(node);
+                        }
+                        previous_node = node;
+                    }
+
+                    transfers.reverse();
+
+                    transfer_patterns
+                        .lock()
+                        .unwrap()
+                        .insert((*transfers.first().unwrap(), *target), transfers);
                 }
+            });
 
-                transfers.reverse();
+            handles.push(handle);
+        }
 
-                transfer_patterns
-                    .lock()
-                    .unwrap()
-                    .insert((*transfers.first().unwrap(), *target), transfers);
-            }
-        });
+        for handle in handles {
+            handle.join().unwrap();
+        }
 
-        handles.push(handle);
+        let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
+        println!("found transfers\t");
+        lock.into_inner().expect("mutex could not be locked")
     }
-
-    for handle in handles {
-        handle.join().unwrap();
-    }
-    println!("found transfers\t");
-
-    let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
-    lock.into_inner().expect("mutex could not be locked")
 }
+
 
 // Arrival chain algo: For each arrival node, see if cost can be improved
 // by simply waiting from an earlier arrival time. (favors less travel time)
@@ -242,6 +269,7 @@ pub fn query_graph_construction_from_geodesic_points(
     source: Point,
     target: Point,
     start_time: u64,
+    hub_time_lim: u64,
     preset_distance: f64, //in meters
 ) -> QueryGraphItem {
     //source nodes, target nodes, edges
@@ -276,7 +304,7 @@ pub fn query_graph_construction_from_geodesic_points(
     println!("Possible end nodes count: {}", target_ids.len());
 
     //get hubs of important stations I(hubs)
-    let hubs = hub_selection(router, 10000, 36000); //cost limit at 10 hours, arbitrary
+    let hubs = hub_selection(router, 10000, hub_time_lim); //cost limit at 10 hours, arbitrary
 
     println!("hubs: {:?}", hubs);
 
@@ -333,9 +361,11 @@ pub fn query_graph_construction_from_geodesic_points(
 
     for hub in used_hubs.iter() {
         let g_tps = num_transfer_patterns_from_source(*hub, router, None, Some(start_time));
+        println!("extending tps...");
         tps.extend(g_tps.into_iter());
+        println!("extension done");
     }
-
+ 
     println!("plus hubs to target tps num {}", tps.len());
 
     let source_nodes: Vec<_> = nodes_per_source
@@ -365,7 +395,8 @@ pub fn query_graph_construction_from_geodesic_points(
     let paths = tps
         .iter()
         .filter(|((source, target), _)| {
-            source_nodes.contains(source) || target_nodes.contains(target)
+            source_nodes.contains(source) || 
+            target_nodes.contains(target)
         })
         .map(|(_, path)| path)
         .collect::<Vec<_>>();
