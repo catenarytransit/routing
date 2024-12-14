@@ -176,11 +176,11 @@ mod tests {
         let preset_distance = 250.0;
         
         //pepperidge farm to harriet beecher stowe center
-        /*let (source, target) = make_points_from_coords(
-            -72.71973332600558,
+        let (source, target) = make_points_from_coords(
             41.86829675142084,
-            -72.70049435551549,
+            -72.71973332600558,
             41.76726348091365,
+            -72.70049435551549,
         );
 
         let now = Instant::now();
@@ -193,10 +193,9 @@ mod tests {
             preset_distance,
         );
 
-
         let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();*/
+        serde_json::to_writer(output, &graph).unwrap();
 
         //part 2
 

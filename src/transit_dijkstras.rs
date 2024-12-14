@@ -81,7 +81,7 @@ impl TransitDijkstra {
     pub fn time_expanded_dijkstra(
         &self,
         source_id_set: Vec<NodeId>,
-        target_id: Option<NodeId>, //if target == None, settles all reachable nodes
+        target_id: &[i64], //if target == empty, settles all reachable nodes
         hubs: Option<&HashSet<i64>>,
     ) -> (Option<PathedNode>, HashMap<NodeId, PathedNode>) {
         //path, visted nodes, transfer count
@@ -116,10 +116,9 @@ impl TransitDijkstra {
             visited_nodes.insert(idx, pathed_current_node.clone());
 
             //found target node
-            if let Some(target_id) = target_id {
-                if idx.eq(&target_id) {
-                    return (Some(pathed_current_node), visited_nodes);
-                }
+            if !target_id.is_empty() && target_id.contains(&idx.station_id) {
+                println!("epiccccc");
+                return (Some(pathed_current_node), visited_nodes);
             }
 
             //stop search for local TP if all unsettled NodeIds are inactive -->
