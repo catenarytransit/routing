@@ -26,7 +26,7 @@ impl From<NodeType> for String {
             NodeType::Untyped => "Untyped".to_string(),
             NodeType::Arrival => "Arrival".to_string(),
             NodeType::Transfer => "Transfer".to_string(),
-            NodeType::Departure =>"Departure".to_string(),
+            NodeType::Departure => "Departure".to_string(),
         }
     }
 }

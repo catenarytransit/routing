@@ -1,8 +1,8 @@
 #![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
-use std::fs::File;
 use serde_json::{Result, Value};
+use std::fs::File;
 use std::io::BufReader;
 
 fn main() {
@@ -118,15 +118,14 @@ mod tests {
     use std::collections::HashMap;
     use std::env;
     use std::f64::consts;
+    use std::fs::*;
+    use std::io::BufReader;
+    use std::io::Write;
     use std::time::Instant;
     use transit_router::coord_int_convert::coord_to_int;
     use transit_router::NodeType;
     use transit_router::RoadNetwork;
     use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
-    use std::fs::*;
-    use std::io::Write;
-    use std::io::BufReader;
-
 
     #[test]
     fn test() {
@@ -135,48 +134,49 @@ mod tests {
 
         println!("generating transit network graph");
         let gtfs = read_from_gtfs_zip("ctt.zip");
-        let (transit_graph, connections) =
-            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
+        let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
         let mut router = TransitDijkstra::new(&transit_graph);
 
         //connection tests, these should be valid transfers --> success!
-        /*
+
         //https://maps.app.goo.gl/eXf4S5edPM8vgvVt9
         println!("time for transit {:?}", now.elapsed());
         let start_station = *transit_graph.station_mapping.get("9079").unwrap(); //Blue Hills Ave @ Home Goods
         let end_station = *transit_graph.station_mapping.get("1682").unwrap(); //Bloomfield Ave @ Advo
 
-        let x = direct_connection_query(&connections, start_station, end_station, 25680);//7:08 AM
+        let x = direct_connection_query(&connections, start_station, end_station, 25680); //7:08 AM
         println!("dc query {:?}", x);
 
         //https://maps.app.goo.gl/szffQJAEALqSeHNF7
-        let source_id = NodeId { //Downtown New Britain Station @ Columbus Blvd Bay
+        let source_id = NodeId {
+            //Downtown New Britain Station @ Columbus Blvd Bay
             node_type: NodeType::Arrival,
             station_id: 13381,
             time: Some(19200), //5:20 AM, 10 second transfer buffer
             trip_id: 1758411,
         };
-        let target_id = NodeId { //Hart St @ Camp St
+        let target_id = NodeId {
+            //Hart St @ Camp St
             node_type: NodeType::Arrival,
             station_id: 9738,
             time: Some(19515),
             trip_id: 1758411,
         };
+        let now = Instant::now();
+        let d = router.time_expanded_dijkstra(vec![source_id], None);
+        println!("time for dijkstra {:?}", now.elapsed());
 
-        let d = router.time_expanded_dijkstra(Some(source_id), None, Some(target_id), None);
-
-
-        println!("routing {:#?} and visted count {}", d.0.unwrap().get_path(), d.1.len());
-        */
+        let r = d.get(&target_id).unwrap().clone().get_path();
+        println!("routing {:#?} and visted count {}", r.1, d.len());
 
         //full routing test
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
         //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
 
         let preset_distance = 250.0;
-        
+
         //pepperidge farm to harriet beecher stowe center
-        let (source, target) = make_points_from_coords(
+        /*let (source, target) = make_points_from_coords(
             41.86829675142084,
             -72.71973332600558,
             41.76726348091365,
@@ -195,11 +195,11 @@ mod tests {
 
         let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();
+        serde_json::to_writer(output, &graph).unwrap();*/
 
         //part 2
 
-        let file = File::open(savepath).ok().unwrap();
+        /*let file = File::open(savepath).ok().unwrap();
         let reader = BufReader::new(file);
         let mut graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();
 
@@ -218,8 +218,10 @@ mod tests {
             "# of edges: {}",
             roads.edges.values().map(|edges| edges.len()).sum::<usize>()
         );
+        */
 
-        let run_query = query_graph_search(&roads, connections, graph);
+        //let run_query = query_graph_search(&roads, connections, graph);
+        /*let run_query = query_graph_search(connections, graph);
 
         let reverse_station_mapping = transit_graph
             .station_mapping
@@ -227,12 +229,10 @@ mod tests {
             .map(|(name, id)| (id, name))
             .collect::<HashMap<_, _>>();
 
-        println!("path: \t");
-        //i think the hub pathway is broken, need to verify that the path from the source to hub is being extended correctly
-        
-        //tried extending hub run did not work
-        //make it longer? and only accept hubs that reach target to reduce computation of num_tps fn?
+
+
         if let Some(stuff) = run_query {
+            println!("path: \t");
             let path = stuff.2.get_path();
             for node in path.0 {
                 print!(
@@ -241,7 +241,7 @@ mod tests {
                 );
             }
         }
-        println!(".");
+        println!(".");*/
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

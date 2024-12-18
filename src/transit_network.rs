@@ -26,18 +26,19 @@ pub struct NodeId {
 impl From<String> for NodeId {
     fn from(read_val: String) -> Self {
         let v: Vec<&str> = read_val.rsplit(',').collect();
-        NodeId { 
+        NodeId {
             node_type: (*v.first().unwrap_or(&"")).to_string().into(),
-            station_id: (*v.get(1).unwrap_or(&"")).parse().unwrap_or(0), 
-            time: (*v.get(2).unwrap_or(&"")).parse().ok(), 
-            trip_id: (*v.get(3).unwrap_or(&"")).parse().unwrap_or(0)
+            station_id: (*v.get(1).unwrap_or(&"")).parse().unwrap_or(0),
+            time: (*v.get(2).unwrap_or(&"")).parse().ok(),
+            trip_id: (*v.get(3).unwrap_or(&"")).parse().unwrap_or(0),
         }
     }
 }
 
 impl From<NodeId> for String {
     fn from(val: NodeId) -> Self {
-        format!("{},{},{},{}", 
+        format!(
+            "{},{},{},{}",
             <crate::common_enums::NodeType as std::convert::Into<String>>::into(val.node_type),
             val.station_id,
             val.time.unwrap_or(0),
@@ -45,8 +46,6 @@ impl From<NodeId> for String {
         )
     }
 }
-
-
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct StationInfo {
