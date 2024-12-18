@@ -20,7 +20,6 @@ pub struct NodeId {
     pub node_type: NodeType,
     pub station_id: i64,
     pub time: Option<u64>,
-    pub trip_id: u64,
 }
 
 impl From<String> for NodeId {
@@ -30,7 +29,6 @@ impl From<String> for NodeId {
             node_type: (*v.first().unwrap_or(&"")).to_string().into(),
             station_id: (*v.get(1).unwrap_or(&"")).parse().unwrap_or(0),
             time: (*v.get(2).unwrap_or(&"")).parse().ok(),
-            trip_id: (*v.get(3).unwrap_or(&"")).parse().unwrap_or(0),
         }
     }
 }
@@ -38,11 +36,10 @@ impl From<String> for NodeId {
 impl From<NodeId> for String {
     fn from(val: NodeId) -> Self {
         format!(
-            "{},{},{},{}",
+            "{},{},{}",
             <crate::common_enums::NodeType as std::convert::Into<String>>::into(val.node_type),
             val.station_id,
             val.time.unwrap_or(0),
-            val.trip_id
         )
     }
 }
@@ -50,8 +47,8 @@ impl From<NodeId> for String {
 #[derive(Debug, PartialEq, Hash, Eq, Clone, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct StationInfo {
     pub id: i64,
-    pub lat: i64, //f64 * f64::powi(10.0, 14) as i64
-    pub lon: i64, //f64 * f64::powi(10.0, 14) as i64
+    pub lat: i64,
+    pub lon: i64,
 }
 
 pub fn read_from_gtfs_zip(path: &str) -> Gtfs {
@@ -144,18 +141,12 @@ impl TimeExpandedGraph {
             station_mapping.insert(stop_id.0.clone(), stop_id.0.parse().unwrap_or(iterator));
         }
 
-        let mut custom_trip_id: u64 = 0; //custom counter like with stop_id
         let mut nodes_by_time: Vec<(u64, NodeId)> = Vec::new();
 
         for (_, trip) in gtfs.trips.iter_mut() {
             if !trip_ids_of_given_day.contains(&trip.id) {
                 continue;
             }
-
-            let trip_id: u64 = trip.id.parse().unwrap_or({
-                custom_trip_id += 1;
-                custom_trip_id
-            });
 
             let mut prev_departure: Option<(NodeId, u64)> = None;
 
@@ -200,19 +191,16 @@ impl TimeExpandedGraph {
                     node_type: NodeType::Arrival,
                     station_id: id,
                     time: Some(arrival_time),
-                    trip_id,
                 };
                 let transfer_node = NodeId {
                     node_type: NodeType::Transfer,
                     station_id: id,
                     time: Some(arrival_time + transfer_buffer),
-                    trip_id,
                 };
                 let departure_node = NodeId {
                     node_type: NodeType::Departure,
                     station_id: id,
                     time: Some(departure_time),
-                    trip_id,
                 };
 
                 nodes.insert(arrival_node);

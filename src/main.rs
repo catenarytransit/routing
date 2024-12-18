@@ -140,7 +140,7 @@ mod tests {
         //connection tests, these should be valid transfers --> success!
 
         //https://maps.app.goo.gl/eXf4S5edPM8vgvVt9
-        println!("time for transit {:?}", now.elapsed());
+        /*println!("time for transit {:?}", now.elapsed());
         let start_station = *transit_graph.station_mapping.get("9079").unwrap(); //Blue Hills Ave @ Home Goods
         let end_station = *transit_graph.station_mapping.get("1682").unwrap(); //Bloomfield Ave @ Advo
 
@@ -167,7 +167,7 @@ mod tests {
         println!("time for dijkstra {:?}", now.elapsed());
 
         let r = d.get(&target_id).unwrap().clone().get_path();
-        println!("routing {:#?} and visted count {}", r.1, d.len());
+        println!("routing {:#?} and visted count {}", r.1, d.len());*/
 
         //full routing test
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
@@ -176,7 +176,7 @@ mod tests {
         let preset_distance = 250.0;
 
         //pepperidge farm to harriet beecher stowe center
-        /*let (source, target) = make_points_from_coords(
+        let (source, target) = make_points_from_coords(
             41.86829675142084,
             -72.71973332600558,
             41.76726348091365,
@@ -195,7 +195,7 @@ mod tests {
 
         let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();*/
+        serde_json::to_writer(output, &graph).unwrap();
 
         //part 2
 

@@ -34,6 +34,11 @@ impl PathedNode {
         }
     }
 
+    pub fn update(mut self, distance: u64, parent: Rc<PathedNode>) {
+        self.parent_node = Some(parent);
+        self.cost_from_start = distance;
+    }
+
     pub fn get_path(self) -> (Vec<NodeId>, u64) {
         //path, cost
         //uses reference to find the source node with parent_node == None
@@ -74,9 +79,7 @@ impl TransitDijkstra {
         if let Some(connections) = self.graph.edges.get(&current.node_self) {
             for (next_node_id, cost) in connections {
                 if visited_nodes.contains_key(next_node_id)
-                    || (current.transfer_count >= 2
-                        && current.node_self.node_type == NodeType::Transfer
-                        && next_node_id.node_type == NodeType::Departure
+                    || (current.transfer_count > 2
                         && is_local)
                 {
                     //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
@@ -293,7 +296,6 @@ impl TDDijkstra {
 
         while !priority_queue.is_empty() {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1;
-            //println!("r{}", pathed_current_node.node_self.station_id);
             current_cost = pathed_current_node.cost_from_start;
             let idx = pathed_current_node.node_self;
 
