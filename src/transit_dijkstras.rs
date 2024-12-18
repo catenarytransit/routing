@@ -79,8 +79,7 @@ impl TransitDijkstra {
         if let Some(connections) = self.graph.edges.get(&current.node_self) {
             for (next_node_id, cost) in connections {
                 if visited_nodes.contains_key(next_node_id)
-                    || (current.transfer_count > 2
-                        && is_local)
+                    || (current.transfer_count > 2 && is_local)
                 {
                     //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
                     continue;
@@ -151,13 +150,16 @@ impl TransitDijkstra {
                 continue;
             }
 
-            for neighbor in self.get_neighbors(&pathed_current_node, &visited_nodes, hubs.is_some())
+            let neighbors =
+                self.get_neighbors(&pathed_current_node, &visited_nodes, hubs.is_some());
+
+            if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
+                && pathed_current_node.node_self.node_type == NodeType::Transfer
             {
-                if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
-                    && pathed_current_node.node_self.node_type == NodeType::Transfer
-                {
-                    inactive_nodes.insert(neighbor.0);
-                }
+                inactive_nodes.extend(neighbors.iter().map(|(node, _)| node));
+            }
+
+            for neighbor in neighbors {
                 let temp_distance = current_cost + neighbor.1;
                 let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
                 let mut transfer_count = pathed_current_node.transfer_count;

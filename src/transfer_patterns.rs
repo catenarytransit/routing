@@ -30,14 +30,14 @@ pub fn hub_selection(
         let ti_tail = NodeId {
             node_type: NodeType::Untyped,
             station_id: tail.station_id,
-            time: None
+            time: None,
         };
         time_independent_nodes.insert(ti_tail);
         for (head, cost) in edge {
             let ti_head = NodeId {
                 node_type: NodeType::Untyped,
                 station_id: head.station_id,
-                time: None
+                time: None,
             };
             time_independent_nodes.insert(ti_head);
             time_independent_edges
@@ -524,7 +524,6 @@ pub fn query_graph_search(
                     returned_val = Some((*source_id, *target_id, transit_path));
                 }
             }
-            
         }
     }
     returned_val
