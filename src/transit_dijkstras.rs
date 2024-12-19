@@ -6,7 +6,6 @@ use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::hash::Hash;
 use std::rc::Rc;
-use std::time::Instant;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TransitDijkstra {
@@ -32,11 +31,6 @@ impl PathedNode {
             parent_node: None,
             transfer_count: 0,
         }
-    }
-
-    pub fn update(mut self, distance: u64, parent: Rc<PathedNode>) {
-        self.parent_node = Some(parent);
-        self.cost_from_start = distance;
     }
 
     pub fn get_path(self) -> (Vec<NodeId>, u64) {
@@ -79,7 +73,7 @@ impl TransitDijkstra {
         if let Some(connections) = self.graph.edges.get(&current.node_self) {
             for (next_node_id, cost) in connections {
                 if visited_nodes.contains_key(next_node_id)
-                    || (current.transfer_count > 2 && is_local)
+                    || (current.transfer_count >= 2 && is_local)
                 {
                     //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
                     continue;
@@ -100,14 +94,9 @@ impl TransitDijkstra {
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
 
-        let now = Instant::now();
-
         let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
         let mut visited_nodes: HashMap<NodeId, PathedNode> = HashMap::new();
         let mut inactive_nodes: HashSet<NodeId> = HashSet::new();
-
-        println!("init {:?}", now.elapsed());
-        let now = Instant::now();
 
         //stores distances of node relative to target
         let mut gscore: HashMap<NodeId, u64> = HashMap::new();
@@ -117,8 +106,6 @@ impl TransitDijkstra {
             priority_queue.push(Reverse((0, source_node)));
         }
         let mut current_cost;
-
-        println!("gscore node {:?}", now.elapsed());
 
         while !priority_queue.is_empty() {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
@@ -134,6 +121,7 @@ impl TransitDijkstra {
                 let b = inactive_nodes.iter().collect();
                 let c = a.union(&b);
                 if self.graph.nodes.len() == c.count() {
+                    println!("augh");
                     return visited_nodes;
                 }
             }
@@ -221,11 +209,12 @@ pub struct TDDijkstra {
     pub connections: DirectConnections,
     pub edges: HashMap<NodeId, Vec<NodeId>>,
     pub visited_nodes: HashMap<NodeId, PathedNode>,
+    pub station_map: HashMap<String, i64>
 }
 
 impl TDDijkstra {
     //implementation of time dependent shortest path algorithm
-    pub fn new(connections: DirectConnections, edges: HashMap<NodeId, Vec<NodeId>>) -> Self {
+    pub fn new(connections: DirectConnections, edges: HashMap<NodeId, Vec<NodeId>>, station_map: HashMap<String, i64>) -> Self {
         println!("dependent edges: {:?}", edges.len());
 
         let visited_nodes = HashMap::new();
@@ -233,6 +222,7 @@ impl TDDijkstra {
             connections,
             edges,
             visited_nodes,
+            station_map
         }
     }
 
@@ -249,8 +239,8 @@ impl TDDijkstra {
             for next_node in arcs {
                 if let Some((dept, arr)) = direct_connection_query(
                     connections,
-                    current.node_self.station_id,
-                    next_node.station_id,
+                    *self.station_map.get(&current.node_self.station_id.to_string()).unwrap(),
+                    *self.station_map.get(&next_node.station_id.to_string()).unwrap(),
                     current.node_self.time.unwrap(),
                 ) {
                     let cost = arr - dept;

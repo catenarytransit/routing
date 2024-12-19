@@ -95,8 +95,8 @@ fn main() {
         preset_distance,
     );
 
-    let reverse_station_mapping = transit_graph
-        .station_mapping
+    let reverse_station_map = transit_graph
+        .station_map
         .iter()
         .map(|(name, id)| (id, name))
         .collect::<HashMap<_, _>>();
@@ -106,7 +106,7 @@ fn main() {
         for node in path.0 {
             println!(
                 "path: {}",
-                reverse_station_mapping.get(&node.station_id).unwrap()
+                reverse_station_map.get(&node.station_id).unwrap()
             );
         }
     }*/
@@ -116,6 +116,7 @@ fn main() {
 mod tests {
     use geo::point;
     use std::collections::HashMap;
+    use std::collections::HashSet;
     use std::env;
     use std::f64::consts;
     use std::fs::*;
@@ -140,15 +141,16 @@ mod tests {
         //connection tests, these should be valid transfers --> success!
 
         //https://maps.app.goo.gl/eXf4S5edPM8vgvVt9
-        println!("time for transit {:?}", now.elapsed());
-        let start_station = *transit_graph.station_mapping.get("9079").unwrap(); //Blue Hills Ave @ Home Goods
-        let end_station = *transit_graph.station_mapping.get("1682").unwrap(); //Bloomfield Ave @ Advo
+        /*println!("time for transit {:?}", now.elapsed());
+        let start_station = *transit_graph.station_map.get("9079").unwrap(); //Blue Hills Ave @ Home Goods
+        let end_station = *transit_graph.station_map.get("1682").unwrap(); //Bloomfield Ave @ Advo
 
         let x = direct_connection_query(&connections, start_station, end_station, 25680); //7:08 AM
-        println!("dc query {:?}", x);
+        let y = direct_connection_query(&connections, 9079, 1682, 25680); //7:08 AM
+        println!("dc query {:?} and {:?}", x, y);*/
 
         //https://maps.app.goo.gl/szffQJAEALqSeHNF7
-        let source_id = NodeId {
+        /*let source_id = NodeId {
             //Downtown New Britain Station @ Columbus Blvd Bay
             node_type: NodeType::Arrival,
             station_id: 13381,
@@ -167,7 +169,7 @@ mod tests {
         println!("time for dijkstra {:?}", now.elapsed());
 
         let r = d.get(&target_id).unwrap().clone().get_path();
-        println!("routing {:#?} and visted count {}", r.1, d.len());
+        println!("routing {:#?} and visted count {}", r.1, d.len());*/
 
         //full routing test
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
@@ -176,7 +178,7 @@ mod tests {
         let preset_distance = 250.0;
 
         //pepperidge farm to harriet beecher stowe center
-        /*let (source, target) = make_points_from_coords(
+        let (source, target) = make_points_from_coords(
             41.86829675142084,
             -72.71973332600558,
             41.76726348091365,
@@ -195,16 +197,16 @@ mod tests {
 
         let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();*/
+        serde_json::to_writer(output, &graph).unwrap();
 
         //part 2
 
-        /*let file = File::open(savepath).ok().unwrap();
+        let file = File::open(savepath).ok().unwrap();
         let reader = BufReader::new(file);
         let mut graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();
 
         //road network, for footpaths
-        let now = Instant::now();
+        /*let now = Instant::now();
         println!("generating street network graph");
         let path = "ct.pbf";
         let data = RoadNetwork::read_from_osm_file(path).unwrap();
@@ -218,18 +220,25 @@ mod tests {
             "# of edges: {}",
             roads.edges.values().map(|edges| edges.len()).sum::<usize>()
         );
+        let run_query = query_graph_search(&roads, connections, graph);
         */
 
-        //let run_query = query_graph_search(&roads, connections, graph);
-        /*let run_query = query_graph_search(connections, graph);
+        let m = connections.clone().lines_per_station.into_keys().collect::<HashSet<_>>();
+        let n = graph.edges.clone().into_keys().map(|n| n.station_id).collect::<HashSet<_>>();
 
-        let reverse_station_mapping = transit_graph
-            .station_mapping
+        println!("con len = {}, edge len = {}", m.len(), n.len());
+
+        println!("connection overlaps {:?}", m.difference(&n).collect::<HashSet<_>>().len());
+
+        //why are they different? there should be overlap ^ 
+        
+        let run_query = query_graph_search(connections, graph);
+
+        let reverse_station_map = transit_graph
+            .station_map
             .iter()
             .map(|(name, id)| (id, name))
             .collect::<HashMap<_, _>>();
-
-
 
         if let Some(stuff) = run_query {
             println!("path: \t");
@@ -237,11 +246,11 @@ mod tests {
             for node in path.0 {
                 print!(
                     "{},",
-                    reverse_station_mapping.get(&node.station_id).unwrap()
+                    reverse_station_map.get(&node.station_id).unwrap()
                 );
             }
         }
-        println!(".");*/
+        println!(".");
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {
