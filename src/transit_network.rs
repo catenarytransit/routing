@@ -381,7 +381,7 @@ pub fn direct_connection_query(
     let start = connections.lines_per_station.get(&start_station).unwrap();
     let end = connections.lines_per_station.get(&end_station).unwrap();
 
-    if start_station == 9079 && end_station == 1171 //end 8204 {
+    if start_station == 9079 && end_station == 1171 { //end 8204 {
         
     }
 
