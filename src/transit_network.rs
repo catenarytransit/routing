@@ -26,11 +26,13 @@ pub struct NodeId {
 impl From<String> for NodeId {
     fn from(read_val: String) -> Self {
         let v: Vec<&str> = read_val.rsplit(',').collect();
+
+        //reads the vec backwards, v is ["trip_id", "time", "station", "type"]
         NodeId {
-            node_type: (*v.first().unwrap_or(&"")).to_string().into(),
-            station_id: (*v.get(1).unwrap_or(&"")).parse().unwrap_or(0),
-            time: (*v.get(2).unwrap_or(&"")).parse().ok(),
-            trip_id: (*v.get(3).unwrap_or(&"")).parse().unwrap_or(0),
+            node_type: (*v.get(3).unwrap_or(&"")).to_string().into(),
+            station_id: (*v.get(2).unwrap_or(&"")).parse().unwrap_or(0),
+            time: (*v.get(1).unwrap_or(&"")).parse().ok(),
+            trip_id: (*v.first().unwrap_or(&"")).parse().unwrap_or(0),
         }
     }
 }

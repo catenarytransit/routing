@@ -171,6 +171,9 @@ mod tests {
         let r = d.get(&target_id).unwrap().clone().get_path();
         println!("routing {:#?} and visted count {}", r.1, d.len());*/
 
+        //let mut test_node: NodeId = serde_json::from_str("\"Arrival,9079,19440,1752373\"").unwrap();
+        //println!("test node {:?}", test_node)
+
         //full routing test
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
         //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
@@ -178,7 +181,7 @@ mod tests {
         let preset_distance = 250.0;
 
         //pepperidge farm to harriet beecher stowe center
-        let (source, target) = make_points_from_coords(
+        /*let (source, target) = make_points_from_coords(
             41.86829675142084,
             -72.71973332600558,
             41.76726348091365,
@@ -197,7 +200,7 @@ mod tests {
 
         let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();
+        serde_json::to_writer(output, &graph).unwrap();*/
 
         //part 2
 
@@ -223,14 +226,13 @@ mod tests {
         let run_query = query_graph_search(&roads, connections, graph);
         */
 
+                
         let m = connections.clone().lines_per_station.into_keys().collect::<HashSet<_>>();
         let n = graph.edges.clone().into_keys().map(|n| n.station_id).collect::<HashSet<_>>();
 
         println!("con len = {}, edge len = {}", m.len(), n.len());
 
-        println!("connection overlaps {:?}", m.difference(&n).collect::<HashSet<_>>().len());
-
-        //why are they different? there should be overlap ^ 
+        println!("connection overlaps {:?}", m.difference(&n).collect::<HashSet<_>>().len()); 
         
         let run_query = query_graph_search(connections, graph);
 
