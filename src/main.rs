@@ -131,7 +131,7 @@ mod tests {
     #[test]
     fn test() {
         let now = Instant::now();
-        let savepath = "results.json";
+        let savepath = "testcopy.json";
 
         println!("generating transit network graph");
         let gtfs = read_from_gtfs_zip("ctt.zip");
@@ -225,14 +225,6 @@ mod tests {
         );
         let run_query = query_graph_search(&roads, connections, graph);
         */
-
-                
-        let m = connections.clone().lines_per_station.into_keys().collect::<HashSet<_>>();
-        let n = graph.edges.clone().into_keys().map(|n| n.station_id).collect::<HashSet<_>>();
-
-        println!("con len = {}, edge len = {}", m.len(), n.len());
-
-        println!("connection overlaps {:?}", m.difference(&n).collect::<HashSet<_>>().len()); 
         
         let run_query = query_graph_search(connections, graph);
 

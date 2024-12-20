@@ -215,7 +215,6 @@ pub struct TDDijkstra {
 impl TDDijkstra {
     //implementation of time dependent shortest path algorithm
     pub fn new(connections: DirectConnections, edges: HashMap<NodeId, Vec<NodeId>>, station_map: HashMap<String, i64>) -> Self {
-        println!("dependent edges: {:?}", edges.len());
 
         let visited_nodes = HashMap::new();
         Self {
@@ -237,6 +236,8 @@ impl TDDijkstra {
 
         if let Some(arcs) = self.edges.get(&current.node_self) {
             for next_node in arcs {
+                
+            println!("this {:?}, that {:?}", current.node_self.station_id, next_node.station_id);
                 if let Some((dept, arr)) = direct_connection_query(
                     connections,
                     *self.station_map.get(&current.node_self.station_id.to_string()).unwrap(),

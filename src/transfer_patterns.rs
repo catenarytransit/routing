@@ -386,12 +386,12 @@ pub fn query_graph_construction_from_geodesic_points(
                 .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
                 .1
         })
-        /*.filter(|node| {
-            node.time >= Some(start_time) //&& node.time <= Some(start_time + 3600)
-        })*/
+        .filter(|node| {
+            node.time >= Some(start_time) && node.time <= Some(start_time + 3600)
+        })
         .collect();
 
-    // earliest_departure = source_nodes.iter().min_by_key(|a| a.time).unwrap().time;
+    let earliest_departure = source_nodes.iter().min_by_key(|a| a.time).unwrap().time;
 
     let target_nodes: Vec<_> = nodes_per_target
         .into_iter()
@@ -400,9 +400,9 @@ pub fn query_graph_construction_from_geodesic_points(
                 .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
                 .1
         })
-        /*.filter(|node| {
+        .filter(|node| {
             node.time >= earliest_departure //&& node.time <= Some(earliest_departure.unwrap() + 3600)
-        })*/
+        })
         .collect();
 
     let paths = tps
@@ -531,13 +531,13 @@ pub fn query_graph_search(
 
     for source_id in query_info.source_nodes.iter() {
         //if let Some(_source_path) = source_paths.get(&source_id.station_id){
-        println!("{:?}", source_id.station_id);
+        //println!("s {:?}", source_id.station_id);
         for target_id in query_info.target_nodes.iter() {
             //if let Some(_target_path) = target_paths.get(&target_id.station_id){
-            println!("{:?}", target_id.station_id);
+            //println!("t {:?}", target_id.station_id);
             let path = router.time_dependent_dijkstra(*source_id, *target_id);
             if let Some(transit_path) = path {
-                //println!("sdlkfjslkj");
+                println!("sdlkfjslkj");
                 let new_cost = transit_path.cost_from_start;
                 //+ source_path.distance_from_start
                 //+ target_path.distance_from_start;
