@@ -251,7 +251,7 @@ pub fn make_points_from_coords(
 pub struct QueryGraphItem {
     source: Point,
     target: Point,
-    pub edges: HashMap<NodeId, Vec<NodeId>>,
+    pub edges: HashMap<NodeId, HashSet<NodeId>>,
     source_stations: Vec<StationInfo>,
     target_stations: Vec<StationInfo>,
     hubs: HashSet<i64>,
@@ -425,11 +425,11 @@ pub fn query_graph_construction_from_geodesic_points(
             if let Some(prev) = prev {
                 match edges.entry(prev) {
                     Entry::Occupied(mut o) => {
-                        let heads: &mut Vec<NodeId> = o.get_mut();
-                        heads.push(*node);
+                        let heads: &mut HashSet<NodeId> = o.get_mut();
+                        heads.insert(*node);
                     }
                     Entry::Vacant(v) => {
-                        let heads = Vec::from([*node]);
+                        let heads = HashSet::from([*node]);
                         v.insert(heads);
                     }
                 }

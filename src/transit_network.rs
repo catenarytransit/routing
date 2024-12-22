@@ -382,8 +382,17 @@ pub fn direct_connection_query(
     let end = connections.lines_per_station.get(&end_station).unwrap();
 
     if start_station == 9079 && end_station == 1171 { //end 8204 {
-        
+        //println!("1");
     }
+
+    if start_station == 1171 {//&& end_station == 8204 { //end 8204 {
+        println!("2");
+    }
+
+    //if start_station == 12539 && end_station == 8204 { //end 8204 {
+    //
+        println!("3");
+    //}
 
     let mut route = "";
     for (s_route, s_seq) in start {
