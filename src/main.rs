@@ -225,7 +225,7 @@ mod tests {
         );
         let run_query = query_graph_search(&roads, connections, graph);
         */
-        
+
         let run_query = query_graph_search(connections, graph);
 
         let reverse_station_map = transit_graph
@@ -238,13 +238,10 @@ mod tests {
             println!("path: \t");
             let path = stuff.2.get_path();
             for node in path.0 {
-                print!(
-                    "{},",
-                    reverse_station_map.get(&node.station_id).unwrap()
-                );
+                print!("{},", reverse_station_map.get(&node.station_id).unwrap());
             }
         }
-        println!(".");
+        println!("."); 
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

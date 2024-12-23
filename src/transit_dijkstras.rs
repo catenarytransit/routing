@@ -209,19 +209,22 @@ pub struct TDDijkstra {
     pub connections: DirectConnections,
     pub edges: HashMap<NodeId, HashSet<NodeId>>,
     pub visited_nodes: HashMap<NodeId, PathedNode>,
-    pub station_map: HashMap<String, i64>
+    pub station_map: HashMap<String, i64>,
 }
 
 impl TDDijkstra {
     //implementation of time dependent shortest path algorithm
-    pub fn new(connections: DirectConnections, edges: HashMap<NodeId, HashSet<NodeId>>, station_map: HashMap<String, i64>) -> Self {
-
+    pub fn new(
+        connections: DirectConnections,
+        edges: HashMap<NodeId, HashSet<NodeId>>,
+        station_map: HashMap<String, i64>,
+    ) -> Self {
         let visited_nodes = HashMap::new();
         Self {
             connections,
             edges,
             visited_nodes,
-            station_map
+            station_map,
         }
     }
 
@@ -236,10 +239,19 @@ impl TDDijkstra {
 
         if let Some(arcs) = self.edges.get(&current.node_self) {
             for next_node in arcs {
+                if current.node_self.station_id == 1171 { //&& (next_node.trip_id == 1720097 || next_node.trip_id == 1753306) {
+                    println!("{}", next_node.station_id);
+                }
                 if let Some((dept, arr)) = direct_connection_query(
                     connections,
-                    *self.station_map.get(&current.node_self.station_id.to_string()).unwrap(),
-                    *self.station_map.get(&next_node.station_id.to_string()).unwrap(),
+                    *self
+                        .station_map
+                        .get(&current.node_self.station_id.to_string())
+                        .unwrap(),
+                    *self
+                        .station_map
+                        .get(&next_node.station_id.to_string())
+                        .unwrap(),
                     current.node_self.time.unwrap(),
                 ) {
                     let cost = arr - dept;

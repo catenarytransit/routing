@@ -128,7 +128,11 @@ pub fn num_transfer_patterns_from_source(
 
     let visited_nodes = router.time_expanded_dijkstra(source_transfer_nodes, hubs);
 
-    println!("visited nodes\t");
+    println!("visited nodes");
+    if visited_nodes.keys().any(|a|a.station_id == 1171 && a.trip_id == 1753306) {
+        println!("aha");
+    }
+
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = visited_nodes
         .iter()
         .filter(|(node, _)| node.node_type == NodeType::Arrival)
@@ -141,76 +145,54 @@ pub fn num_transfer_patterns_from_source(
 
     arrival_loop(&mut arrival_nodes);
     println!("arrival loop\t and len {}", arrival_nodes.len());
+    use std::sync::Mutex;
+    use std::thread;
+    let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+    let thread_num = 8;
+    let source_chunk_len = arrival_nodes.len();
+    let threaded_sources = Arc::new(arrival_nodes.clone());
+    let mut handles = vec![];
 
-    /*if hubs.is_none() {
-        let mut total_transfer_patterns = HashMap::new();
-        for (target, path, _) in arrival_nodes {
-            let mut transfers = Vec::new();
-            transfers.push(target);
-            let mut previous_node: NodeId = target;
-            for node in path {
-                if previous_node.node_type == NodeType::Departure
-                    && node.node_type == NodeType::Transfer
-                {
-                    transfers.push(node);
-                }
-                previous_node = node;
-            }
-
-            transfers.reverse();
-            total_transfer_patterns.insert((*transfers.first().unwrap(), target), transfers);
-        }
-        total_transfer_patterns
-    } else {*/
-        use std::sync::Mutex;
-        use std::thread;
-        let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-        let thread_num = 8;
-        let source_chunk_len = arrival_nodes.len();
-        let threaded_sources = Arc::new(arrival_nodes.clone());
-        let mut handles = vec![];
-
-        for x in 1..thread_num {
-            let source = Arc::clone(&threaded_sources);
-            let transfer_patterns = Arc::clone(&total_transfer_patterns);
-            let handle = thread::spawn(move || {
-                let src = source;
-                for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
-                    ..(x * source_chunk_len / (thread_num - 1))
-                {
-                    let (target, path, _) = src.get(i).unwrap();
-                    let mut transfers = Vec::new();
-                    transfers.push(*target);
-                    let mut previous_node: NodeId = *target;
-                    for &node in path {
-                        if previous_node.node_type == NodeType::Departure
-                            && node.node_type == NodeType::Transfer
-                        {
-                            transfers.push(node);
-                        }
-                        previous_node = node;
+    for x in 1..thread_num {
+        let source = Arc::clone(&threaded_sources);
+        let transfer_patterns = Arc::clone(&total_transfer_patterns);
+        let handle = thread::spawn(move || {
+            let src = source;
+            for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
+                ..(x * source_chunk_len / (thread_num - 1))
+            {
+                let (target, path, _) = src.get(i).unwrap();
+                let mut transfers = Vec::new();
+                transfers.push(*target);
+                let mut previous_node: NodeId = *target;
+                for &node in path {
+                    if previous_node.node_type == NodeType::Departure
+                        && node.node_type == NodeType::Transfer
+                    {
+                        transfers.push(node);
                     }
-
-                    transfers.reverse();
-
-                    transfer_patterns
-                        .lock()
-                        .unwrap()
-                        .insert((*transfers.first().unwrap(), *target), transfers);
+                    previous_node = node;
                 }
-            });
 
-            handles.push(handle);
-        }
+                transfers.reverse();
 
-        for handle in handles {
-            handle.join().unwrap();
-        }
+                transfer_patterns
+                    .lock()
+                    .unwrap()
+                    .insert((*transfers.first().unwrap(), *target), transfers);
+            }
+        });
 
-        let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
-        println!("found transfers\t");
-        lock.into_inner().expect("mutex could not be locked")
-    //}
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
+    println!("found transfers\t");
+    lock.into_inner().expect("mutex could not be locked")
 }
 
 // Arrival chain algo: For each arrival node, see if cost can be improved
@@ -257,7 +239,7 @@ pub struct QueryGraphItem {
     hubs: HashSet<i64>,
     source_nodes: Vec<NodeId>,
     target_nodes: Vec<NodeId>,
-    station_map: HashMap<String, i64>
+    station_map: HashMap<String, i64>,
 }
 
 pub fn query_graph_construction_from_geodesic_points(
@@ -308,59 +290,11 @@ pub fn query_graph_construction_from_geodesic_points(
 
     println!("run local tps");
     for source_id in source_ids {
-        let l_tps = num_transfer_patterns_from_source(
-            source_id,
-            router,
-            Some(&hubs),
-            Some(start_time),
-        );
-        
+        let l_tps =
+            num_transfer_patterns_from_source(source_id, router, Some(&hubs), Some(start_time));
+
         tps.extend(l_tps.into_iter());
     }
-
-    /*std::sync::Mutex;
-    use std::thread;
-    let thread_num = 2;
-    let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-
-    //precompute local TP from N(source) to first hub (this min hub is access station)
-
-    let source_chunk_len = source_ids.len();
-    let threaded_sources = Arc::new(source_ids.clone());
-    let arc_router = Arc::new(router.clone());
-    let threaded_hubs = Arc::new(hubs.clone());
-    let mut handles = vec![];
-
-    
-    for x in 1..thread_num {
-        let source = Arc::clone(&threaded_sources);
-        let transfer_patterns = Arc::clone(&total_transfer_patterns);
-        let router = Arc::clone(&arc_router);
-        let hub_list = Arc::clone(&threaded_hubs);
-        let handle = thread::spawn(move || {
-            let src = source;
-            for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
-                ..(x * source_chunk_len / (thread_num - 1))
-            {
-                let source_id = src.get(i).unwrap();
-                let l_tps = num_transfer_patterns_from_source(
-                    *source_id,
-                    &router,
-                    Some(&hub_list),
-                    Some(start_time),
-                );
-
-                let mut ttp = transfer_patterns.lock().unwrap();
-                ttp.extend(l_tps.into_iter());
-            }
-        });
-
-        handles.push(handle);
-    }
-    for handle in handles {
-        handle.join().unwrap();
-    }
-    let mut tps = total_transfer_patterns.lock().unwrap();*/
 
     println!("source to hub tps num {}", tps.len());
     let reached: Vec<_> = tps.iter().map(|((_, t), _)| t.station_id).collect();
@@ -386,9 +320,7 @@ pub fn query_graph_construction_from_geodesic_points(
                 .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
                 .1
         })
-        .filter(|node| {
-            node.time >= Some(start_time) && node.time <= Some(start_time + 3600)
-        })
+        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
         .collect();
 
     let earliest_departure = source_nodes.iter().min_by_key(|a| a.time).unwrap().time;
@@ -449,7 +381,7 @@ pub fn query_graph_construction_from_geodesic_points(
         hubs,
         source_nodes,
         target_nodes,
-        station_map
+        station_map,
     }
 }
 
