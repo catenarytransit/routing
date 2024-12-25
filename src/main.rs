@@ -135,6 +135,7 @@ mod tests {
 
         println!("generating transit network graph");
         let gtfs = read_from_gtfs_zip("ctt.zip");
+        let routes = gtfs.routes.clone();
         let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
         let mut router = TransitDijkstra::new(&transit_graph);
 
@@ -181,7 +182,7 @@ mod tests {
         let preset_distance = 250.0;
 
         //pepperidge farm to harriet beecher stowe center
-        let (source, target) = make_points_from_coords(
+        /*let (source, target) = make_points_from_coords(
             41.86829675142084,
             -72.71973332600558,
             41.76726348091365,
@@ -200,7 +201,7 @@ mod tests {
 
         let mut output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();
+        serde_json::to_writer(output, &graph).unwrap();*/
 
         //part 2
 
@@ -228,20 +229,16 @@ mod tests {
 
         let run_query = query_graph_search(connections, graph);
 
-        let reverse_station_map = transit_graph
-            .station_map
-            .iter()
-            .map(|(name, id)| (id, name))
-            .collect::<HashMap<_, _>>();
-
         if let Some(stuff) = run_query {
-            println!("path: \t");
-            let path = stuff.2.get_path();
-            for node in path.0 {
-                print!("{},", reverse_station_map.get(&node.station_id).unwrap());
+            let path = stuff.1.get_tp();
+            println!("path:");
+            for (node, route) in path.0 {
+                if let Some(route) = route {
+                    println!("{} via {:?}", node.station_id, routes.get(&route).unwrap().short_name);
+                }
+                else {println!("start {:?}", node.station_id);}
             }
         }
-        println!("."); 
 
         //Pareto-se t ordering
         /*fn pareto_recompute(set: &mut Vec<(i32, i32)>, c_p: (i32, i32)) {

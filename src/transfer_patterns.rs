@@ -129,9 +129,6 @@ pub fn num_transfer_patterns_from_source(
     let visited_nodes = router.time_expanded_dijkstra(source_transfer_nodes, hubs);
 
     println!("visited nodes");
-    if visited_nodes.keys().any(|a|a.station_id == 1171 && a.trip_id == 1753306) {
-        println!("aha");
-    }
 
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = visited_nodes
         .iter()
@@ -145,10 +142,11 @@ pub fn num_transfer_patterns_from_source(
 
     arrival_loop(&mut arrival_nodes);
     println!("arrival loop\t and len {}", arrival_nodes.len());
+
     use std::sync::Mutex;
     use std::thread;
     let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
-    let thread_num = 8;
+    let thread_num = 4;
     let source_chunk_len = arrival_nodes.len();
     let threaded_sources = Arc::new(arrival_nodes.clone());
     let mut handles = vec![];
@@ -167,7 +165,8 @@ pub fn num_transfer_patterns_from_source(
                 let mut previous_node: NodeId = *target;
                 for &node in path {
                     if previous_node.node_type == NodeType::Departure
-                        && node.node_type == NodeType::Transfer
+                        || previous_node.node_type == NodeType::Transfer
+                            && node.node_type == NodeType::Transfer
                     {
                         transfers.push(node);
                     }
@@ -185,6 +184,8 @@ pub fn num_transfer_patterns_from_source(
 
         handles.push(handle);
     }
+
+    println!("consolidating");
 
     for handle in handles {
         handle.join().unwrap();
@@ -333,7 +334,8 @@ pub fn query_graph_construction_from_geodesic_points(
                 .1
         })
         .filter(|node| {
-            node.time >= earliest_departure //&& node.time <= Some(earliest_departure.unwrap() + 3600)
+            node.time >= earliest_departure && node.time <= Some(earliest_departure.unwrap() + 3600)
+            //how long you're willing to wait
         })
         .collect();
 
@@ -389,7 +391,7 @@ pub fn query_graph_search(
     //roads: &RoadNetwork,
     connections: DirectConnections,
     query_info: QueryGraphItem,
-) -> Option<(NodeId, NodeId, PathedNode)> {
+) -> Option<(NodeId, PathedNode)> {
     /*let mut source_paths: HashMap<i64, _> = HashMap::new();
 
     let road_node_tree = RTree::bulk_load(
@@ -459,24 +461,21 @@ pub fn query_graph_search(
     let mut min_cost = 0;
     let mut router = TDDijkstra::new(connections, query_info.edges, query_info.station_map);
 
-    let mut returned_val: Option<(NodeId, NodeId, PathedNode)> = None; //source, target, path
+    let mut returned_val: Option<(NodeId, PathedNode)> = None; //source, target, path
 
     for source_id in query_info.source_nodes.iter() {
         //if let Some(_source_path) = source_paths.get(&source_id.station_id){
         //println!("s {:?}", source_id.station_id);
-        for target_id in query_info.target_nodes.iter() {
-            //if let Some(_target_path) = target_paths.get(&target_id.station_id){
-            //println!("t {:?}", target_id.station_id);
-            let path = router.time_dependent_dijkstra(*source_id, *target_id);
-            if let Some(transit_path) = path {
-                println!("sdlkfjslkj");
-                let new_cost = transit_path.cost_from_start;
-                //+ source_path.distance_from_start
-                //+ target_path.distance_from_start;
-                if new_cost > min_cost {
-                    min_cost = new_cost;
-                    returned_val = Some((*source_id, *target_id, transit_path));
-                }
+        //if let Some(_target_path) = target_paths.get(&target_id.station_id){
+        //println!("t {:?}", target_id.station_id);
+        let path = router.time_dependent_dijkstra(*source_id, &query_info.target_nodes);
+        if let Some(transit_path) = path {
+            let new_cost = transit_path.cost_from_start;
+            //+ source_path.distance_from_start
+            //+ target_path.distance_from_start;
+            if new_cost > min_cost {
+                min_cost = new_cost;
+                returned_val = Some((*source_id, transit_path));
             }
         }
     }

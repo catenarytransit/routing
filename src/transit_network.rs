@@ -4,13 +4,13 @@ use gtfs_structures::*;
 use serde::{Deserialize, Serialize};
 use serde_with::*;
 
+use crate::NodeType;
+use chrono::prelude::*;
 use std::collections::hash_map::Entry;
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
 };
-
-use crate::NodeType;
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(into = "String")]
@@ -80,7 +80,9 @@ pub fn calendar_date_filter(
         _ => false,
     };
 
-    if day_is_valid {
+    let local = Local::now().date_naive();
+
+    if day_is_valid && local >= calendar.start_date && local <= calendar.end_date {
         Some(service_id.to_owned())
     } else {
         None
@@ -375,24 +377,11 @@ pub fn direct_connection_query(
     start_station: i64,
     end_station: i64,
     time: u64,
-) -> Option<(u64, u64)> {
+) -> Option<(u64, u64, String)> {
     //departure time from start, arrival time to end
 
     let start = connections.lines_per_station.get(&start_station).unwrap();
     let end = connections.lines_per_station.get(&end_station).unwrap();
-
-    if start_station == 9079 && end_station == 1171 {
-         //println!("1");
-    }
-
-    if start_station == 1171 && end_station == 12539 {
-        println!("2");
-    }
-
-    if start_station == 12539 && end_station == 8204 {
-        //end 8204 {
-        println!("3");
-    }
 
     let mut route = "";
     for (s_route, s_seq) in start {
@@ -418,7 +407,7 @@ pub fn direct_connection_query(
         {
             let departure = first_valid_start_time + time_to_start;
             let arrival = first_valid_start_time + time_to_end;
-            Some((departure, arrival))
+            Some((departure, arrival, route.to_string()))
         } else {
             None
         }

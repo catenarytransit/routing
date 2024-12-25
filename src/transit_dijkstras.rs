@@ -21,6 +21,7 @@ pub struct PathedNode {
     pub cost_from_start: u64,
     pub parent_node: Option<Rc<PathedNode>>,
     pub transfer_count: u8,
+    pub route: Option<String>,
 }
 
 impl PathedNode {
@@ -30,6 +31,7 @@ impl PathedNode {
             cost_from_start: 0,
             parent_node: None,
             transfer_count: 0,
+            route: None,
         }
     }
 
@@ -46,6 +48,26 @@ impl PathedNode {
         }
         //shortest_path.push(current_path.unwrap()));
         (shortest_path, total_distance)
+    }
+
+    pub fn get_tp(self) -> (Vec<(NodeId, Option<String>)>, u64) {
+        let mut tp = Vec::new();
+        let journey_cost: u64 = self.cost_from_start;
+        let mut current_path = &Some(Rc::new(self));
+        let mut prev_trip_id: Option<u64> = None;
+        let mut prev_route: Option<String> = None;
+        while let Some(current) = current_path {
+            let node = current.node_self;
+            let route = &current.route;
+            if prev_trip_id != Some(node.trip_id) && &prev_route != route {
+                tp.push((node, route.to_owned())); //current.node_self
+            }
+            current_path = &current.parent_node; //current = current.parent_node
+            prev_route = route.to_owned();
+            prev_trip_id = Some(node.trip_id);
+        }
+        //shortest_path.push(current_path.unwrap()));
+        (tp, journey_cost)
     }
 }
 
@@ -167,6 +189,7 @@ impl TransitDijkstra {
                         cost_from_start: temp_distance,
                         parent_node: Some(prev_node),
                         transfer_count,
+                        route: None,
                     };
 
                     priority_queue.push(Reverse((temp_distance, tentative_new_node)));
@@ -232,17 +255,14 @@ impl TDDijkstra {
         &self,
         current: &PathedNode,
         connections: &DirectConnections,
-    ) -> Vec<(NodeId, u64)> {
+    ) -> Vec<(NodeId, u64, String)> {
         //return node id of neighbors
         let mut paths = Vec::new();
         let mut next_node_edges = HashMap::new();
 
         if let Some(arcs) = self.edges.get(&current.node_self) {
             for next_node in arcs {
-                if current.node_self.station_id == 1171 { //&& (next_node.trip_id == 1720097 || next_node.trip_id == 1753306) {
-                    println!("{}", next_node.station_id);
-                }
-                if let Some((dept, arr)) = direct_connection_query(
+                if let Some((dept, arr, route)) = direct_connection_query(
                     connections,
                     *self
                         .station_map
@@ -255,16 +275,16 @@ impl TDDijkstra {
                     current.node_self.time.unwrap(),
                 ) {
                     let cost = arr - dept;
-                    next_node_edges.insert(next_node, cost);
+                    next_node_edges.insert(next_node, (cost, route));
                 }
             }
         }
-        for (next_node_id, cost) in next_node_edges {
+        for (next_node_id, (cost, route_id)) in next_node_edges {
             if self.visited_nodes.contains_key(next_node_id) {
                 continue;
             }
 
-            paths.push((*next_node_id, cost));
+            paths.push((*next_node_id, cost, route_id));
         }
         paths
     }
@@ -272,7 +292,7 @@ impl TDDijkstra {
     pub fn time_dependent_dijkstra(
         &mut self,
         source_id: NodeId,
-        target_id: NodeId, //if target == None, settles all reachable nodes
+        target_id: &[NodeId], //if target == None, settles all reachable nodes
     ) -> Option<PathedNode> {
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
@@ -291,6 +311,7 @@ impl TDDijkstra {
             cost_from_start: current_cost,
             parent_node: (None),
             transfer_count: 0,
+            route: None,
         };
 
         gscore.insert(source_id, 0);
@@ -305,7 +326,7 @@ impl TDDijkstra {
             self.visited_nodes.insert(idx, pathed_current_node.clone());
 
             //found target node
-            if idx.eq(&target_id) {
+            if target_id.contains(&idx) {
                 return Some(pathed_current_node);
             }
 
@@ -314,18 +335,21 @@ impl TDDijkstra {
                 continue;
             }
 
-            for neighbor in self.get_neighbors(&pathed_current_node, &self.connections) {
-                let temp_distance = current_cost + neighbor.1;
-                let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
+            for (neighbor_node, neighbor_cost, route) in
+                self.get_neighbors(&pathed_current_node, &self.connections)
+            {
+                let temp_distance = current_cost + neighbor_cost;
+                let next_distance = *gscore.get(&neighbor_node).unwrap_or(&u64::MAX);
 
                 if temp_distance < next_distance {
-                    gscore.insert(neighbor.0, temp_distance);
+                    gscore.insert(neighbor_node, temp_distance);
                     let prev_node: Rc<PathedNode> = Rc::new(pathed_current_node.clone());
                     let tentative_new_node = PathedNode {
-                        node_self: neighbor.0,
+                        node_self: neighbor_node,
                         cost_from_start: temp_distance,
                         parent_node: Some(prev_node),
                         transfer_count: 0,
+                        route: Some(route),
                     };
 
                     priority_queue.push(Reverse((temp_distance, tentative_new_node.clone())));
