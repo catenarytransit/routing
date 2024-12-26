@@ -47,6 +47,7 @@ impl PathedNode {
             current_path = &current.parent_node; //current = current.parent_node
         }
         //shortest_path.push(current_path.unwrap()));
+        shortest_path.reverse();
         (shortest_path, total_distance)
     }
 
@@ -59,10 +60,12 @@ impl PathedNode {
         while let Some(current) = current_path {
             let node = current.node_self;
             let route = &current.route;
-            if (prev_trip_id != Some(node.trip_id) && &prev_route != route) || prev_route.is_none() {
-                tp.push((node, route.to_owned())); //current.node_self
+            current_path = &current.parent_node; 
+           
+            if current_path.is_none()|| (prev_trip_id != Some(node.trip_id) && &prev_route != route){
+                tp.push((node, route.to_owned()));
             }
-            current_path = &current.parent_node; //current = current.parent_node
+            
             prev_route = route.to_owned();
             prev_trip_id = Some(node.trip_id);
         }

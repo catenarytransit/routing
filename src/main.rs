@@ -232,7 +232,6 @@ mod tests {
 
         if let Some(stuff) = run_query {
             let path = stuff.1.get_tp();
-            println!("path:");
             for (node, route) in path.0 {
                 println!("{:?}", node);
                 if let Some(route) = route {
