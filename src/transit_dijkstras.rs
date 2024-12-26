@@ -59,14 +59,14 @@ impl PathedNode {
         while let Some(current) = current_path {
             let node = current.node_self;
             let route = &current.route;
-            if prev_trip_id != Some(node.trip_id) && &prev_route != route {
+            if (prev_trip_id != Some(node.trip_id) && &prev_route != route) || prev_route.is_none() {
                 tp.push((node, route.to_owned())); //current.node_self
             }
             current_path = &current.parent_node; //current = current.parent_node
             prev_route = route.to_owned();
             prev_trip_id = Some(node.trip_id);
         }
-        //shortest_path.push(current_path.unwrap()));
+        tp.reverse();
         (tp, journey_cost)
     }
 }
@@ -88,16 +88,12 @@ impl TransitDijkstra {
         &self,
         current: &PathedNode,
         visited_nodes: &HashMap<NodeId, PathedNode>,
-        is_local: bool,
     ) -> Vec<(NodeId, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
         if let Some(connections) = self.graph.edges.get(&current.node_self) {
             for (next_node_id, cost) in connections {
-                if visited_nodes.contains_key(next_node_id)
-                    || (current.transfer_count >= 2 && is_local)
-                {
-                    //number of transfers exceeds 2 if this path is followed, so ignore it for the 3-legs heuristic
+                if visited_nodes.contains_key(next_node_id)     {
                     continue;
                 }
 
@@ -133,7 +129,6 @@ impl TransitDijkstra {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
             current_cost = pathed_current_node.cost_from_start;
             let idx = pathed_current_node.node_self;
-
             visited_nodes.insert(idx, pathed_current_node.clone());
 
             //stop search for local TP if all unsettled NodeIds are inactive -->
@@ -159,9 +154,14 @@ impl TransitDijkstra {
             if current_cost > *gscore.get(&idx).unwrap_or(&u64::MAX) {
                 continue;
             }
+            
+            //limit local search to at most 2 transfers for 3-legs heuristic
+            if pathed_current_node.transfer_count >= 2 && hubs.is_some() {
+                continue;
+            }
 
             let neighbors =
-                self.get_neighbors(&pathed_current_node, &visited_nodes, hubs.is_some());
+                self.get_neighbors(&pathed_current_node, &visited_nodes);
 
             if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
                 && pathed_current_node.node_self.node_type == NodeType::Transfer

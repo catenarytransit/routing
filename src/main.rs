@@ -136,6 +136,7 @@ mod tests {
         println!("generating transit network graph");
         let gtfs = read_from_gtfs_zip("ctt.zip");
         let routes = gtfs.routes.clone();
+        let stops = gtfs.stops.clone();
         let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
         let mut router = TransitDijkstra::new(&transit_graph);
 
@@ -195,7 +196,7 @@ mod tests {
             source,
             target,
             18600, //5:10 AM
-            18000,
+            36000,
             preset_distance,
         );
 
@@ -233,10 +234,16 @@ mod tests {
             let path = stuff.1.get_tp();
             println!("path:");
             for (node, route) in path.0 {
+                println!("{:?}", node);
                 if let Some(route) = route {
-                    println!("{} via {:?}", node.station_id, routes.get(&route).unwrap().short_name);
+                    println!(
+                        "{} via {:?}",
+                        stops.get(&node.station_id.to_string()).unwrap(),
+                        routes.get(&route).unwrap().short_name
+                    );
+                } else {
+                    println!("start {}", stops.get(&node.station_id.to_string()).unwrap());
                 }
-                else {println!("start {:?}", node.station_id);}
             }
         }
 

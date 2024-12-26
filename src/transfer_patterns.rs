@@ -102,6 +102,9 @@ pub fn hub_selection(
     selected_hubs
 }
 
+use std::sync::Mutex;
+use std::thread;
+
 // Precompute transfer patterns from a given station to all other stations.
 // Return the transfer patterns & numbers between each station pair.
 pub fn num_transfer_patterns_from_source(
@@ -109,7 +112,7 @@ pub fn num_transfer_patterns_from_source(
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
     start_time: Option<u64>,
-) -> HashMap<(NodeId, NodeId), Vec<NodeId>> {
+) -> Mutex<Vec<Vec<NodeId>>> {
     println!("start tp calc \t");
     let source_transfer_nodes: Vec<NodeId> = router
         .graph
@@ -142,10 +145,8 @@ pub fn num_transfer_patterns_from_source(
 
     arrival_loop(&mut arrival_nodes);
     println!("arrival loop\t and len {}", arrival_nodes.len());
-
-    use std::sync::Mutex;
-    use std::thread;
-    let total_transfer_patterns = Arc::new(Mutex::new(HashMap::new()));
+    
+    let total_transfer_patterns = Arc::new(Mutex::new(Vec::new()));
     let thread_num = 4;
     let source_chunk_len = arrival_nodes.len();
     let threaded_sources = Arc::new(arrival_nodes.clone());
@@ -178,14 +179,12 @@ pub fn num_transfer_patterns_from_source(
                 transfer_patterns
                     .lock()
                     .unwrap()
-                    .insert((*transfers.first().unwrap(), *target), transfers);
+                    .push(transfers);
             }
         });
 
         handles.push(handle);
     }
-
-    println!("consolidating");
 
     for handle in handles {
         handle.join().unwrap();
@@ -193,7 +192,7 @@ pub fn num_transfer_patterns_from_source(
 
     let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
     println!("found transfers\t");
-    lock.into_inner().expect("mutex could not be locked")
+    lock
 }
 
 // Arrival chain algo: For each arrival node, see if cost can be improved
@@ -287,28 +286,27 @@ pub fn query_graph_construction_from_geodesic_points(
 
     println!("hubs: {:?}", &hubs);
 
-    let mut tps = HashMap::new();
+    let mut tps = Vec::new();
 
     println!("run local tps");
     for source_id in source_ids {
         let l_tps =
             num_transfer_patterns_from_source(source_id, router, Some(&hubs), Some(start_time));
 
-        tps.extend(l_tps.into_iter());
+        tps.extend(l_tps.lock().unwrap().drain(..));
     }
 
     println!("source to hub tps num {}", tps.len());
-    let reached: Vec<_> = tps.iter().map(|((_, t), _)| t.station_id).collect();
+    let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
     let used_hubs: Vec<_> = hubs.iter().filter(|n| reached.contains(n)).collect();
 
     //global transfer patterns from I(hubs) to to N(target())
     println!("num hubs used {:?}", used_hubs);
 
     for hub in used_hubs.iter() {
-        println!("run big tp for hub");
         let g_tps = num_transfer_patterns_from_source(**hub, router, None, Some(start_time));
         println!("extending tps...");
-        tps.extend(g_tps.into_iter());
+        tps.extend(g_tps.lock().unwrap().drain(..));
         println!("extension done");
     }
 
@@ -341,10 +339,9 @@ pub fn query_graph_construction_from_geodesic_points(
 
     let paths = tps
         .iter()
-        .filter(|((source, target), _)| {
-            source_nodes.contains(source) || target_nodes.contains(target)
+        .filter(|v| {
+            source_nodes.contains(v.first().unwrap()) || target_nodes.contains(v.last().unwrap())
         })
-        .map(|(_, path)| path)
         .collect::<Vec<_>>();
 
     println!("paths num {}", paths.len());
