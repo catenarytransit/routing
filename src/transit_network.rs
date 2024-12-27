@@ -161,8 +161,6 @@ impl TimeExpandedGraph {
                 custom_trip_id
             });
 
-            let mut prev_departure: Option<(NodeId, u64)> = None;
-
             trip.stop_times
                 .sort_by(|a, b| a.stop_sequence.cmp(&b.stop_sequence));
 
@@ -176,6 +174,8 @@ impl TimeExpandedGraph {
             let mut stations_time_from_trip_start = HashMap::new();
 
             let route_id = &trip.route_id;
+
+            let mut prev_stop: Option<(NodeId, u64)> = None;
 
             for stoptime in trip.stop_times.iter() {
                 let id = *station_map.get(&stoptime.stop.id).unwrap();
@@ -212,6 +212,7 @@ impl TimeExpandedGraph {
                     time: Some(arrival_time + transfer_buffer),
                     trip_id,
                 };
+                //direct link to next nodeset for compacting graph
                 let departure_node = NodeId {
                     node_type: NodeType::Departure,
                     station_id: id,
@@ -223,8 +224,8 @@ impl TimeExpandedGraph {
                 nodes.insert(transfer_node);
                 nodes.insert(departure_node);
 
-                if let Some((prev_dep, prev_dep_time)) = prev_departure {
-                    edges //travelling arc for previous departure to current arrival
+                if let Some((prev_dep, prev_dep_time)) = prev_stop {
+                    edges //travelling arc (prev transfer to arrival of same route)
                         .entry(prev_dep) //tail
                         .and_modify(|inner| {
                             inner.insert(arrival_node, arrival_time - prev_dep_time);
@@ -249,7 +250,7 @@ impl TimeExpandedGraph {
                         a
                     });
 
-                edges //alighting arc (arrival to transfer)
+                edges //alighting arc (arrival to next transfer of same route)
                     .entry(arrival_node) //tail
                     .and_modify(|inner| {
                         inner.insert(transfer_node, transfer_buffer);
@@ -279,7 +280,8 @@ impl TimeExpandedGraph {
                     })
                     .or_insert((StationInfo { id, lat, lon }, node_list));
 
-                prev_departure = Some((departure_node, departure_time));
+                prev_stop = Some((departure_node, departure_time));
+                //prev_stop = Some((transfer_node, arrival_time + transfer_buffer));
             }
 
             match route_tables.entry(route_id.clone()) {
@@ -313,7 +315,7 @@ impl TimeExpandedGraph {
                     for index in current_index + 1..station_nodes_by_time.len() {
                         let future_node = station_nodes_by_time.get(index).unwrap();
                         if future_node.1.node_type == NodeType::Transfer {
-                            edges //waiting arc (transfer to transfer)
+                            edges //waiting arc (transfer to transfers of any route)
                                 .entry(node.1) //tail
                                 .and_modify(|inner| {
                                     inner.insert(future_node.1, future_node.0 - node.0);
@@ -328,7 +330,7 @@ impl TimeExpandedGraph {
                         }
 
                         if future_node.1.node_type == NodeType::Departure {
-                            edges //boarding arc (transfer to departure)
+                            edges //boarding arc (transfer to departures of any route)
                                 .entry(node.1) //tail
                                 .and_modify(|inner| {
                                     inner.insert(future_node.1, future_node.0 - node.0);
@@ -377,7 +379,7 @@ pub fn direct_connection_query(
     start_station: i64,
     end_station: i64,
     time: u64,
-) -> Option<(u64, u64, String)> {
+) -> Option<(u64, u64)> {
     //departure time from start, arrival time to end
 
     let start = connections.lines_per_station.get(&start_station).unwrap();
@@ -407,7 +409,7 @@ pub fn direct_connection_query(
         {
             let departure = first_valid_start_time + time_to_start;
             let arrival = first_valid_start_time + time_to_end;
-            Some((departure, arrival, route.to_string()))
+            Some((departure, arrival))
         } else {
             None
         }
