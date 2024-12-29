@@ -1,20 +1,19 @@
-use geo::point;
+//use geo::point;
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::env;
-use std::f64::consts;
+//use std::env;
+//use std::f64::consts;
 use std::fs::*;
 use std::io::BufReader;
-use std::io::Write;
+//use std::io::Write;
 use std::time::Instant;
-use transit_router::coord_int_convert::coord_to_int;
-use transit_router::NodeType;
-use transit_router::RoadNetwork;
+//use transit_router::coord_int_convert::coord_to_int;
+//use transit_router::NodeType;
+//use transit_router::RoadNetwork;
 use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 
 #[test]
 fn test() {
-    let now = Instant::now();
     let savepath = "results.json";
 
     println!("generating transit network graph");
@@ -49,7 +48,7 @@ fn test() {
         preset_distance,
     );
 
-    let mut output = File::create(savepath).unwrap();
+    let output = File::create(savepath).unwrap();
     println!("query graph constructed in {:?}", now.elapsed());
     serde_json::to_writer(output, &graph).unwrap();
 
@@ -57,7 +56,7 @@ fn test() {
 
     let file = File::open(savepath).ok().unwrap();
     let reader = BufReader::new(file);
-    let mut graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();
+    let graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();
 
     //road network, for footpaths
     /*let now = Instant::now();
