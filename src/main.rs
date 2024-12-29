@@ -197,7 +197,7 @@ mod tests {
             source,
             target,
             18600, //5:10 AM
-            36000,
+            86400, //24 hour searchspace
             preset_distance,
         );
 

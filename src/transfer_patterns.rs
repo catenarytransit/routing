@@ -107,7 +107,7 @@ pub fn hub_selection(
 
 // Precompute transfer patterns from a given station to all other stations.
 // Return the transfer patterns & numbers between each station pair.
-pub fn num_transfer_patterns_from_source(
+pub fn   num_transfer_patterns_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
@@ -286,7 +286,7 @@ pub fn query_graph_construction_from_geodesic_points(
     let now = Instant::now();
 
     //get hubs of important stations I(hubs)
-    let hubs = hub_selection(router, 10000, hub_time_lim); //cost limit at 10 hours, arbitrary
+    let hubs = hub_selection(router, 50000, hub_time_lim); //cost limit at 10 hours, arbitrary
 
     println!("hubs: {:?}, t {:?}", &hubs, now.elapsed());
 

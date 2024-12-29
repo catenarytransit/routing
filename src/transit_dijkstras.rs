@@ -172,11 +172,6 @@ impl TransitDijkstra {
                 continue;
             }
 
-            //limit local search to at most 2 transfers for 3-legs heuristic
-            if pathed_current_node.transfer_count >= 2 && hubs.is_some() {
-                continue;
-            }
-
             let neighbors = self.get_neighbors(&pathed_current_node, &visited_nodes);
 
             if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
@@ -186,8 +181,6 @@ impl TransitDijkstra {
             }
 
             for neighbor in neighbors {
-                let temp_distance = current_cost + neighbor.1;
-                let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
                 let mut transfer_count = pathed_current_node.transfer_count;
                 if pathed_current_node.node_self.node_type == NodeType::Transfer
                     //&& neighbor.0.node_type == NodeType::Arrival
@@ -195,7 +188,15 @@ impl TransitDijkstra {
                 {
                     //transfer arc detected, increment transfer count for current path
                     transfer_count += 1;
+                    
+                    //limit local search to at most 2 transfers for 3-legs heuristic
+                    if transfer_count > 2 && hubs.is_some() {
+                        continue;
+                    }
                 }
+
+                let temp_distance = current_cost + neighbor.1;
+                let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
 
                 if temp_distance < next_distance {
                     gscore.insert(neighbor.0, temp_distance);
