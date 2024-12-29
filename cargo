@@ -1,0 +1,30 @@
+Usage: flamegraph [OPTIONS] [-- <TRAILING_ARGUMENTS>...]
+
+Arguments:
+  [TRAILING_ARGUMENTS]...  
+
+Options:
+  -p, --pid <PID>                    Profile a running process by pid (comma separated list)
+      --completions <SHELL>          Generate shell completions for the given shell [possible values: bash, elvish, fish, powershell, zsh]
+  -v, --verbose                      Print extra output to help debug problems
+  -o, --output <OUTPUT>              Output file [default: flamegraph.svg]
+      --open                         Open the output .svg file with default program
+      --root [<SUDO FLAGS>]          Run with root privileges (using `sudo`). Accepts an optional argument containing command line options which will be passed to sudo
+  -F, --freq <FREQUENCY>             Sampling frequency in Hz [default: 997]
+  -c, --cmd <CUSTOM_CMD>             Custom command for invoking perf/dtrace
+      --title <STRING>               Set title text in SVG
+      --subtitle <STRING>            Set second level title text in SVG
+      --deterministic                Colors are selected such that the color of a function does not change between runs
+  -i, --inverted                     Plot the flame graph up-side-down
+      --reverse                      Generate stack-reversed flame graph
+      --notes <STRING>               Set embedded notes in SVG
+      --min-width <FLOAT>            Omit functions smaller than <FLOAT> pixels [default: 0.01]
+      --image-width <IMAGE_WIDTH>    Image width in pixels
+      --palette <PALETTE>            Color palette [possible values: aqua, blue, green, hot, io, java, js, mem, orange, perl, python, purple, red, rust, wakeup, yellow]
+      --flamechart                   Produce a flame chart (sort by time, do not merge stacks)
+      --ignore-status                Ignores perf's exit code
+      --no-inline                    Disable inlining for perf script because of performance issues
+      --post-process <POST_PROCESS>  Run a command to process the folded stacks, taking the input from stdin and outputting to stdout
+      --perfdata <PERF_FILE>         
+  -h, --help                         Print help
+  -V, --version                      Print version
