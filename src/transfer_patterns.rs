@@ -10,9 +10,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::sync::Arc;
-use std::time::Instant;
 use std::sync::Mutex;
 use std::thread;
+use std::time::Instant;
 
 //only calculate global time expanded dijkstra from hubs (important stations) to save complexity
 //picks important hubs if they are more often visted from Dijkstras-until-all-nodes-settled
@@ -107,7 +107,7 @@ pub fn hub_selection(
 
 // Precompute transfer patterns from a given station to all other stations.
 // Return the transfer patterns & numbers between each station pair.
-pub fn   num_transfer_patterns_from_source(
+pub fn num_transfer_patterns_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
@@ -170,8 +170,8 @@ pub fn   num_transfer_patterns_from_source(
                 transfers.push(*target);
                 let mut previous_node: NodeId = *target;
                 for &node in path {
-                    if previous_node.node_type == NodeType::Departure ||
-                        previous_node.node_type == NodeType::Transfer
+                    if previous_node.node_type == NodeType::Departure
+                        || previous_node.node_type == NodeType::Transfer
                             && node.node_type == NodeType::Transfer
                     {
                         transfers.push(node);
@@ -266,7 +266,11 @@ pub fn query_graph_construction_from_geodesic_points(
     })
     .unzip();
 
-    println!("Possible start nodes count: {}, t {:?}", source_ids.len(), now.elapsed());
+    println!(
+        "Possible start nodes count: {}, t {:?}",
+        source_ids.len(),
+        now.elapsed()
+    );
     let now = Instant::now();
 
     //let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
@@ -282,7 +286,11 @@ pub fn query_graph_construction_from_geodesic_points(
     })
     .unzip();
 
-    println!("Possible end nodes count: {}, t {:?}", target_ids.len(), now.elapsed());
+    println!(
+        "Possible end nodes count: {}, t {:?}",
+        target_ids.len(),
+        now.elapsed()
+    );
     let now = Instant::now();
 
     //get hubs of important stations I(hubs)
@@ -296,8 +304,12 @@ pub fn query_graph_construction_from_geodesic_points(
         let now = Instant::now();
         let (l_tps, n_now) =
             num_transfer_patterns_from_source(source_id, router, Some(&hubs), Some(start_time));
-        println!("local tp {:?} or immediate {:?}", now.elapsed(), n_now.elapsed());
-        
+        println!(
+            "local tp {:?} or immediate {:?}",
+            now.elapsed(),
+            n_now.elapsed()
+        );
+
         let now = Instant::now();
         tps.extend(l_tps.lock().unwrap().drain(..));
         println!("extending local {:?}", now.elapsed());
@@ -312,9 +324,14 @@ pub fn query_graph_construction_from_geodesic_points(
 
     for hub in used_hubs.iter() {
         let now = Instant::now();
-        let (g_tps, n_now) = num_transfer_patterns_from_source(**hub, router, None, Some(start_time));
-        println!("ran tp for hubs {:?} vs immediate {:?}", now.elapsed(), n_now.elapsed());
-        
+        let (g_tps, n_now) =
+            num_transfer_patterns_from_source(**hub, router, None, Some(start_time));
+        println!(
+            "ran tp for hubs {:?} vs immediate {:?}",
+            now.elapsed(),
+            n_now.elapsed()
+        );
+
         let now = Instant::now();
         tps.extend(g_tps.lock().unwrap().drain(..));
         println!("extending hubs {:?}", now.elapsed());

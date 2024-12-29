@@ -159,7 +159,7 @@ impl TransitDijkstra {
                     return visited_nodes;
                 }
             }*/
-            
+
             //stop conditions
             //cost or # of settled nodes goes over limit
             if current_cost > self.cost_upper_bound {
@@ -188,7 +188,7 @@ impl TransitDijkstra {
                 {
                     //transfer arc detected, increment transfer count for current path
                     transfer_count += 1;
-                    
+
                     //limit local search to at most 2 transfers for 3-legs heuristic
                     if transfer_count > 2 && hubs.is_some() {
                         continue;
