@@ -180,8 +180,10 @@ pub fn num_transfer_patterns_from_source(
                 }
 
                 transfers.reverse();
+                transfers.shrink_to_fit();
 
                 transfer_patterns.lock().unwrap().push(transfers);
+                transfer_patterns.lock().unwrap().shrink_to_fit();
             }
         });
 

@@ -3,3 +3,5 @@
 /target
 *.osm.bincode
 *:Zone.Identifier
+/tmp
+/vtune
