@@ -6,6 +6,7 @@ use std::fs::File;
 use std::io::BufReader;
 use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 use std::time::Instant;
+use tokio::*;
 
 #[tokio::main]
 async fn main() {
