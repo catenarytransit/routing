@@ -22,7 +22,7 @@ pub fn hub_selection(
     cost_limit: u64,
 ) -> HashSet<i64> {
     //station ids
-    let num_stations = 1.max((router.graph.station_map.len() as u32) / 100);
+    let num_stations = 1.max((router.graph.station_map.as_ref().unwrap().len() as u32) / 100);
     let mut selected_hubs: HashSet<i64> = HashSet::new();
 
     let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, u64>> = HashMap::new();
@@ -67,8 +67,8 @@ pub fn hub_selection(
         //transfer_buffer: router.graph.transfer_buffer,
         nodes: time_independent_nodes,
         edges: time_independent_edges,
-        station_map: HashMap::from([]),
-        station_info: HashMap::from([]),
+        station_map: None,
+        station_info: None
     };
 
     let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
@@ -239,15 +239,50 @@ pub struct QueryGraphItem {
     source: Point,
     target: Point,
     pub edges: HashMap<NodeId, HashSet<NodeId>>,
-    source_stations: Vec<StationInfo>,
-    target_stations: Vec<StationInfo>,
+    source_stations: Vec<Station>,
+    target_stations: Vec<Station>,
     hubs: HashSet<i64>,
     source_nodes: Vec<NodeId>,
     target_nodes: Vec<NodeId>,
-    station_map: HashMap<String, i64>,
+    station_map: HashMap<String, Station>,
 }
 
-pub fn query_graph_construction_from_geodesic_points(
+pub async fn stations_near_point(router: &TransitDijkstra, source: Point, preset_distance: f64, start_time: u64) -> (Vec<Station>, Vec<NodeId>) {
+    let now = Instant::now();
+    let (source_stations, nodes_per_source): (Vec<_>, Vec<_>)=
+    router
+    .graph
+    .station_info
+    .as_ref()
+    .unwrap()
+    .clone()
+    .into_iter()
+    .filter(|(station, _)| {
+        let node_coord = point!(x: station.lon as f64 / f64::powi(10.0, 14), y: station.lat as f64 / f64::powi(10.0, 14));
+        Haversine::distance(source, node_coord) <= preset_distance
+    })
+    .unzip();
+
+    let source_nodes: Vec<NodeId> = nodes_per_source
+    .into_iter()
+    .flat_map(|x| {
+        x.into_iter()
+        .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
+        .1
+    })
+    .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
+    .collect();
+
+    println!(
+        "Possible end nodes count: {}, t {:?}",
+        source_stations.len(),
+        now.elapsed()
+    );
+
+    (source_stations, source_nodes)
+}
+
+pub async fn query_graph_construction_from_geodesic_points(
     router: &mut TransitDijkstra,
     source: Point,
     target: Point,
@@ -257,43 +292,11 @@ pub fn query_graph_construction_from_geodesic_points(
 ) -> QueryGraphItem {
     let now = Instant::now();
     //compute sets of N(source) and N(target) of stations N= near
-    let (source_ids, (source_stations, nodes_per_source)): (Vec<i64>, (Vec<_>, Vec<_>))=
-    router
-    .graph.station_info
-    .clone()
-    .into_iter()
-    .filter(|(_, station)| {
-        let node_coord = point!(x: station.0.lon as f64 / f64::powi(10.0, 14), y: station.0.lat as f64 / f64::powi(10.0, 14));
-        Haversine::distance(source, node_coord) <= preset_distance
-    })
-    .unzip();
+    let (source_stations, source_nodes): (Vec<_>, Vec<_>)=
+        stations_near_point(router, source, preset_distance, start_time).await;
 
-    println!(
-        "Possible start nodes count: {}, t {:?}",
-        source_ids.len(),
-        now.elapsed()
-    );
-    let now = Instant::now();
-
-    //let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
-
-    let (target_ids, (target_stations, nodes_per_target)): (Vec<i64>, (Vec<_>, Vec<_>))=
-    router
-    .graph.station_info
-    .clone()
-    .into_iter()
-    .filter(|(_, station)| {
-        let node_coord = point!(x: station.0.lon as f64 / f64::powi(10.0, 14), y: station.0.lat as f64 / f64::powi(10.0, 14));
-        Haversine::distance(target, node_coord) <= preset_distance
-    })
-    .unzip();
-
-    println!(
-        "Possible end nodes count: {}, t {:?}",
-        target_ids.len(),
-        now.elapsed()
-    );
-    let now = Instant::now();
+    let (target_stations, target_nodes): (Vec<_>, Vec<_>)=
+        stations_near_point(router, target, preset_distance, start_time).await;
 
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, 50000, hub_time_lim); //cost limit at 10 hours, arbitrary
@@ -302,10 +305,10 @@ pub fn query_graph_construction_from_geodesic_points(
 
     let mut tps = Vec::new();
 
-    for source_id in source_ids {
+    for station in source_stations.iter() {
         let now = Instant::now();
         let (l_tps, n_now) =
-            num_transfer_patterns_from_source(source_id, router, Some(&hubs), Some(start_time));
+            num_transfer_patterns_from_source(station.id, router, Some(&hubs), Some(start_time));
         println!(
             "local tp {:?} or immediate {:?}",
             now.elapsed(),
@@ -340,31 +343,6 @@ pub fn query_graph_construction_from_geodesic_points(
     }
 
     let now = Instant::now();
-
-    let source_nodes: Vec<_> = nodes_per_source
-        .into_iter()
-        .flat_map(|x| {
-            x.into_iter()
-                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
-                .1
-        })
-        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
-        .collect();
-
-    let earliest_departure = source_nodes.iter().min_by_key(|a| a.time).unwrap().time;
-
-    let target_nodes: Vec<_> = nodes_per_target
-        .into_iter()
-        .flat_map(|x| {
-            x.into_iter()
-                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
-                .1
-        })
-        .filter(|node| {
-            node.time >= earliest_departure && node.time <= Some(earliest_departure.unwrap() + 3600)
-            //how long you're willing to wait
-        })
-        .collect();
 
     let paths = tps
         .iter()
@@ -411,7 +389,7 @@ pub fn query_graph_construction_from_geodesic_points(
         hubs,
         source_nodes,
         target_nodes,
-        station_map,
+        station_map: station_map.unwrap(),
     }
 }
 
@@ -487,7 +465,7 @@ pub fn query_graph_search(
     */
 
     let mut min_cost = 0;
-    let mut router = TDDijkstra::new(connections, query_info.edges, query_info.station_map);
+    let mut router = TDDijkstra::new(connections, query_info.edges);
 
     let mut returned_val: Option<(NodeId, PathedNode)> = None; //source, target, path
 

@@ -8,13 +8,6 @@ use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::hash::Hash;
 use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Clone)]
-pub struct TransitDijkstra {
-    //handle time expanded dijkstra calculations
-    pub graph: TimeExpandedGraph,
-    cost_upper_bound: u64,
-}
-
 #[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
 pub struct PathedNode {
     //node that references parent nodes, used to create path from goal node to start node
@@ -87,6 +80,14 @@ impl PathedNode {
     }
 }
 
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct TransitDijkstra {
+    //handle time expanded dijkstra calculations
+    pub graph: TimeExpandedGraph, 
+    cost_upper_bound: u64,
+}
+
 impl TransitDijkstra {
     //implementation of time expanded dijkstra's shortest path algorithm
     pub fn new(graph: &TimeExpandedGraph) -> Self {
@@ -130,7 +131,7 @@ impl TransitDijkstra {
 
         let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
         let mut visited_nodes: HashMap<NodeId, PathedNode> = HashMap::new();
-        let mut inactive_nodes: HashSet<NodeId> = HashSet::new();
+        //let mut inactive_nodes: HashSet<NodeId> = HashSet::new();
 
         //stores distances of node relative to target
         let mut gscore: HashMap<NodeId, u64> = HashMap::new();
@@ -158,6 +159,11 @@ impl TransitDijkstra {
                     println!("augh");
                     return visited_nodes;
                 }
+                if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
+                    && pathed_current_node.node_self.node_type == NodeType::Transfer
+                {
+                    inactive_nodes.extend(neighbors.iter().map(|(node, _)| node));
+                }
             }*/
 
             //stop conditions
@@ -173,12 +179,6 @@ impl TransitDijkstra {
             }
 
             let neighbors = self.get_neighbors(&pathed_current_node, &visited_nodes);
-
-            if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
-                && pathed_current_node.node_self.node_type == NodeType::Transfer
-            {
-                inactive_nodes.extend(neighbors.iter().map(|(node, _)| node));
-            }
 
             for neighbor in neighbors {
                 let mut transfer_count = pathed_current_node.transfer_count;
@@ -248,8 +248,7 @@ pub struct TDDijkstra {
     //handle time dependent dijkstra calculations
     pub connections: DirectConnections,
     pub edges: HashMap<NodeId, HashSet<NodeId>>,
-    pub visited_nodes: HashMap<NodeId, PathedNode>,
-    pub station_map: HashMap<String, i64>,
+    pub visited_nodes: HashMap<NodeId, PathedNode>
 }
 
 impl TDDijkstra {
@@ -257,14 +256,12 @@ impl TDDijkstra {
     pub fn new(
         connections: DirectConnections,
         edges: HashMap<NodeId, HashSet<NodeId>>,
-        station_map: HashMap<String, i64>,
     ) -> Self {
         let visited_nodes = HashMap::new();
         Self {
             connections,
             edges,
             visited_nodes,
-            station_map,
         }
     }
 
