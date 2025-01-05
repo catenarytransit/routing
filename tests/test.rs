@@ -3,17 +3,18 @@
 //use std::collections::HashSet;
 //use std::env;
 //use std::f64::consts;
-use std::fs::*;
 use std::io::BufReader;
+use std::fs::File;
 //use std::io::Write;
 use std::time::Instant;
 //use transit_router::coord_int_convert::coord_to_int;
 //use transit_router::NodeType;
 //use transit_router::RoadNetwork;
 use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
+use tokio::*;
 
-#[test]
-fn test() {
+#[crate::test]
+async fn test() {
     let savepath = "results.json";
 
     println!("generating transit network graph");
@@ -31,7 +32,7 @@ fn test() {
     let preset_distance = 250.0;
 
     //pepperidge farm to harriet beecher stowe center
-    /*let (source, target) = make_points_from_coords(
+    let (source, target) = make_points_from_coords(
         41.86829675142084,
         -72.71973332600558,
         41.76726348091365,
@@ -46,11 +47,11 @@ fn test() {
         18600, //5:10 AM
         86400, //24 hour searchspace
         preset_distance,
-    );
+    ).await;
 
     let output = File::create(savepath).unwrap();
     println!("query graph constructed in {:?}", now.elapsed());
-    serde_json::to_writer(output, &graph).unwrap();*/
+    serde_json::to_writer(output, &graph).unwrap();
 
     //part 2
 
