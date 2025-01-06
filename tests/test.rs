@@ -59,24 +59,6 @@ async fn test() {
     let reader = BufReader::new(file);
     let graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();
 
-    //road network, for footpaths
-    /*let now = Instant::now();
-    println!("generating street network graph");
-    let path = "ct.pbf";
-    let data = RoadNetwork::read_from_osm_file(path).unwrap();
-    let mut roads = RoadNetwork::new(data.0, data.1);
-    //roads = roads.reduce_to_largest_connected_component();
-
-    println!("time for road {:?}", now.elapsed());
-
-    println!("# of nodes: {}", roads.nodes.len());
-    println!(
-        "# of edges: {}",
-        roads.edges.values().map(|edges| edges.len()).sum::<usize>()
-    );
-    let run_query = query_graph_search(&roads, connections, graph);
-    */
-
     let run_query = query_graph_search(connections, graph);
 
     if let Some(stuff) = run_query {
