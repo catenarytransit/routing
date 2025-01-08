@@ -68,7 +68,7 @@ pub fn hub_selection(
         nodes: time_independent_nodes,
         edges: time_independent_edges,
         station_map: None,
-        station_info: None
+        station_info: None,
     };
 
     let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
@@ -112,7 +112,7 @@ pub fn num_transfer_patterns_from_source(
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
     start_time: Option<u64>,
-    thread_num: usize
+    thread_num: usize,
 ) -> (Mutex<Vec<Vec<NodeId>>>, Instant) {
     println!("start tp calc \t");
     let now = Instant::now();
@@ -161,32 +161,34 @@ pub fn num_transfer_patterns_from_source(
         let source = Arc::clone(&threaded_sources);
         let transfer_patterns = Arc::clone(&total_transfer_patterns);
         let thread = thread::Builder::new().name(format!("graph_con{}", x));
-        let handle = thread.spawn(move || {
-            let src = source;
-            for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
-                ..(x * source_chunk_len / (thread_num - 1))
-            {
-                let (target, path, _) = src.get(i).unwrap();
-                let mut transfers = Vec::new();
-                transfers.push(*target);
-                let mut previous_node: NodeId = *target;
-                for &node in path {
-                    if previous_node.node_type == NodeType::Departure
-                        || previous_node.node_type == NodeType::Transfer
-                            && node.node_type == NodeType::Transfer
-                    {
-                        transfers.push(node);
+        let handle = thread
+            .spawn(move || {
+                let src = source;
+                for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
+                    ..(x * source_chunk_len / (thread_num - 1))
+                {
+                    let (target, path, _) = src.get(i).unwrap();
+                    let mut transfers = Vec::new();
+                    transfers.push(*target);
+                    let mut previous_node: NodeId = *target;
+                    for &node in path {
+                        if previous_node.node_type == NodeType::Departure
+                            || previous_node.node_type == NodeType::Transfer
+                                && node.node_type == NodeType::Transfer
+                        {
+                            transfers.push(node);
+                        }
+                        previous_node = node;
                     }
-                    previous_node = node;
+
+                    transfers.reverse();
+                    transfers.shrink_to_fit();
+
+                    transfer_patterns.lock().unwrap().push(transfers);
+                    transfer_patterns.lock().unwrap().shrink_to_fit();
                 }
-
-                transfers.reverse();
-                transfers.shrink_to_fit();
-
-                transfer_patterns.lock().unwrap().push(transfers);
-                transfer_patterns.lock().unwrap().shrink_to_fit();
-            }
-        }).unwrap();
+            })
+            .unwrap();
 
         handles.push(handle);
     }
@@ -248,7 +250,12 @@ pub struct QueryGraphItem {
     station_map: HashMap<String, Station>,
 }
 
-pub async fn stations_near_point(router: &TransitDijkstra, source: Point, preset_distance: f64, start_time: u64) -> (Vec<Station>, Vec<NodeId>) {
+pub async fn stations_near_point(
+    router: &TransitDijkstra,
+    source: Point,
+    preset_distance: f64,
+    start_time: u64,
+) -> (Vec<Station>, Vec<NodeId>) {
     let now = Instant::now();
     let (source_stations, nodes_per_source): (Vec<_>, Vec<_>)=
     router
@@ -265,14 +272,14 @@ pub async fn stations_near_point(router: &TransitDijkstra, source: Point, preset
     .unzip();
 
     let source_nodes: Vec<NodeId> = nodes_per_source
-    .into_iter()
-    .flat_map(|x| {
-        x.into_iter()
-        .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
-        .1
-    })
-    .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
-    .collect();
+        .into_iter()
+        .flat_map(|x| {
+            x.into_iter()
+                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
+                .1
+        })
+        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
+        .collect();
 
     println!(
         "Possible end nodes count: {}, t {:?}",
@@ -293,10 +300,10 @@ pub async fn query_graph_construction_from_geodesic_points(
 ) -> QueryGraphItem {
     let now = Instant::now();
     //compute sets of N(source) and N(target) of stations N= near
-    let (source_stations, source_nodes): (Vec<_>, Vec<_>)=
+    let (source_stations, source_nodes): (Vec<_>, Vec<_>) =
         stations_near_point(router, source, preset_distance, start_time).await;
 
-    let (target_stations, target_nodes): (Vec<_>, Vec<_>)=
+    let (target_stations, target_nodes): (Vec<_>, Vec<_>) =
         stations_near_point(router, target, preset_distance, start_time).await;
 
     //get hubs of important stations I(hubs)
@@ -323,7 +330,11 @@ pub async fn query_graph_construction_from_geodesic_points(
 
     let now = Instant::now();
     let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
-    let used_hubs: Vec<_> = hubs.clone().into_iter().filter(|n| reached.contains(n)).collect();
+    let used_hubs: Vec<_> = hubs
+        .clone()
+        .into_iter()
+        .filter(|n| reached.contains(n))
+        .collect();
     println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
 
     let total_transfer_patterns = Arc::new(Mutex::new(tps));
@@ -339,26 +350,28 @@ pub async fn query_graph_construction_from_geodesic_points(
         let transfer_patterns = Arc::clone(&total_transfer_patterns);
         let router = Arc::clone(&arc_router);
         let thread = thread::Builder::new().name(format!("graph_con{}", x));
-        let handle = thread.spawn(move || {
-            let r = roots;
-            for i in ((x - 1) * (num_used_hubs / (thread_num - 1)))
-                ..(x * num_used_hubs / (thread_num - 1))
-            {
-                let now = Instant::now();
-                let hub = r.get(i).unwrap();
-                let (g_tps, n_now) =
-                    num_transfer_patterns_from_source(*hub, &router, None, Some(start_time), 4);
-                println!(
-                    "ran tp for hubs {:?} vs immediate {:?}",
-                    now.elapsed(),
-                    n_now.elapsed()
-                );
+        let handle = thread
+            .spawn(move || {
+                let r = roots;
+                for i in ((x - 1) * (num_used_hubs / (thread_num - 1)))
+                    ..(x * num_used_hubs / (thread_num - 1))
+                {
+                    let now = Instant::now();
+                    let hub = r.get(i).unwrap();
+                    let (g_tps, n_now) =
+                        num_transfer_patterns_from_source(*hub, &router, None, Some(start_time), 4);
+                    println!(
+                        "ran tp for hubs {:?} vs immediate {:?}",
+                        now.elapsed(),
+                        n_now.elapsed()
+                    );
 
-                let mut ttp = transfer_patterns.lock().unwrap();
-                ttp.extend(g_tps.lock().unwrap().drain(..));
-                println!("extending hubs {:?}", now.elapsed());
-            }
-        }).unwrap();
+                    let mut ttp = transfer_patterns.lock().unwrap();
+                    ttp.extend(g_tps.lock().unwrap().drain(..));
+                    println!("extending hubs {:?}", now.elapsed());
+                }
+            })
+            .unwrap();
 
         handles.push(handle);
     }

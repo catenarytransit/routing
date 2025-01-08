@@ -80,11 +80,10 @@ impl PathedNode {
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct TransitDijkstra {
     //handle time expanded dijkstra calculations
-    pub graph: TimeExpandedGraph, 
+    pub graph: TimeExpandedGraph,
     cost_upper_bound: u64,
 }
 
@@ -248,15 +247,12 @@ pub struct TDDijkstra {
     //handle time dependent dijkstra calculations
     pub connections: DirectConnections,
     pub edges: HashMap<NodeId, HashSet<NodeId>>,
-    pub visited_nodes: HashMap<NodeId, PathedNode>
+    pub visited_nodes: HashMap<NodeId, PathedNode>,
 }
 
 impl TDDijkstra {
     //implementation of time dependent shortest path algorithm
-    pub fn new(
-        connections: DirectConnections,
-        edges: HashMap<NodeId, HashSet<NodeId>>,
-    ) -> Self {
+    pub fn new(connections: DirectConnections, edges: HashMap<NodeId, HashSet<NodeId>>) -> Self {
         let visited_nodes = HashMap::new();
         Self {
             connections,

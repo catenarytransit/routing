@@ -4,9 +4,9 @@
 use serde_json::{Result, Value};
 use std::fs::File;
 use std::io::BufReader;
-use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 use std::time::Instant;
 use tokio::*;
+use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 
 #[tokio::main]
 async fn main() {
@@ -42,7 +42,8 @@ async fn main() {
         18600, //5:10 AM
         86400, //24 hour searchspace
         preset_distance,
-    ).await;
+    )
+    .await;
 
     let output = File::create(savepath).unwrap();
     println!("query graph constructed in {:?}", now.elapsed());
@@ -91,5 +92,4 @@ async fn main() {
     } else {
         println!("no path");
     }
-
 }

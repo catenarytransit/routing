@@ -10,7 +10,7 @@ use std::collections::hash_map::Entry;
 use std::{
     collections::{HashMap, HashSet},
     hash::Hash,
-}; 
+};
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(into = "String")]
@@ -146,18 +146,11 @@ impl TimeExpandedGraph {
 
         for (iterator, stop_id) in (0_i64..).zip(gtfs.stops.iter()) {
             let id = stop_id.0.parse().unwrap_or(iterator);
-            let (lon, lat) = coord_to_int(
-                stop_id.1.longitude.unwrap(),
-                stop_id.1.latitude.unwrap(),
-            );
-            
-            station_map.insert(stop_id.0.to_string(), Station { 
-                id,
-                lat,
-                lon
-            });
+            let (lon, lat) =
+                coord_to_int(stop_id.1.longitude.unwrap(), stop_id.1.latitude.unwrap());
+
+            station_map.insert(stop_id.0.to_string(), Station { id, lat, lon });
         }
-    
 
         let mut custom_trip_id: u64 = 0; //custom counter like with stop_id
         let mut nodes_by_time: Vec<(u64, NodeId)> = Vec::new();
@@ -189,7 +182,7 @@ impl TimeExpandedGraph {
             let mut prev_stop: Option<(NodeId, u64)> = None;
 
             for stoptime in trip.stop_times.iter() {
-                let station = station_map.get(&stoptime.stop.id).unwrap(); 
+                let station = station_map.get(&stoptime.stop.id).unwrap();
 
                 let arrival_time: u64 = stoptime.arrival_time.unwrap().into();
                 let departure_time: u64 = stoptime.departure_time.unwrap().into();
@@ -268,20 +261,20 @@ impl TimeExpandedGraph {
                         a
                     });
 
-                    let node_list = vec![
-                        (arrival_time, arrival_node),
-                        (arrival_time + transfer_buffer, transfer_node),
-                        (departure_time, departure_node),
-                    ];
-        
-                    nodes_by_time.extend(node_list.iter());
-        
-                    station_info
-                        .entry(station.clone())
-                        .and_modify(|inner| {
-                            inner.extend(node_list.iter());
-                        })
-                        .or_insert(node_list);
+                let node_list = vec![
+                    (arrival_time, arrival_node),
+                    (arrival_time + transfer_buffer, transfer_node),
+                    (departure_time, departure_node),
+                ];
+
+                nodes_by_time.extend(node_list.iter());
+
+                station_info
+                    .entry(station.clone())
+                    .and_modify(|inner| {
+                        inner.extend(node_list.iter());
+                    })
+                    .or_insert(node_list);
 
                 prev_stop = Some((departure_node, departure_time));
                 //prev_stop = Some((transfer_node, arrival_time + transfer_buffer));

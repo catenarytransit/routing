@@ -3,15 +3,15 @@
 //use std::collections::HashSet;
 //use std::env;
 //use std::f64::consts;
-use std::io::BufReader;
 use std::fs::File;
+use std::io::BufReader;
 //use std::io::Write;
 use std::time::Instant;
 //use transit_router::coord_int_convert::coord_to_int;
 //use transit_router::NodeType;
 //use transit_router::RoadNetwork;
-use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 use tokio::*;
+use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 
 #[crate::test]
 async fn test() {
@@ -47,7 +47,8 @@ async fn test() {
         18600, //5:10 AM
         86400, //24 hour searchspace
         preset_distance,
-    ).await;
+    )
+    .await;
 
     let output = File::create(savepath).unwrap();
     println!("query graph constructed in {:?}", now.elapsed());
@@ -78,7 +79,6 @@ async fn test() {
     } else {
         println!("no path");
     }
-
 }
 
 //connection tests, these should be valid transfers --> success!
