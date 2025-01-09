@@ -77,7 +77,8 @@ pub fn hub_selection(
     let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
 
     for _ in 0..random_samples {
-        let current_node = vec![time_independent_router.get_random_node_id().unwrap()];
+        let node = time_independent_router.get_random_node_id().unwrap();
+        let current_node = vec![&node];
         let visited_nodes = time_independent_router.time_expanded_dijkstra(current_node, None);
         for (node, _) in visited_nodes.iter() {
             match hub_list.entry(*node) {
@@ -116,7 +117,7 @@ pub fn num_transfer_patterns_from_source(
 ) -> (Mutex<Vec<Vec<NodeId>>>, Instant) {
     println!("start tp calc \t");
     let now = Instant::now();
-    let source_transfer_nodes: Vec<NodeId> = router
+    let source_transfer_nodes: Vec<&NodeId> = router
         .graph
         .nodes
         .iter()
@@ -127,17 +128,16 @@ pub fn num_transfer_patterns_from_source(
                 && node.time >= start_time
         })
         //must check for transfer nodes, but checking for arrival nodes may improve query time at expense of longer precompute
-        .copied()
         .collect();
     println!("found sources {:?}", now.elapsed());
     let now = Instant::now();
-
+        
     let visited_nodes = router.time_expanded_dijkstra(source_transfer_nodes, hubs);
 
     println!("visited nodes {:?}", now.elapsed());
     let now = Instant::now();
 
-    let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u64)> = visited_nodes
+    let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>,u64)> = visited_nodes
         .into_iter()
         .filter(|(node, _)| node.node_type == NodeType::Arrival)
         .map(|(node, pathed_node)| {
@@ -168,17 +168,17 @@ pub fn num_transfer_patterns_from_source(
                     ..(x * source_chunk_len / (thread_num - 1))
                 {
                     let (target, path, _) = src.get(i).unwrap();
-                    let mut transfers = Vec::new();
+                    let mut transfers: Vec<NodeId> = Vec::new();
                     transfers.push(*target);
                     let mut previous_node: NodeId = *target;
-                    for &node in path {
+                    for node in path {
                         if previous_node.node_type == NodeType::Departure
                             || previous_node.node_type == NodeType::Transfer
                                 && node.node_type == NodeType::Transfer
                         {
-                            transfers.push(node);
+                            transfers.push(*node);
                         }
-                        previous_node = node;
+                        previous_node = *node;
                     }
 
                     transfers.reverse();
@@ -210,7 +210,7 @@ pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
     let time_chunks = arrival_nodes.chunk_by_mut(|a, b| a.0.station_id <= b.0.station_id);
     for chunk in time_chunks {
         chunk.sort_unstable_by(|a, b| a.0.time.cmp(&b.0.time));
-        let mut previous_arrival: Option<(NodeId, u64)> = None;
+        let mut previous_arrival: Option<(NodeId, &u64)> = None;
         for (node, path, cost) in chunk.iter_mut() {
             if let Some((prev_node, prev_cost)) = previous_arrival {
                 let new_cost = prev_cost + (node.time.unwrap() - prev_node.time.unwrap());
@@ -218,8 +218,8 @@ pub fn arrival_loop(arrival_nodes: &mut [(NodeId, Vec<NodeId>, u64)]) {
                     *cost = new_cost;
                     path.insert(1, prev_node);
                 }
-            }
-            previous_arrival = Some((*node, *cost));
+                previous_arrival = Some((*node, cost));
+            }   
         }
         //new_arrival_list.append(&mut chunk.to_vec().to_owned())
     }
@@ -359,7 +359,7 @@ pub async fn query_graph_construction_from_geodesic_points(
                     let now = Instant::now();
                     let hub = r.get(i).unwrap();
                     let (g_tps, n_now) =
-                        num_transfer_patterns_from_source(*hub, &router, None, Some(start_time), 4);
+                        num_transfer_patterns_from_source(*hub, &router, None, Some(start_time), 2);
                     println!(
                         "ran tp for hubs {:?} vs immediate {:?}",
                         now.elapsed(),
