@@ -20,10 +20,10 @@ pub fn hub_selection(
     router: &TransitDijkstra,
     random_samples: u32,
     cost_limit: u64,
-) -> HashSet<i64> {
+) -> Vec<i64> {
     //station ids
     let num_stations = 1.max((router.graph.station_map.as_ref().unwrap().len() as u32) / 100);
-    let mut selected_hubs: HashSet<i64> = HashSet::new();
+    let mut selected_hubs: Vec<i64> = Vec::new();
 
     let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, u64>> = HashMap::new();
 
@@ -98,7 +98,7 @@ pub fn hub_selection(
 
     for _ in 0..num_stations {
         let hub = sorted_hubs.pop().unwrap();
-        selected_hubs.insert(hub.1.station_id);
+        selected_hubs.push(hub.1.station_id);
     }
 
     time_independent_router.set_cost_upper_bound(u64::MAX); //reset cost upper bound to max
@@ -111,7 +111,7 @@ pub fn hub_selection(
 pub fn num_transfer_patterns_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
-    hubs: Option<&HashSet<i64>>,
+    hubs: Option<&Vec<i64>>,
     start_time: Option<u64>,
     thread_num: usize,
 ) -> (Mutex<Vec<Vec<NodeId>>>, Instant) {
@@ -244,7 +244,7 @@ pub struct QueryGraphItem {
     pub edges: HashMap<NodeId, HashSet<NodeId>>,
     source_stations: Vec<Station>,
     target_stations: Vec<Station>,
-    hubs: HashSet<i64>,
+    hubs: Vec<i64>,
     source_nodes: Vec<NodeId>,
     target_nodes: Vec<NodeId>,
     station_map: HashMap<String, Station>,
@@ -328,20 +328,21 @@ pub async fn query_graph_construction_from_geodesic_points(
         println!("extending local {:?}", now.elapsed());
     }
 
+    //reducing number of global TP collections run so that it works on a single laptop in time
+    //may not always reach enough hubs to connect source to transfer due to random hub selection
     let now = Instant::now();
     let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
-    let used_hubs: Vec<_> = hubs
-        .clone()
+    let hubs: Vec<_> = hubs
         .into_iter()
         .filter(|n| reached.contains(n))
         .collect();
-    println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
+    println!("num hubs used {:?}, t {:?}", hubs, now.elapsed());
 
     let total_transfer_patterns = Arc::new(Mutex::new(tps));
-    let num_used_hubs = used_hubs.len();
+    let num_hubs = hubs.len();
     let thread_num = 3;
 
-    let threaded_roots = Arc::new(used_hubs);
+    let threaded_roots = Arc::new(hubs.clone());
     let arc_router = Arc::new(router.clone());
     let mut handles = vec![];
 
@@ -353,8 +354,8 @@ pub async fn query_graph_construction_from_geodesic_points(
         let handle = thread
             .spawn(move || {
                 let r = roots;
-                for i in ((x - 1) * (num_used_hubs / (thread_num - 1)))
-                    ..(x * num_used_hubs / (thread_num - 1))
+                for i in ((x - 1) * (num_hubs / (thread_num - 1)))
+                    ..(x * num_hubs / (thread_num - 1))
                 {
                     let now = Instant::now();
                     let hub = r.get(i).unwrap();
