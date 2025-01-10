@@ -143,11 +143,6 @@ impl TransitDijkstra {
 
         while !priority_queue.is_empty() {
             let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
-            if let Some(hub_set) = hubs {
-                if hub_set.contains(&pathed_current_node.node_self.station_id) {
-                    continue;
-                }
-            }
             current_cost = pathed_current_node.cost_from_start;
             let idx = pathed_current_node.node_self;
             visited_nodes.insert(idx, pathed_current_node.clone());
