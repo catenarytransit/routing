@@ -1,4 +1,3 @@
-*.zip
 *.pbf
 /target
 *.osm.bincode
