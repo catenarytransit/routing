@@ -282,7 +282,7 @@ pub async fn stations_near_point(
         .collect();
 
     println!(
-        "Possible nodes count: {}, t {:?}",
+        "Possible nodes of station: {}, t {:?}",
         source_stations.len(),
         now.elapsed()
     );
@@ -338,7 +338,7 @@ pub async fn query_graph_construction_from_geodesic_points(
         .collect();
     println!("num hubs used {:?}, t {:?}", hubs, now.elapsed());
 
-    /*let total_transfer_patterns = Arc::new(Mutex::new(tps));
+    let total_transfer_patterns = Arc::new(Mutex::new(tps));
     let num_hubs = hubs.len();
     let thread_num = 2;
     let threaded_roots = Arc::new(hubs.clone());
@@ -380,23 +380,24 @@ pub async fn query_graph_construction_from_geodesic_points(
         handle.join().unwrap();
     }
 
-    let tps = total_transfer_patterns.lock().unwrap();*/
-    for station in hubs.iter() {
+    let tps = total_transfer_patterns.lock().unwrap();
+
+    /*for station in hubs.iter() {
         let now = Instant::now();
         let (g_tps, n_now) =
-            num_transfer_patterns_from_source(*station, router, None, Some(start_time), 6);
+            num_transfer_patterns_from_source(*station, router, None, Some(start_time), 8);
         println!(
-            "local tp {:?} or immediate {:?}",
+            "global tp {:?} or immediate {:?}",
             now.elapsed(),
             n_now.elapsed()
         );
 
         let now = Instant::now();
         tps.extend(g_tps.lock().unwrap().drain(..));
-        println!("extending local {:?}", now.elapsed());
-    }
+        println!("extending global {:?}", now.elapsed());
+    }*/
 
-    println!("source to hub tps num {}", tps.len());
+    println!("total tp len {}", tps.len());
 
     let now = Instant::now();
 
@@ -407,7 +408,7 @@ pub async fn query_graph_construction_from_geodesic_points(
         })
         .collect::<Vec<_>>();
 
-    println!("paths {:?}", now.elapsed());
+    println!("paths  t {:?}", now.elapsed());
 
     let now = Instant::now();
 
