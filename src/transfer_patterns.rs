@@ -282,7 +282,7 @@ pub async fn stations_near_point(
         .collect();
 
     println!(
-        "Possible end nodes count: {}, t {:?}",
+        "Possible nodes count: {}, t {:?}",
         source_stations.len(),
         now.elapsed()
     );
