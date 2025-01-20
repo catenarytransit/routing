@@ -13,7 +13,6 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Instant;
 
-
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryGraph {
     source: Point,
@@ -27,7 +26,7 @@ pub struct QueryGraph {
     station_map: HashMap<String, Station>,
 }
 
-pub async fn query_graph_construction_from_geodesic_points(
+pub async fn query_graph_construction(
     router: &mut TransitDijkstra,
     source: Point,
     target: Point,
