@@ -7,6 +7,19 @@ use std::io::BufReader;
 use std::time::Instant;
 use tokio::*;
 use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
+use geo::{point, Point};
+
+//converts raw coordinate points into Point structs
+pub fn make_points_from_coords(
+    source_lat: f64,
+    source_lon: f64,
+    target_lat: f64,
+    target_lon: f64,
+) -> (Point, Point) {
+    let source = point!(x: source_lon, y:source_lat);
+    let target = point!(x: target_lon, y:target_lat);
+    (source, target)
+}
 
 #[tokio::main]
 async fn main() {
@@ -14,9 +27,13 @@ async fn main() {
 
     println!("generating transit network graph");
     let gtfs = read_from_gtfs_zip("ctt.zip");
+
+    //overhead for cloning these strings is very low, it's just for displaying anyway
     let trips = gtfs.trips.clone();
     let routes = gtfs.routes.clone();
     let stops = gtfs.stops.clone();
+
+    //generate Time Expanded Graph and Direct Connections for this GTFS file
     let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
     let mut router = TransitDijkstra::new(&transit_graph);
 
@@ -53,7 +70,7 @@ async fn main() {
 
     let file = File::open(savepath).ok().unwrap();
     let reader = BufReader::new(file);
-    let graph: QueryGraphItem = serde_json::from_reader(reader).unwrap();
+    let graph: QueryGraph = serde_json::from_reader(reader).unwrap();
 
     //road network, for footpaths
     /*let now = Instant::now();
@@ -82,7 +99,6 @@ async fn main() {
             if let Some(route) = route {
                 println!(
                     "via {:?}",
-                    //stops.get(&node.station_id.to_string()).unwrap(),
                     routes.get(&route).unwrap().short_name
                 );
             } else {
