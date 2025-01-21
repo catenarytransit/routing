@@ -292,7 +292,7 @@ impl TDDijkstra {
     pub fn time_dependent_dijkstra(
         &mut self,
         source_id: NodeId,
-        target_id: &[NodeId], //if target == None, settles all reachable nodes
+        target_id: &HashSet<NodeId>, //if target == None, settles all reachable nodes
     ) -> Option<PathedNode> {
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)

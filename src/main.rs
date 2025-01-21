@@ -52,7 +52,7 @@ async fn main() {
     );
 
     let now = Instant::now();
-    let graph = query_graph_construction_from_geodesic_points(
+    let graph = query_graph_construction(
         &mut router,
         source,
         target,
