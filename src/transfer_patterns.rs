@@ -66,11 +66,11 @@ pub async fn query_graph_construction(
     //reducing number of global TP collections run so that it works on a single laptop in time
     //may not always reach enough hubs to connect source to transfer due to random hub selection
     let now = Instant::now();
-    let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
+    /*let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
     let hubs: Vec<_> = hubs
         .into_iter()
         .filter(|n| reached.contains(n))
-        .collect();
+        .collect();*/
     println!("num hubs used {:?}, t {:?}", hubs, now.elapsed());
 
     let total_transfer_patterns = Arc::new(Mutex::new(tps));
@@ -202,7 +202,7 @@ pub async fn stations_near_point(
         .collect();
 
     println!(
-        "Possible end nodes count: {}, t {:?}",
+        "Possible nodes count: {}, t {:?}",
         source_stations.len(),
         now.elapsed()
     );
