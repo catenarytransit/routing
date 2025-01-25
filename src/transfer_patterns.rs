@@ -1,5 +1,4 @@
 use crate::NodeType;
-//THE FINAL BOSS
 //use crate::coord_int_convert::*;
 //use crate::RoadNetwork;
 use crate::{transit_dijkstras::*, transit_network::*};
@@ -14,6 +13,198 @@ use std::sync::Mutex;
 use std::thread;
 use std::time::Instant;
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct QueryGraph {
+    source: Point,
+    target: Point,
+    pub edges: HashMap<NodeId, HashSet<NodeId>>,
+    source_stations: HashSet<Station>,
+    target_stations: HashSet<Station>,
+    hubs: HashSet<i64>,
+    source_nodes: HashSet<NodeId>,
+    target_nodes: HashSet<NodeId>,
+    station_map: HashMap<String, Station>,
+}
+
+pub fn query_graph_construction_from_geodesic_points(
+    router: &mut TransitDijkstra,
+    source: Point,
+    target: Point,
+    start_time: u64,
+    hub_time_lim: u64,
+    preset_distance: f64, //in meters
+) -> QueryGraph {
+    let now = Instant::now();
+    //compute sets of N(source) and N(target) of stations N= near
+    let (source_stations, source_nodes): (HashSet<_>, HashSet<_>) =
+        stations_near_point(router, source, preset_distance, start_time);
+
+    let (target_stations, target_nodes): (HashSet<_>, HashSet<_>) =
+        stations_near_point(router, target, preset_distance, start_time);
+
+    //get hubs of important stations I(hubs)
+    let hubs = hub_selection(router, 50000, hub_time_lim); //cost limit at 10 hours, arbitrary
+
+    println!("hubs: {:?}, t {:?}", &hubs, now.elapsed());
+
+    let mut tps = Vec::new();
+
+    for station in source_stations.iter() {
+        let now = Instant::now();
+        let (l_tps, n_now) =
+            num_transfer_patterns_from_source(station.id, router, Some(&hubs), Some(start_time));
+        println!(
+            "local tp {:?} or immediate {:?}",
+            now.elapsed(),
+            n_now.elapsed()
+        );
+
+        let now = Instant::now();
+        tps.extend(l_tps.lock().unwrap().drain(..));
+        println!("extending local {:?}", now.elapsed());
+    }
+
+    let now = Instant::now();
+    let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
+    let used_hubs: Vec<_> = hubs.iter().filter(|n| reached.contains(n)).collect();
+
+    //global transfer patterns from I(hubs) to to N(target())
+    println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
+
+    for hub in used_hubs.iter() {
+        let now = Instant::now();
+        let (g_tps, n_now) =
+            num_transfer_patterns_from_source(**hub, router, None, Some(start_time));
+        println!(
+            "ran tp for hubs {:?} vs immediate {:?}",
+            now.elapsed(),
+            n_now.elapsed()
+        );
+
+        let now = Instant::now();
+        tps.extend(g_tps.lock().unwrap().drain(..));
+        println!("extending hubs {:?}", now.elapsed());
+    }
+
+    let now = Instant::now();
+
+    //this code doesn't meld with the new vers. needs additional debug, will do later
+    /*
+    let source_nodes: Vec<_> = nodes_per_source
+        .into_iter()
+        .flat_map(|x| {
+            x.into_iter()
+                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
+                .1
+        })
+        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
+        .collect();
+
+    let earliest_departure = source_nodes.iter().min_by_key(|a| a.time).unwrap().time;
+
+    let target_nodes: Vec<_> = nodes_per_target
+        .into_iter()
+        .flat_map(|x| {
+            x.into_iter()
+                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
+                .1
+        })
+        .filter(|node| {
+            node.time >= earliest_departure && node.time <= Some(earliest_departure.unwrap() + 3600)
+            //how long you're willing to wait
+        })
+        .collect();
+    */
+
+    let paths = tps
+        .iter()
+        .filter(|v| {
+            source_nodes.contains(v.first().unwrap()) || target_nodes.contains(v.last().unwrap())
+        })
+        .collect::<Vec<_>>();
+
+    println!("paths {:?}", now.elapsed());
+
+    let now = Instant::now();
+
+    let mut edges = HashMap::new(); //tail, heads
+
+    for path in paths.iter() {
+        let mut prev = None;
+        for node in path.iter() {
+            if let Some(prev) = prev {
+                match edges.entry(prev) {
+                    Entry::Occupied(mut o) => {
+                        let heads: &mut HashSet<NodeId> = o.get_mut();
+                        heads.insert(*node);
+                    }
+                    Entry::Vacant(v) => {
+                        let heads = HashSet::from([*node]);
+                        v.insert(heads);
+                    }
+                }
+            }
+            prev = Some(*node);
+        }
+    }
+
+    println!("collecting paths {:?}", now.elapsed());
+
+    let station_map = router.graph.station_map.clone();
+
+    QueryGraph {
+        source,
+        target,
+        edges,
+        source_stations,
+        target_stations,
+        hubs,
+        source_nodes,
+        target_nodes,
+        station_map: station_map.unwrap(),
+    }
+}
+
+pub fn stations_near_point(
+    router: &TransitDijkstra,
+    source: Point,
+    preset_distance: f64,
+    start_time: u64,
+) -> (HashSet<Station>, HashSet<NodeId>) {
+        let now = Instant::now();
+        let (source_stations, nodes_per_source): (HashSet<_>, Vec<_>)=
+        router
+        .graph
+        .station_info
+        .as_ref()
+        .unwrap()
+        .clone()
+        .into_iter()
+        .filter(|(station, _)| {
+            let node_coord = point!(x: station.lon as f64 / f64::powi(10.0, 14), y: station.lat as f64 / f64::powi(10.0, 14));
+            Haversine::distance(source, node_coord) <= preset_distance
+        })
+        .unzip();
+
+        let source_nodes: HashSet<NodeId> = nodes_per_source
+            .into_iter()
+            .flat_map(|x| {
+                x.into_iter()
+                    .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
+                    .1
+            })
+            .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
+            .collect();
+
+        println!(
+            "Possible nodes count: {}, t {:?}",
+            source_stations.len(),
+            now.elapsed()
+        );
+
+        (source_stations, source_nodes)
+}
+
 //only calculate global time expanded dijkstra from hubs (important stations) to save complexity
 //picks important hubs if they are more often visted from Dijkstras-until-all-nodes-settled
 pub fn hub_selection(
@@ -22,7 +213,7 @@ pub fn hub_selection(
     cost_limit: u64,
 ) -> HashSet<i64> {
     //station ids
-    let num_stations = 1.max((router.graph.station_map.len() as u32) / 100);
+    let num_stations = 1.max((router.graph.station_map.as_ref().unwrap().len() as u32) / 100);
     let mut selected_hubs: HashSet<i64> = HashSet::new();
 
     let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, u64>> = HashMap::new();
@@ -67,8 +258,8 @@ pub fn hub_selection(
         //transfer_buffer: router.graph.transfer_buffer,
         nodes: time_independent_nodes,
         edges: time_independent_edges,
-        station_map: HashMap::from([]),
-        station_info: HashMap::from([]),
+        station_map: None,
+        station_info: None,
     };
 
     let mut time_independent_router = TransitDijkstra::new(&time_independent_graph);
@@ -232,191 +423,10 @@ pub fn make_points_from_coords(
     (source, target)
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct QueryGraphItem {
-    source: Point,
-    target: Point,
-    pub edges: HashMap<NodeId, HashSet<NodeId>>,
-    source_stations: Vec<Station>,
-    target_stations: Vec<Station>,
-    hubs: HashSet<i64>,
-    source_nodes: Vec<NodeId>,
-    target_nodes: Vec<NodeId>,
-    station_map: HashMap<String, i64>,
-}
-
-pub fn query_graph_construction_from_geodesic_points(
-    router: &mut TransitDijkstra,
-    source: Point,
-    target: Point,
-    start_time: u64,
-    hub_time_lim: u64,
-    preset_distance: f64, //in meters
-) -> QueryGraphItem {
-    let now = Instant::now();
-    //compute sets of N(source) and N(target) of stations N= near
-    let (source_ids, (source_stations, nodes_per_source)): (Vec<i64>, (Vec<_>, Vec<_>))=
-    router
-    .graph.station_info
-    .clone()
-    .into_iter()
-    .filter(|(_, station)| {
-        let node_coord = point!(x: station.0.lon as f64 / f64::powi(10.0, 14), y: station.0.lat as f64 / f64::powi(10.0, 14));
-        Haversine::distance(source, node_coord) <= preset_distance
-    })
-    .unzip();
-
-    println!(
-        "Possible start nodes count: {}, t {:?}",
-        source_ids.len(),
-        now.elapsed()
-    );
-    let now = Instant::now();
-
-    //let earliest_departure = sources.iter().min_by_key(|a| a.time).unwrap().time;
-
-    let (target_ids, (target_stations, nodes_per_target)): (Vec<i64>, (Vec<_>, Vec<_>))=
-    router
-    .graph.station_info
-    .clone()
-    .into_iter()
-    .filter(|(_, station)| {
-        let node_coord = point!(x: station.0.lon as f64 / f64::powi(10.0, 14), y: station.0.lat as f64 / f64::powi(10.0, 14));
-        Haversine::distance(target, node_coord) <= preset_distance
-    })
-    .unzip();
-
-    println!(
-        "Possible end nodes count: {}, t {:?}",
-        target_ids.len(),
-        now.elapsed()
-    );
-    let now = Instant::now();
-
-    //get hubs of important stations I(hubs)
-    let hubs = hub_selection(router, 50000, hub_time_lim); //cost limit at 10 hours, arbitrary
-
-    println!("hubs: {:?}, t {:?}", &hubs, now.elapsed());
-
-    let mut tps = Vec::new();
-
-    for source_id in source_ids {
-        let now = Instant::now();
-        let (l_tps, n_now) =
-            num_transfer_patterns_from_source(source_id, router, Some(&hubs), Some(start_time));
-        println!(
-            "local tp {:?} or immediate {:?}",
-            now.elapsed(),
-            n_now.elapsed()
-        );
-
-        let now = Instant::now();
-        tps.extend(l_tps.lock().unwrap().drain(..));
-        println!("extending local {:?}", now.elapsed());
-    }
-
-    let now = Instant::now();
-    let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
-    let used_hubs: Vec<_> = hubs.iter().filter(|n| reached.contains(n)).collect();
-
-    //global transfer patterns from I(hubs) to to N(target())
-    println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
-
-    for hub in used_hubs.iter() {
-        let now = Instant::now();
-        let (g_tps, n_now) =
-            num_transfer_patterns_from_source(**hub, router, None, Some(start_time));
-        println!(
-            "ran tp for hubs {:?} vs immediate {:?}",
-            now.elapsed(),
-            n_now.elapsed()
-        );
-
-        let now = Instant::now();
-        tps.extend(g_tps.lock().unwrap().drain(..));
-        println!("extending hubs {:?}", now.elapsed());
-    }
-
-    let now = Instant::now();
-
-    let source_nodes: Vec<_> = nodes_per_source
-        .into_iter()
-        .flat_map(|x| {
-            x.into_iter()
-                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
-                .1
-        })
-        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
-        .collect();
-
-    let earliest_departure = source_nodes.iter().min_by_key(|a| a.time).unwrap().time;
-
-    let target_nodes: Vec<_> = nodes_per_target
-        .into_iter()
-        .flat_map(|x| {
-            x.into_iter()
-                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
-                .1
-        })
-        .filter(|node| {
-            node.time >= earliest_departure && node.time <= Some(earliest_departure.unwrap() + 3600)
-            //how long you're willing to wait
-        })
-        .collect();
-
-    let paths = tps
-        .iter()
-        .filter(|v| {
-            source_nodes.contains(v.first().unwrap()) || target_nodes.contains(v.last().unwrap())
-        })
-        .collect::<Vec<_>>();
-
-    println!("paths {:?}", now.elapsed());
-
-    let now = Instant::now();
-
-    let mut edges = HashMap::new(); //tail, heads
-
-    for path in paths.iter() {
-        let mut prev = None;
-        for node in path.iter() {
-            if let Some(prev) = prev {
-                match edges.entry(prev) {
-                    Entry::Occupied(mut o) => {
-                        let heads: &mut HashSet<NodeId> = o.get_mut();
-                        heads.insert(*node);
-                    }
-                    Entry::Vacant(v) => {
-                        let heads = HashSet::from([*node]);
-                        v.insert(heads);
-                    }
-                }
-            }
-            prev = Some(*node);
-        }
-    }
-
-    println!("collecting paths {:?}", now.elapsed());
-
-    let station_map = router.graph.station_map.clone();
-
-    QueryGraphItem {
-        source,
-        target,
-        edges,
-        source_stations,
-        target_stations,
-        hubs,
-        source_nodes,
-        target_nodes,
-        station_map,
-    }
-}
-
 pub fn query_graph_search(
     //roads: &RoadNetwork,
     connections: DirectConnections,
-    query_info: QueryGraphItem,
+    query_info: QueryGraph,
 ) -> Option<(NodeId, PathedNode)> {
     /*let mut source_paths: HashMap<i64, _> = HashMap::new();
 
@@ -485,7 +495,7 @@ pub fn query_graph_search(
     */
 
     let mut min_cost = 0;
-    let mut router = TDDijkstra::new(connections, query_info.edges, query_info.station_map);
+    let mut router = TDDijkstra::new(connections, query_info.edges);
 
     let mut returned_val: Option<(NodeId, PathedNode)> = None; //source, target, path
 

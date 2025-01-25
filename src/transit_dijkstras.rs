@@ -164,7 +164,7 @@ impl TransitDijkstra {
             {
                 inactive_nodes.extend(neighbors.iter().map(|(node, _)| node));
             }
-            
+
             */
 
             //stop conditions
