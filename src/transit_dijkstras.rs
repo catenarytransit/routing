@@ -243,28 +243,23 @@ impl TransitDijkstra {
         full_node_list.get(random).copied()
     }*/
 }
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
     //handle time dependent dijkstra calculations
     pub connections: DirectConnections,
     pub edges: HashMap<NodeId, HashSet<NodeId>>,
     pub visited_nodes: HashMap<NodeId, PathedNode>,
-    pub station_map: HashMap<String, i64>,
 }
 
 impl TDDijkstra {
     //implementation of time dependent shortest path algorithm
-    pub fn new(
-        connections: DirectConnections,
-        edges: HashMap<NodeId, HashSet<NodeId>>,
-        station_map: HashMap<String, i64>,
-    ) -> Self {
+    pub fn new(connections: DirectConnections, edges: HashMap<NodeId, HashSet<NodeId>>) -> Self {
         let visited_nodes = HashMap::new();
         Self {
             connections,
             edges,
             visited_nodes,
-            station_map,
         }
     }
 
@@ -275,33 +270,23 @@ impl TDDijkstra {
     ) -> Vec<(NodeId, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
-        let mut next_node_edges = HashMap::new();
 
         if let Some(arcs) = self.edges.get(&current.node_self) {
             for next_node in arcs {
+                if self.visited_nodes.contains_key(next_node) {
+                    continue;
+                }
+
                 if let Some((dept, arr)) = direct_connection_query(
                     connections,
-                    *self
-                        .station_map
-                        .get(&current.node_self.station_id.to_string())
-                        .unwrap(),
-                    *self
-                        .station_map
-                        .get(&next_node.station_id.to_string())
-                        .unwrap(),
+                    current.node_self.station_id,
+                    next_node.station_id,
                     current.node_self.time.unwrap(),
                 ) {
                     let cost = arr - dept;
-                    next_node_edges.insert(next_node, cost);
+                    paths.push((*next_node, cost));
                 }
             }
-        }
-        for (next_node_id, cost) in next_node_edges {
-            if self.visited_nodes.contains_key(next_node_id) {
-                continue;
-            }
-
-            paths.push((*next_node_id, cost));
         }
         paths
     }
@@ -309,7 +294,7 @@ impl TDDijkstra {
     pub fn time_dependent_dijkstra(
         &mut self,
         source_id: NodeId,
-        target_id: &[NodeId], //if target == None, settles all reachable nodes
+        target_id: &HashSet<NodeId>, //if target == None, settles all reachable nodes
     ) -> Option<PathedNode> {
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
