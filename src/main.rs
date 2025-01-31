@@ -1,113 +1,74 @@
 #![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
-use serde_json::{Result, Value};
-use std::fs::File;
+use std::fs::*;
 use std::io::BufReader;
+use std::time::Instant;
+use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
 
 fn main() {
-    /*
-    use geo::point;
-    use std::collections::HashMap;
-    use std::time::Instant;
-    use transit_router::coord_int_convert::*;
-    use transit_router::road_dijkstras::*;
-    use transit_router::transit_dijkstras::TransitDijkstra;
-    use transit_router::RoadNetwork;
-    use transit_router::{transfer_patterns::*, transit_network::*};
+    let savepath = "results.json";
 
-    let now = Instant::now();
-    let gtfs = read_from_gtfs_zip("gtfs_stm.zip");
-    let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 10);
-
+    println!("generating transit network graph");
+    let gtfs = read_from_gtfs_zip("ctt.zip");
+    let trips = gtfs.trips.clone();
+    let routes = gtfs.routes.clone();
+    let stops = gtfs.stops.clone();
+    let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
     let mut router = TransitDijkstra::new(&transit_graph);
 
-    println!("time for transit {:?}", now.elapsed());
-    let now = Instant::now();
+    //full routing test
+    //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
+    //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
 
-    //read bytes from file ped-and-bike-north-america-canada-quebec.osm.bincode
-    //let path = "./ped-and-bike-north-america-canada-quebec.osm.bincode";
+    let preset_distance = 250.0;
 
-    /*read data from file
-    let bytes = fs::read(path).unwrap();
-    let data = RoadNetwork::from_bincode_file(&bytes);*/
-
-    let data = RoadNetwork::read_from_osm_file("quebec1.pbf").unwrap();
-    let mut roads = RoadNetwork::new(data.0, data.1);
-    roads = roads.reduce_to_largest_connected_component();
-
-    println!("time for road {:?}", now.elapsed());
-
-    println!("# of nodes: {}", roads.nodes.len());
-    println!(
-        "# of edges: {}",
-        roads.edges.values().map(|edges| edges.len()).sum::<usize>()
+    //pepperidge farm to harriet beecher stowe center
+    let (source, target) = make_points_from_coords(
+        41.86829675142084,
+        -72.71973332600558,
+        41.76726348091365,
+        -72.70049435551549,
     );
-
-    //Gare de Centrale, Montreal, Quebec, Canada
-    let source = point! {x:-73.567398, y:45.499860
-    };
-    //Parc Olympique, Montreal, Quebec, Canada
-    let target = point! {
-        x:-73.547620, y:45.559989
-    };
-
-    let start_time = 32400;
-
-    use rstar::RTree;
-
-    let mut source_paths: HashMap<&NodeId, RoadPathedNode> = HashMap::new();
-    let road_node_tree = RTree::bulk_load(
-        roads
-            .nodes
-            .values()
-            .map(|n| int_to_coord(n.lon, n.lat))
-            .collect(),
-    );
-
-    println!("Made rtree");
-
-    let mut graph = RoadDijkstra::new(&roads);
-
-    println!("Starting graph construction");
-
-    let preset_distance = 500.0;
 
     let now = Instant::now();
     let graph = query_graph_construction_from_geodesic_points(
         &mut router,
         source,
         target,
-        //09:00 departure
-        32400,
+        18600, //5:10 AM
+        86400, //24 hour searchspace
         preset_distance,
     );
 
+    let output = File::create(savepath).unwrap();
     println!("query graph constructed in {:?}", now.elapsed());
+    serde_json::to_writer(output, &graph).unwrap();
 
-    //println!("source nodes {:?}", graph.0);
-    //println!("target nodes {:?}", graph.1);
+    //part 2
 
-    let run_query = query_graph_search(
-        &roads,
-        connections,
-        graph,
-        preset_distance,
-    );
+    let file = File::open(savepath).ok().unwrap();
+    let reader = BufReader::new(file);
+    let graph: QueryGraph = serde_json::from_reader(reader).unwrap();
 
-    let reverse_station_map = transit_graph
-        .station_map
-        .iter()
-        .map(|(name, id)| (id, name))
-        .collect::<HashMap<_, _>>();
+    let run_query = query_graph_search(connections, graph);
 
     if let Some(stuff) = run_query {
-        let path = stuff.2.get_path();
-        for node in path.0 {
-            println!(
-                "path: {}",
-                reverse_station_map.get(&node.station_id).unwrap()
-            );
+        let path = stuff.1.get_tp(&trips);
+        for (node, route) in path.0 {
+            println!("{:?}", node);
+            if let Some(route) = route {
+                println!(
+                    "via {:?}",
+                    //stops.get(&node.station_id.to_string()).unwrap(),
+                    routes.get(&route).unwrap().short_name
+                );
+            } else {
+                println!("start {}", stops.get(&node.station_id.to_string()).unwrap());
+            }
         }
-    }*/
+    } else {
+        println!("no path");
+    }
+
 }
