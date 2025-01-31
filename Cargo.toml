@@ -9,6 +9,7 @@ edition = "2021"
 arguments = "0.8.0"
 bincode = "1.3.3"
 chrono = "0.4.39"
+clap = { version = "4.5.27", features = ["derive"] }
 geo = { version = "0.29.3", features = ["serde", "use-serde"] }
 gtfs-structures = "0.42.0"
 ittapi = "0.4.0"

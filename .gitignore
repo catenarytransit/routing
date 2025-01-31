@@ -6,3 +6,5 @@
 /vtune
 *.zip
 good.json
+
+.results.json

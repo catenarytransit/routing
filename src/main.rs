@@ -21,8 +21,23 @@ pub fn make_points_from_coords(
     (source, target)
 }
 
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+
+    /// Number of times to greet
+    #[arg(long, default_value_t = true)]
+    makequerygraph: bool,
+}
+
 #[tokio::main]
 async fn main() {
+    let args = Args::parse();
+
+    println!("Arguments: {:#?}", args);
+
     let savepath = "results.json";
 
     println!("generating transit network graph");
@@ -45,28 +60,30 @@ async fn main() {
 
     let preset_distance = 250.0;
 
-    //pepperidge farm to harriet beecher stowe center
-    /*let (source, target) = make_points_from_coords(
-        41.86829675142084,
-        -72.71973332600558,
-        41.76726348091365,
-        -72.70049435551549,
-    );
+    if (args.makequerygraph) {
+        //pepperidge farm to harriet beecher stowe center
+        let (source, target) = make_points_from_coords(
+            41.86829675142084,
+            -72.71973332600558,
+            41.76726348091365,
+            -72.70049435551549,
+        );
 
-    let now = Instant::now();
-    let graph = query_graph_construction(
-        &mut router,
-        source,
-        target,
-        18600, //5:10 AM
-        86400, //24 hour searchspace
-        preset_distance,
-    )
-    .await;
+        let now = Instant::now();
+        let graph = query_graph_construction(
+            &mut router,
+            source,
+            target,
+            18600, //5:10 AM
+            86400, //24 hour searchspace
+            preset_distance,
+        )
+        .await;
 
-    let output = File::create(savepath).unwrap();
-    println!("query graph constructed in {:?}", now.elapsed());
-    serde_json::to_writer(output, &graph).unwrap();*/
+        let output = File::create(savepath).unwrap();
+        println!("query graph constructed in {:?}", now.elapsed());
+        serde_json::to_writer(output, &graph).unwrap();
+    }
 
     //part 2
 

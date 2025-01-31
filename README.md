@@ -23,3 +23,12 @@ Download le file GTFS de STM
 ```bash
 wget https://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip
 ```
+
+### Query Graph flag
+
+To produce a query graph, for example, on the first run, execute
+`./target/release/transit-router --makequerygraph true`
+
+or `cargo run --release -- --makequerygraph true`
+
+to reuse, put false
