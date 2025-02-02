@@ -26,7 +26,7 @@ pub struct QueryGraph {
     station_map: HashMap<String, Station>,
 }
 
-pub fn query_graph_construction_from_geodesic_points(
+pub fn query_graph_construction(
     router: &mut TransitDijkstra,
     source: Point,
     target: Point,
@@ -52,7 +52,7 @@ pub fn query_graph_construction_from_geodesic_points(
     for station in source_stations.iter() {
         let now = Instant::now();
         let (l_tps, n_now) =
-            transfer_patterns_from_source(station.id, router, Some(&hubs), Some(start_time));
+            transfer_patterns_from_source(station.id, router, Some(&hubs), None, Some(start_time));
         println!(
             "local tp {:?} or immediate {:?}",
             now.elapsed(),
@@ -68,13 +68,14 @@ pub fn query_graph_construction_from_geodesic_points(
     let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
     let used_hubs: Vec<_> = hubs.iter().filter(|n| reached.contains(n)).collect();
 
+    let target_ids = target_stations.iter().map(|id| id.id).collect();
+
     //global transfer patterns from I(hubs) to to N(target())
     println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
 
     for hub in used_hubs.iter() {
         let now = Instant::now();
-        let (g_tps, n_now) =
-            transfer_patterns_from_source(**hub, router, None, Some(start_time));
+        let (g_tps, n_now) = transfer_patterns_from_source(**hub, router, None, Some(&target_ids), Some(start_time));
         println!(
             "ran tp for hubs {:?} vs immediate {:?}",
             now.elapsed(),
@@ -87,34 +88,6 @@ pub fn query_graph_construction_from_geodesic_points(
     }
 
     let now = Instant::now();
-
-    //this code doesn't meld with the new vers. needs additional debug, will do later
-    /*
-    let source_nodes: Vec<_> = nodes_per_source
-        .into_iter()
-        .flat_map(|x| {
-            x.into_iter()
-                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
-                .1
-        })
-        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
-        .collect();
-
-    let earliest_departure = source_nodes.iter().min_by_key(|a| a.time).unwrap().time;
-
-    let target_nodes: Vec<_> = nodes_per_target
-        .into_iter()
-        .flat_map(|x| {
-            x.into_iter()
-                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
-                .1
-        })
-        .filter(|node| {
-            node.time >= earliest_departure && node.time <= Some(earliest_departure.unwrap() + 3600)
-            //how long you're willing to wait
-        })
-        .collect();
-    */
 
     let paths = tps
         .iter()
@@ -171,8 +144,8 @@ pub fn stations_near_point(
     preset_distance: f64,
     start_time: u64,
 ) -> (HashSet<Station>, HashSet<NodeId>) {
-        let now = Instant::now();
-        let (source_stations, nodes_per_source): (HashSet<_>, Vec<_>)=
+    let now = Instant::now();
+    let (source_stations, nodes_per_source): (HashSet<_>, Vec<_>)=
         router
         .graph
         .station_info
@@ -186,23 +159,23 @@ pub fn stations_near_point(
         })
         .unzip();
 
-        let source_nodes: HashSet<NodeId> = nodes_per_source
-            .into_iter()
-            .flat_map(|x| {
-                x.into_iter()
-                    .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
-                    .1
-            })
-            .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
-            .collect();
+    let source_nodes: HashSet<NodeId> = nodes_per_source
+        .into_iter()
+        .flat_map(|x| {
+            x.into_iter()
+                .unzip::<u64, NodeId, Vec<u64>, Vec<NodeId>>()
+                .1
+        })
+        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
+        .collect();
 
-        println!(
-            "Possible nodes count: {}, t {:?}",
-            source_stations.len(),
-            now.elapsed()
-        );
+    println!(
+        "Possible nodes count: {}, t {:?}",
+        source_stations.len(),
+        now.elapsed()
+    );
 
-        (source_stations, source_nodes)
+    (source_stations, source_nodes)
 }
 
 //only calculate global time expanded dijkstra from hubs (important stations) to save complexity
@@ -302,6 +275,7 @@ pub fn transfer_patterns_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
+    targets: Option<&HashSet<i64>>,
     start_time: Option<u64>,
 ) -> (Mutex<Vec<Vec<NodeId>>>, Instant) {
     println!("start tp calc \t");
@@ -333,9 +307,31 @@ pub fn transfer_patterns_from_source(
         .map(|(node, pathed_node)| {
             let (mut path, cost) = pathed_node.get_path();
             path.reverse();
+            if hubs.is_some() {
+                let len = path
+                    .iter()
+
+                    //err cant find lines per station
+                    .position(|node| node.node_type == NodeType::Transfer && hubs.as_ref().unwrap().contains(&node.station_id))
+                    .unwrap_or(path.len())
+                    + 1;
+                path.truncate(len);
+                //if len < path.len(){println!("hub t {len}")};
+            }
+            if targets.is_some() {
+                let len = path
+                    .iter()
+
+                    //err cant find lines per station
+                    .position(|node| node.node_type == NodeType::Arrival && targets.as_ref().unwrap().contains(&node.station_id))
+                    .unwrap_or(0);
+                path.truncate(len);
+                //if len > 0 {println!("targ t {len}")};
+            }
             (node, path, cost)
         })
         .collect();
+    arrival_nodes.retain(|(_, path, _)| !path.is_empty());
     println!("filtered arrivals {:?}", now.elapsed());
     let now = Instant::now();
 
@@ -362,10 +358,10 @@ pub fn transfer_patterns_from_source(
                 //transfers.push(*target);
                 //let mut previous_node: NodeId = *target;
                 for &node in path {
-                    if //previous_node.node_type == NodeType::Departure
-                        //|| previous_node.node_type == NodeType::Transfer && 
-                        node.node_type == NodeType::Transfer
-                    {
+                    if
+                    //previous_node.node_type == NodeType::Departure
+                    //|| previous_node.node_type == NodeType::Transfer &&
+                    node.node_type == NodeType::Transfer {
                         transfers.push(node);
                     }
                     //previous_node = node;
