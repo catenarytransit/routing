@@ -75,7 +75,8 @@ pub fn query_graph_construction(
 
     for hub in used_hubs.iter() {
         let now = Instant::now();
-        let (g_tps, n_now) = transfer_patterns_from_source(**hub, router, None, Some(&target_ids), Some(start_time));
+        let (g_tps, n_now) =
+            transfer_patterns_from_source(**hub, router, None, Some(&target_ids), Some(start_time));
         println!(
             "ran tp for hubs {:?} vs immediate {:?}",
             now.elapsed(),
@@ -310,22 +311,34 @@ pub fn transfer_patterns_from_source(
             if hubs.is_some() {
                 let len = path
                     .iter()
-
-                    //err cant find lines per station
-                    .position(|node| node.node_type == NodeType::Transfer && hubs.as_ref().unwrap().contains(&node.station_id))
-                    .unwrap_or(path.len())
-                    + 1;
-                path.truncate(len);
+                    .position(|node| hubs.as_ref().unwrap().contains(&node.station_id))
+                    .unwrap_or(path.len());
+                let u: Vec<_> = path.drain(len..).collect();
+                let mut iter = u.chunk_by(|a, b| a.station_id == b.station_id);
+                let add_back_node = iter.next().unwrap_or(&[]);
+                //println!("{:?}", add_back_node);
+                path.extend(add_back_node);
                 //if len < path.len(){println!("hub t {len}")};
             }
             if targets.is_some() {
                 let len = path
                     .iter()
-
                     //err cant find lines per station
-                    .position(|node| node.node_type == NodeType::Arrival && targets.as_ref().unwrap().contains(&node.station_id))
+                    //chunk this and find the last node in this sequence for the target found?
+                    .position(|node| {
+                        targets.as_ref().unwrap().contains(&node.station_id)
+                    })
                     .unwrap_or(0);
-                path.truncate(len);
+                if len != 0 {
+                    let u: Vec<_> = path.drain(len..).collect();
+                    //println!("{:?}", u);
+                    let mut iter = u.chunk_by(|a, b| a.station_id == b.station_id);
+                    let add_back_node = iter.next().unwrap_or(&[]);
+                    //println!("{:?}", add_back_node);
+                    path.extend(add_back_node);
+                } else {
+                    path.clear();
+                }
                 //if len > 0 {println!("targ t {len}")};
             }
             (node, path, cost)
