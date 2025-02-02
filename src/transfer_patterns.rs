@@ -52,7 +52,7 @@ pub fn query_graph_construction_from_geodesic_points(
     for station in source_stations.iter() {
         let now = Instant::now();
         let (l_tps, n_now) =
-            num_transfer_patterns_from_source(station.id, router, Some(&hubs), Some(start_time));
+            transfer_patterns_from_source(station.id, router, Some(&hubs), Some(start_time));
         println!(
             "local tp {:?} or immediate {:?}",
             now.elapsed(),
@@ -74,7 +74,7 @@ pub fn query_graph_construction_from_geodesic_points(
     for hub in used_hubs.iter() {
         let now = Instant::now();
         let (g_tps, n_now) =
-            num_transfer_patterns_from_source(**hub, router, None, Some(start_time));
+            transfer_patterns_from_source(**hub, router, None, Some(start_time));
         println!(
             "ran tp for hubs {:?} vs immediate {:?}",
             now.elapsed(),
@@ -298,7 +298,7 @@ pub fn hub_selection(
 
 // Precompute transfer patterns from a given station to all other stations.
 // Return the transfer patterns & numbers between each station pair.
-pub fn num_transfer_patterns_from_source(
+pub fn transfer_patterns_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
@@ -331,7 +331,8 @@ pub fn num_transfer_patterns_from_source(
         .into_iter()
         .filter(|(node, _)| node.node_type == NodeType::Arrival)
         .map(|(node, pathed_node)| {
-            let (path, cost) = pathed_node.get_path();
+            let (mut path, cost) = pathed_node.get_path();
+            path.reverse();
             (node, path, cost)
         })
         .collect();
@@ -358,19 +359,20 @@ pub fn num_transfer_patterns_from_source(
             {
                 let (target, path, _) = src.get(i).unwrap();
                 let mut transfers = Vec::new();
-                transfers.push(*target);
-                let mut previous_node: NodeId = *target;
+                //transfers.push(*target);
+                //let mut previous_node: NodeId = *target;
                 for &node in path {
-                    if previous_node.node_type == NodeType::Departure
-                        || previous_node.node_type == NodeType::Transfer
-                            && node.node_type == NodeType::Transfer
+                    if //previous_node.node_type == NodeType::Departure
+                        //|| previous_node.node_type == NodeType::Transfer && 
+                        node.node_type == NodeType::Transfer
                     {
                         transfers.push(node);
                     }
-                    previous_node = node;
+                    //previous_node = node;
                 }
 
-                transfers.reverse();
+                transfers.push(*target);
+                //transfers.reverse();
 
                 transfer_patterns.lock().unwrap().push(transfers);
             }
