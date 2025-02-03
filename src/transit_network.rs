@@ -392,7 +392,7 @@ pub fn direct_connection_query(
     }
 
     if route.is_empty() {
-        println!("cant find lines per station");
+        println!("{:?} to {:?} dne", start_station, end_station);
     }
 
     if let Some(table) = connections.route_tables.get(route) {
@@ -410,7 +410,6 @@ pub fn direct_connection_query(
             None
         }
     } else {
-        println!("err ");
         None
     }
 }
