@@ -14,9 +14,12 @@ gtfs-structures = "0.43.0"
 osmpbfreader = "0.17.0"
 rand = "0.9.0"
 rstar = "0.12.2"
-serde = { version = "1.0.215", features = ["derive"] }
-serde_json = "1.0.133"
-serde_with = "3.11.0"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.134"
+serde_with = "3.12.0"
+tokio = { version = "1.42.0", features = ["full"] }
+clap = { version = "4.5.27", features = ["derive"] }
+ittapi = "0.4.0"
 
 [profile.release]
 debug = true

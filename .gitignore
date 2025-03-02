@@ -1,7 +1,7 @@
-*.zip
 *.pbf
 /target
 *.osm.bincode
 *:Zone.Identifier
+/tmp
+*.zip
 /vtune
-good.json

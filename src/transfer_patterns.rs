@@ -185,7 +185,7 @@ pub fn hub_selection(
     router: &TransitDijkstra,
     random_samples: u32,
     cost_limit: u64,
-) -> HashSet<i64> {
+) -> Vec<i64> {
     //station ids
     let num_stations = 1.max((router.graph.station_map.as_ref().unwrap().len() as u32) / 100);
     let mut selected_hubs: HashSet<i64> = HashSet::new();
@@ -242,7 +242,8 @@ pub fn hub_selection(
     let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
 
     for _ in 0..random_samples {
-        let current_node = vec![time_independent_router.get_random_node_id().unwrap()];
+        let node = time_independent_router.get_random_node_id().unwrap();
+        let current_node = vec![&node];
         let visited_nodes = time_independent_router.time_expanded_dijkstra(current_node, None);
         for (node, _) in visited_nodes.iter() {
             match hub_list.entry(*node) {
@@ -262,7 +263,7 @@ pub fn hub_selection(
 
     for _ in 0..num_stations {
         let hub = sorted_hubs.pop().unwrap();
-        selected_hubs.insert(hub.1.station_id);
+        selected_hubs.push(hub.1.station_id);
     }
 
     time_independent_router.set_cost_upper_bound(u64::MAX); //reset cost upper bound to max
@@ -281,7 +282,7 @@ pub fn transfer_patterns_from_source(
 ) -> (Mutex<Vec<Vec<NodeId>>>, Instant) {
     println!("start tp calc \t");
     let now = Instant::now();
-    let source_transfer_nodes: Vec<NodeId> = router
+    let source_transfer_nodes: Vec<&NodeId> = router
         .graph
         .nodes
         .iter()
@@ -292,7 +293,6 @@ pub fn transfer_patterns_from_source(
                 && node.time >= start_time
         })
         //must check for transfer nodes, but checking for arrival nodes may improve query time at expense of longer precompute
-        .copied()
         .collect();
     println!("found sources {:?}", now.elapsed());
     let now = Instant::now();
@@ -353,7 +353,6 @@ pub fn transfer_patterns_from_source(
     let now = Instant::now();
 
     let total_transfer_patterns = Arc::new(Mutex::new(Vec::new()));
-    let thread_num = 4;
     let source_chunk_len = arrival_nodes.len();
     let threaded_sources = Arc::new(arrival_nodes.clone());
     let mut handles = vec![];
@@ -361,7 +360,8 @@ pub fn transfer_patterns_from_source(
     for x in 1..thread_num {
         let source = Arc::clone(&threaded_sources);
         let transfer_patterns = Arc::clone(&total_transfer_patterns);
-        let handle = thread::spawn(move || {
+        let thread = thread::Builder::new().name(format!("graph_con{}", x));
+        let handle = thread.spawn(move || {
             let src = source;
             for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
                 ..(x * source_chunk_len / (thread_num - 1))
@@ -384,8 +384,9 @@ pub fn transfer_patterns_from_source(
                 //transfers.reverse();
 
                 transfer_patterns.lock().unwrap().push(transfers);
+                transfer_patterns.lock().unwrap().shrink_to_fit();
             }
-        });
+        }).unwrap();
 
         handles.push(handle);
     }

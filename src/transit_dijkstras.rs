@@ -121,8 +121,8 @@ impl TransitDijkstra {
 
     pub fn time_expanded_dijkstra(
         &self,
-        source_id_set: Vec<NodeId>,
-        hubs: Option<&HashSet<i64>>,
+        source_id_set: Vec<&NodeId>,
+        hubs: Option<&Vec<i64>>,
     ) -> HashMap<NodeId, PathedNode> {
         //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
@@ -135,8 +135,8 @@ impl TransitDijkstra {
         //stores distances of node relative to target
         let mut gscore: HashMap<NodeId, u64> = HashMap::new();
         for source_id in source_id_set {
-            let source_node = PathedNode::new(source_id);
-            gscore.insert(source_id, 0);
+            let source_node = PathedNode::new(*source_id);
+            gscore.insert(*source_id, 0);
             priority_queue.push(Reverse((0, source_node)));
         }
         let mut current_cost;
