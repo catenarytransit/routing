@@ -109,7 +109,7 @@ pub struct LineConnectionTable {
 pub struct DirectConnections {
     //helps find quick transfers between two different lines/routes by matching the station where two lines intersect --> used by Direct Connection Query
     pub route_tables: HashMap<String, LineConnectionTable>, //route_id, table
-    pub lines_per_station: HashMap<i64, Vec<(String, u16)>>, //<stationid, <routeid, stop sequence number>> //gives lines operating at this station
+    pub lines_per_station: HashMap<i64, Vec<(String, u32)>>, //<stationid, <routeid, stop sequence number>> //gives lines operating at this station
 }
 
 //init new transit network graph based on results from reading GTFS zip
@@ -127,7 +127,7 @@ impl TimeExpandedGraph {
         let mut station_info: HashMap<Station, Vec<(u64, NodeId)>> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
 
         let mut route_tables: HashMap<String, LineConnectionTable> = HashMap::new();
-        let mut lines_per_station: HashMap<i64, Vec<(String, u16)>> = HashMap::new();
+        let mut lines_per_station: HashMap<i64, Vec<(String, u32)>> = HashMap::new();
 
         let service_ids_of_given_day: HashSet<String> = gtfs
             .calendar
