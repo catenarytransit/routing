@@ -121,8 +121,8 @@ impl TransitDijkstra {
 
     pub fn time_expanded_dijkstra(
         &self,
-        source_id_set: Vec<&NodeId>,
-        hubs: Option<&Vec<i64>>,
+        source_id_set: Vec<NodeId>,
+        hubs: Option<&HashSet<i64>>,
     ) -> HashMap<NodeId, PathedNode> {
         //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
@@ -135,8 +135,8 @@ impl TransitDijkstra {
         //stores distances of node relative to target
         let mut gscore: HashMap<NodeId, u64> = HashMap::new();
         for source_id in source_id_set {
-            let source_node = PathedNode::new(*source_id);
-            gscore.insert(*source_id, 0);
+            let source_node = PathedNode::new(source_id);
+            gscore.insert(source_id, 0);
             priority_queue.push(Reverse((0, source_node)));
         }
         let mut current_cost;
@@ -149,7 +149,7 @@ impl TransitDijkstra {
 
             //stop search for local TP if all unsettled NodeIds are inactive -->
             //all unvisited nodes should become subset of inactive nodes
-            //don't need this with 3-legs heuristic
+            //don't need this with 3-legs heuristic, never reaches this point yay
             /*if hubs.is_some() {
                 let a = visited_nodes.keys().collect::<HashSet<_>>();
                 let b = inactive_nodes.iter().collect();
@@ -158,12 +158,14 @@ impl TransitDijkstra {
                     println!("augh");
                     return visited_nodes;
                 }
-                if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
-                    && pathed_current_node.node_self.node_type == NodeType::Transfer
-                {
-                    inactive_nodes.extend(neighbors.iter().map(|(node, _)| node));
-                }
-            }*/
+            }
+            if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
+                && pathed_current_node.node_self.node_type == NodeType::Transfer
+            {
+                inactive_nodes.extend(neighbors.iter().map(|(node, _)| node));
+            }
+
+            */
 
             //stop conditions
             //cost or # of settled nodes goes over limit
@@ -242,6 +244,7 @@ impl TransitDijkstra {
         full_node_list.get(random).copied()
     }*/
 }
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct TDDijkstra {
     //handle time dependent dijkstra calculations

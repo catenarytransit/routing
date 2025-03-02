@@ -77,8 +77,7 @@ async fn main() {
             18600, //5:10 AM
             86400, //24 hour searchspace
             preset_distance,
-        )
-        .await;
+        );
 
         let output = File::create(savepath).unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
