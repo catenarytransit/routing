@@ -6,6 +6,7 @@ use rand::Rng;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::hash::Hash;
+use std::path::Path;
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
@@ -13,7 +14,7 @@ pub struct PathedNode {
     //node that references parent nodes, used to create path from goal node to start node
     pub node_self: NodeId,
     pub cost_from_start: u64,
-    pub parent_node: Option<Rc<PathedNode>>,
+    pub parent_node: Option<NodeId>,
     pub transfer_count: u8,
 }
 
@@ -27,16 +28,17 @@ impl PathedNode {
         }
     }
 
-    pub fn get_path(self) -> (Vec<NodeId>, u64) {
+    pub fn get_path(self, nodespace: HashMap<NodeId, PathedNode>) -> (Vec<NodeId>, u64) {
         //path, cost
         //uses reference to find the source node with parent_node == None
         //vec.get(0) = target node
         let mut shortest_path = Vec::new();
         let total_distance: u64 = self.cost_from_start;
-        let mut current_path = &Some(Rc::new(self));
-        while let Some(current) = current_path {
-            shortest_path.push(current.node_self); //current.node_self
-            current_path = &current.parent_node; //current = current.parent_node
+        let mut current_path = &self;
+        while let Some(prev) = current_path.parent_node {
+            shortest_path.push(current_path.node_self); //current.node_self
+            let next_node = nodespace.get(&prev).unwrap();
+            current_path = next_node; //current = current.parent_node
         }
         //shortest_path.push(current_path.unwrap()));
         (shortest_path, total_distance)
