@@ -50,7 +50,7 @@ async fn main() {
 
     //generate Time Expanded Graph and Direct Connections for this GTFS file
     let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
-    let mut router = TransitDijkstra::new(&transit_graph);
+    let (mut router, mut paths) = TransitDijkstra::new(&transit_graph);
 
     println!("{}", transit_graph.nodes.len());
 
@@ -72,6 +72,7 @@ async fn main() {
         let now = Instant::now();
         let graph = query_graph_construction(
             &mut router,
+            &mut paths,
             source,
             target,
             18600, //5:10 AM
@@ -108,10 +109,10 @@ async fn main() {
     let run_query = query_graph_search(&roads, connections, graph);
     */
 
-    let run_query = query_graph_search(connections, graph);
+    let run_query = query_graph_search(&mut paths, connections, graph);
 
     if let Some(stuff) = run_query {
-        let path = stuff.1.get_tp(&trips);
+        let path = stuff.1.get_tp(stuff.0, &paths, &trips);
         for (node, route) in path.0 {
             println!("{:?}", node);
             if let Some(route) = route {

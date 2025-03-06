@@ -6,54 +6,60 @@ use rand::Rng;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::hash::Hash;
-use std::path::Path;
-use std::rc::Rc;
 
-#[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct PathedNode {
     //node that references parent nodes, used to create path from goal node to start node
-    pub node_self: NodeId,
-    pub cost_from_start: u64,
+    pub cost_from_start: u32,
     pub parent_node: Option<NodeId>,
     pub transfer_count: u8,
 }
 
-impl PathedNode {
-    pub fn new(id: NodeId) -> PathedNode {
-        PathedNode {
-            node_self: id,
-            cost_from_start: 0,
-            parent_node: None,
-            transfer_count: 0,
+impl PathedNode { //some wacky linked-list kind struct
+
+    pub fn update(&mut self, id: NodeId, new_cost: u32, parent: NodeId, transfers: u8, gscore: &mut HashMap<NodeId, u32>, priority_queue: &mut BinaryHeap<Reverse<(u32, NodeId)>> ) {
+        let temp_distance = self.cost_from_start + new_cost;
+        let next_distance = *gscore.get(&id).unwrap_or(&u32::MAX);
+
+        if temp_distance < next_distance {
+            gscore.insert(id, temp_distance);
+
+            self.cost_from_start += new_cost;
+            self.parent_node = Some(parent);
+            self.transfer_count += transfers;
+
+            priority_queue.push(Reverse((temp_distance, id)));
         }
     }
 
-    pub fn get_path(self, nodespace: HashMap<NodeId, PathedNode>) -> (Vec<NodeId>, u64) {
+    pub fn get_path(id: NodeId, nodespace: &HashMap<NodeId, PathedNode>) -> (Vec<NodeId>, u32) {
         //path, cost
         //uses reference to find the source node with parent_node == None
         //vec.get(0) = target node
         let mut shortest_path = Vec::new();
-        let total_distance: u64 = self.cost_from_start;
-        let mut current_path = &self;
-        while let Some(prev) = current_path.parent_node {
-            shortest_path.push(current_path.node_self); //current.node_self
+        let pathed_node = nodespace.get(&id).unwrap();
+        let total_distance: u32 = pathed_node.cost_from_start;
+        let mut current = pathed_node;
+        while let Some(prev) = current.parent_node {
+            shortest_path.push(id); //current.node_self
             let next_node = nodespace.get(&prev).unwrap();
-            current_path = next_node; //current = current.parent_node
+            current = next_node; //current = current.parent_node
         }
         //shortest_path.push(current_path.unwrap()));
         (shortest_path, total_distance)
     }
 
-    pub fn get_tp(self, trips: &HashMap<String, Trip>) -> (Vec<(NodeId, Option<String>)>, u64) {
+    pub fn get_tp(self,id: NodeId, nodespace: &HashMap<NodeId, PathedNode>, trips: &HashMap<String, Trip>) -> (Vec<(NodeId, Option<String>)>, u32) {
         let mut tp = Vec::new();
-        let journey_cost: u64 = self.cost_from_start;
-        let mut current_path = &Some(Rc::new(self));
+        let journey_cost: u32 = self.cost_from_start;
+        let mut current = &self;
         let mut prev_node: Option<NodeId> = None;
         let mut prev_route: Option<String> = None;
-        while let Some(current) = current_path {
-            let node = current.node_self;
-            let route = current.get_route(trips);
-            current_path = &current.parent_node;
+        while let Some(prev) = current.parent_node {
+            let node = id;
+            let route = current.get_route(id, trips);
+            let next_node = nodespace.get(&prev).unwrap();
+            current = next_node;
 
             if let Some(prev) = prev_node {
                 if prev.trip_id != node.trip_id && prev_route != route
@@ -72,8 +78,8 @@ impl PathedNode {
         (tp, journey_cost)
     }
 
-    pub fn get_route(&self, trips: &HashMap<String, Trip>) -> Option<String> {
-        let trip_id = self.node_self.trip_id.to_string();
+    pub fn get_route(&self, id: NodeId, trips: &HashMap<String, Trip>) -> Option<String> {
+        let trip_id = id.trip_id.to_string();
         let try_trip = trips.get(&trip_id);
         if let Some(trip) = try_trip {
             return Some(trip.route_id.clone());
@@ -86,32 +92,37 @@ impl PathedNode {
 pub struct TransitDijkstra {
     //handle time expanded dijkstra calculations
     pub graph: TimeExpandedGraph,
-    cost_upper_bound: u64,
+    cost_upper_bound: u32,
 }
 
 impl TransitDijkstra {
     //implementation of time expanded dijkstra's shortest path algorithm
-    pub fn new(graph: &TimeExpandedGraph) -> Self {
-        Self {
-            graph: graph.clone(),
-            cost_upper_bound: u64::MAX,
+    pub fn new(graph: TimeExpandedGraph) -> (Self, HashMap<NodeId, PathedNode>) {
+        let t_graph = graph.clone();
+        let mut paths = HashMap::new();
+        for node in graph.nodes{
+            paths.insert(node, PathedNode::default());
         }
+        (Self {
+            graph: t_graph,
+            cost_upper_bound: u32::MAX,
+        }, paths)
     }
 
-    pub fn set_cost_upper_bound(&mut self, upper_bound: u64) {
+    pub fn set_cost_upper_bound(&mut self, upper_bound: u32) {
         self.cost_upper_bound = upper_bound;
     }
 
     pub fn get_neighbors(
         &self,
-        current: &PathedNode,
-        visited_nodes: &HashMap<NodeId, PathedNode>,
-    ) -> Vec<(NodeId, u64)> {
+        current: &NodeId,
+        visited_nodes: &HashSet<NodeId>,
+    ) -> Vec<(NodeId, u32)> {
         //return node id of neighbors
         let mut paths = Vec::new();
-        if let Some(connections) = self.graph.edges.get(&current.node_self) {
+        if let Some(connections) = self.graph.edges.get(current) {
             for (next_node_id, cost) in connections {
-                if visited_nodes.contains_key(next_node_id) {
+                if visited_nodes.contains(next_node_id) {
                     continue;
                 }
 
@@ -125,67 +136,48 @@ impl TransitDijkstra {
         &self,
         source_id_set: Vec<NodeId>,
         hubs: Option<&HashSet<i64>>,
-    ) -> HashMap<NodeId, PathedNode> {
+        paths: &mut HashMap<NodeId, PathedNode>
+    ) -> HashSet<NodeId> {
         //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
 
-        let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
-        let mut visited_nodes: HashMap<NodeId, PathedNode> = HashMap::new();
+        let mut priority_queue: BinaryHeap<Reverse<(u32, NodeId)>> = BinaryHeap::new();
+        let mut visited_nodes: HashSet<NodeId> = HashSet::new();
         //let mut inactive_nodes: HashSet<NodeId> = HashSet::new();
 
         //stores distances of node relative to target
-        let mut gscore: HashMap<NodeId, u64> = HashMap::new();
+        let mut gscore: HashMap<NodeId, u32> = HashMap::new();
         for source_id in source_id_set {
-            let source_node = PathedNode::new(source_id);
             gscore.insert(source_id, 0);
-            priority_queue.push(Reverse((0, source_node)));
+            priority_queue.push(Reverse((0, source_id)));
         }
-        let mut current_cost;
+        
+        let mut pathed_node;
 
         while !priority_queue.is_empty() {
-            let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
-            current_cost = pathed_current_node.cost_from_start;
-            let idx = pathed_current_node.node_self;
-            visited_nodes.insert(idx, pathed_current_node.clone());
+            let current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
+            pathed_node = paths.get(&current_node).unwrap();
 
-            //stop search for local TP if all unsettled NodeIds are inactive -->
-            //all unvisited nodes should become subset of inactive nodes
-            //don't need this with 3-legs heuristic, never reaches this point yay
-            /*if hubs.is_some() {
-                let a = visited_nodes.keys().collect::<HashSet<_>>();
-                let b = inactive_nodes.iter().collect();
-                let c = a.union(&b);
-                if self.graph.nodes.len() == c.count() {
-                    println!("augh");
-                    return visited_nodes;
-                }
-            }
-            if hubs.is_some_and(|a| a.contains(&pathed_current_node.node_self.station_id))
-                && pathed_current_node.node_self.node_type == NodeType::Transfer
-            {
-                inactive_nodes.extend(neighbors.iter().map(|(node, _)| node));
-            }
-
-            */
+            visited_nodes.insert(current_node);
 
             //stop conditions
             //cost or # of settled nodes goes over limit
-            if current_cost > self.cost_upper_bound {
+            if pathed_node.cost_from_start > self.cost_upper_bound {
                 println!("cost over");
                 return visited_nodes;
             }
 
             //cost is higher than current path (not optimal)
-            if current_cost > *gscore.get(&idx).unwrap_or(&u64::MAX) {
+            if pathed_node.cost_from_start > *gscore.get(&current_node).unwrap_or(&u32::MAX) {
                 continue;
             }
 
-            let neighbors = self.get_neighbors(&pathed_current_node, &visited_nodes);
+            let neighbors = self.get_neighbors(&current_node, &visited_nodes);
 
             for neighbor in neighbors {
-                let mut transfer_count = pathed_current_node.transfer_count;
-                if pathed_current_node.node_self.node_type == NodeType::Transfer
+                let mut transfer_count = 0;
+                if current_node.node_type == NodeType::Transfer
                     //&& neighbor.0.node_type == NodeType::Arrival
                     && neighbor.0.node_type == NodeType::Departure
                 {
@@ -198,22 +190,8 @@ impl TransitDijkstra {
                     }
                 }
 
-                let temp_distance = current_cost + neighbor.1;
-                let next_distance = *gscore.get(&neighbor.0).unwrap_or(&u64::MAX);
-
-                if temp_distance < next_distance {
-                    gscore.insert(neighbor.0, temp_distance);
-                    let prev_node: Rc<PathedNode> = Rc::new(pathed_current_node.clone());
-
-                    let tentative_new_node = PathedNode {
-                        node_self: neighbor.0,
-                        cost_from_start: temp_distance,
-                        parent_node: Some(prev_node),
-                        transfer_count,
-                    };
-
-                    priority_queue.push(Reverse((temp_distance, tentative_new_node)));
-                }
+                paths.entry(neighbor.0).and_modify(|n| n.update(neighbor.0, neighbor.1,
+                    current_node,transfer_count, &mut gscore, &mut priority_queue));
             }
         }
         //println!("no path exists");
@@ -252,13 +230,13 @@ pub struct TDDijkstra {
     //handle time dependent dijkstra calculations
     pub connections: DirectConnections,
     pub edges: HashMap<NodeId, HashSet<NodeId>>,
-    pub visited_nodes: HashMap<NodeId, PathedNode>,
+    pub visited_nodes: HashSet<NodeId>,
 }
 
 impl TDDijkstra {
     //implementation of time dependent shortest path algorithm
     pub fn new(connections: DirectConnections, edges: HashMap<NodeId, HashSet<NodeId>>) -> Self {
-        let visited_nodes = HashMap::new();
+        let visited_nodes = HashSet::new();
         Self {
             connections,
             edges,
@@ -268,23 +246,23 @@ impl TDDijkstra {
 
     pub fn get_neighbors(
         &self,
-        current: &PathedNode,
+        current: &NodeId,
         connections: &DirectConnections,
-    ) -> Vec<(NodeId, u64)> {
+    ) -> Vec<(NodeId, u32)> {
         //return node id of neighbors
         let mut paths = Vec::new();
 
-        if let Some(arcs) = self.edges.get(&current.node_self) {
+        if let Some(arcs) = self.edges.get(current) {
             for next_node in arcs {
-                if self.visited_nodes.contains_key(next_node) {
+                if self.visited_nodes.contains(next_node) {
                     continue;
                 }
 
                 if let Some((dept, arr)) = direct_connection_query(
                     connections,
-                    current.node_self.station_id,
+                    current.station_id,
                     next_node.station_id,
-                    current.node_self.time.unwrap(),
+                    current.time.unwrap(),
                 ) {
                     let cost = arr - dept;
                     paths.push((*next_node, cost));
@@ -296,67 +274,43 @@ impl TDDijkstra {
 
     pub fn time_dependent_dijkstra(
         &mut self,
+        paths: &mut HashMap<NodeId, PathedNode>,
         source_id: NodeId,
         target_id: &HashSet<NodeId>, //if target == None, settles all reachable nodes
-    ) -> Option<PathedNode> {
+    ) -> Option<NodeId> {
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
 
-        let mut priority_queue: BinaryHeap<Reverse<(u64, PathedNode)>> = BinaryHeap::new();
-
-        //stores distances of node relative to target
-        let mut gscore: HashMap<NodeId, u64> = HashMap::new();
-
+        let mut priority_queue: BinaryHeap<Reverse<(u32, NodeId)>> = BinaryHeap::new();
+        let mut gscore: HashMap<NodeId, u32> = HashMap::new(); //stores distances of node relative to target
         self.visited_nodes.clear();
 
-        let mut current_cost = 0;
-
-        let source_node: PathedNode = PathedNode {
-            node_self: (source_id),
-            cost_from_start: current_cost,
-            parent_node: (None),
-            transfer_count: 0,
-        };
-
         gscore.insert(source_id, 0);
+        priority_queue.push(Reverse((0, source_id)));
 
-        priority_queue.push(Reverse((0, source_node)));
+        let mut pathed_node;
 
         while !priority_queue.is_empty() {
-            let pathed_current_node = priority_queue.pop().unwrap().0 .1;
-            current_cost = pathed_current_node.cost_from_start;
-            let idx = pathed_current_node.node_self;
+            let current_node = priority_queue.pop().unwrap().0 .1;
+            pathed_node = paths.get(&current_node).unwrap();
 
-            self.visited_nodes.insert(idx, pathed_current_node.clone());
+            self.visited_nodes.insert(current_node);
 
             //found target node
-            if target_id.contains(&idx) {
-                return Some(pathed_current_node);
+            if target_id.contains(&current_node) {
+                return Some(current_node);
             }
 
             //cost is higher than current path (not optimal)
-            if current_cost > *gscore.get(&idx).unwrap_or(&u64::MAX) {
+            if pathed_node.cost_from_start > *gscore.get(&current_node).unwrap_or(&u32::MAX) {
                 continue;
             }
 
-            for (neighbor_node, neighbor_cost) in
-                self.get_neighbors(&pathed_current_node, &self.connections)
+            for neighbor in
+                self.get_neighbors(&current_node, &self.connections)
             {
-                let temp_distance = current_cost + neighbor_cost;
-                let next_distance = *gscore.get(&neighbor_node).unwrap_or(&u64::MAX);
-
-                if temp_distance < next_distance {
-                    gscore.insert(neighbor_node, temp_distance);
-                    let prev_node: Rc<PathedNode> = Rc::new(pathed_current_node.clone());
-                    let tentative_new_node = PathedNode {
-                        node_self: neighbor_node,
-                        cost_from_start: temp_distance,
-                        parent_node: Some(prev_node),
-                        transfer_count: 0,
-                    };
-
-                    priority_queue.push(Reverse((temp_distance, tentative_new_node.clone())));
-                }
+                paths.entry(neighbor.0).and_modify(|n| n.update(neighbor.0, neighbor.1,
+                    current_node, 0, &mut gscore, &mut priority_queue));
             }
         }
         None //(None, node_path_tracker)
