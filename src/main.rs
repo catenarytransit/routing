@@ -50,9 +50,9 @@ async fn main() {
 
     //generate Time Expanded Graph and Direct Connections for this GTFS file
     let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
-    let (mut router, mut paths) = TransitDijkstra::new(&transit_graph);
+    let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
 
-    println!("{}", transit_graph.nodes.len());
+    println!("{}", router.graph.nodes.len());
 
     //full routing test
     //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
@@ -109,7 +109,7 @@ async fn main() {
     let run_query = query_graph_search(&roads, connections, graph);
     */
 
-    let run_query = query_graph_search(&mut paths, connections, graph);
+    let run_query = query_graph_search(connections, graph, &mut paths);
 
     if let Some(stuff) = run_query {
         let path = stuff.1.get_tp(stuff.0, &paths, &trips);
