@@ -30,16 +30,16 @@ struct Args {
     /// Number of times to greet
     #[arg(long, default_value_t = true)]
     makequerygraph: bool,
-    testmode: bool,
+    debugmode: bool,
 }
 
 #[tokio::main]
 async fn main() {
     let mut args = Args::parse();
 
-    args.testmode = true;
+    args.debugmode = true;
 
-    if !args.testmode {
+    if !args.debugmode {
         args.makequerygraph = false;
 
         println!("Arguments: {:#?}", args);
@@ -130,5 +130,17 @@ async fn main() {
         } else {
             println!("no path");
         }
+    }
+
+    else {
+        let gtfs = read_from_gtfs_zip("test2.zip");
+
+        //overhead for cloning these strings is very low, it's just for displaying anyway
+        let trips = gtfs.trips.clone();
+        let routes = gtfs.routes.clone();
+        let stops = gtfs.stops.clone();
+
+        let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
+        let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
     }
 }
