@@ -159,9 +159,9 @@ impl RoadDijkstra {
 
     pub fn get_random_node_id(&mut self) -> Option<i64> {
         //returns ID of a random valid node from a graph
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let full_node_list: &Vec<_> = &self.graph.nodes.keys().collect();
-        let random: usize = rng.gen_range(0..full_node_list.len());
+        let random: usize = rng.random_range(0..full_node_list.len());
         let node_id = full_node_list.get(random).unwrap();
 
         Some(**node_id)

@@ -168,12 +168,7 @@ impl TimeExpandedGraph {
             trip.stop_times
                 .sort_by(|a, b| a.stop_sequence.cmp(&b.stop_sequence));
 
-            let trip_start_time: u32 = trip
-                .stop_times
-                .first()
-                .unwrap()
-                .arrival_time
-                .unwrap();
+            let trip_start_time: u32 = trip.stop_times.first().unwrap().arrival_time.unwrap();
             let mut stations_time_from_trip_start = HashMap::new();
 
             let route_id = &trip.route_id;
@@ -191,10 +186,16 @@ impl TimeExpandedGraph {
                 match lines_per_station.entry(station.id) {
                     Entry::Occupied(mut o) => {
                         let map = o.get_mut();
-                        map.push((route_id.to_string(), stoptime.stop_sequence));
+                        map.push((
+                            route_id.to_string(),
+                            stoptime.stop_sequence.try_into().unwrap(),
+                        ));
                     }
                     Entry::Vacant(v) => {
-                        v.insert(vec![(route_id.to_string(), stoptime.stop_sequence)]);
+                        v.insert(vec![(
+                            route_id.to_string(),
+                            stoptime.stop_sequence.try_into().unwrap(),
+                        )]);
                     }
                 }
 

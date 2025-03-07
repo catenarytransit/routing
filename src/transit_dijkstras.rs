@@ -15,9 +15,18 @@ pub struct PathedNode {
     pub transfer_count: u8,
 }
 
-impl PathedNode { //some wacky linked-list kind struct
+impl PathedNode {
+    //some wacky linked-list kind struct
 
-    pub fn update(&mut self, id: NodeId, new_cost: u32, parent: NodeId, transfers: u8, gscore: &mut HashMap<NodeId, u32>, priority_queue: &mut BinaryHeap<Reverse<(u32, NodeId)>> ) {
+    pub fn update(
+        &mut self,
+        id: NodeId,
+        new_cost: u32,
+        parent: NodeId,
+        transfers: u8,
+        gscore: &mut HashMap<NodeId, u32>,
+        priority_queue: &mut BinaryHeap<Reverse<(u32, NodeId)>>,
+    ) {
         let temp_distance = self.cost_from_start + new_cost;
         let next_distance = *gscore.get(&id).unwrap_or(&u32::MAX);
 
@@ -49,7 +58,12 @@ impl PathedNode { //some wacky linked-list kind struct
         (shortest_path, total_distance)
     }
 
-    pub fn get_tp(self,id: NodeId, nodespace: &HashMap<NodeId, PathedNode>, trips: &HashMap<String, Trip>) -> (Vec<(NodeId, Option<String>)>, u32) {
+    pub fn get_tp(
+        self,
+        id: NodeId,
+        nodespace: &HashMap<NodeId, PathedNode>,
+        trips: &HashMap<String, Trip>,
+    ) -> (Vec<(NodeId, Option<String>)>, u32) {
         let mut tp = Vec::new();
         let journey_cost: u32 = self.cost_from_start;
         let mut current = &self;
@@ -100,13 +114,16 @@ impl TransitDijkstra {
     pub fn new(graph: TimeExpandedGraph) -> (Self, HashMap<NodeId, PathedNode>) {
         let t_graph = graph.clone();
         let mut paths = HashMap::new();
-        for node in graph.nodes{
+        for node in graph.nodes {
             paths.insert(node, PathedNode::default());
         }
-        (Self {
-            graph: t_graph,
-            cost_upper_bound: u32::MAX,
-        }, paths)
+        (
+            Self {
+                graph: t_graph,
+                cost_upper_bound: u32::MAX,
+            },
+            paths,
+        )
     }
 
     pub fn set_cost_upper_bound(&mut self, upper_bound: u32) {
@@ -136,7 +153,7 @@ impl TransitDijkstra {
         &self,
         source_id_set: Vec<NodeId>,
         hubs: Option<&HashSet<i64>>,
-        paths: &mut HashMap<NodeId, PathedNode>
+        paths: &mut HashMap<NodeId, PathedNode>,
     ) -> HashSet<NodeId> {
         //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
@@ -152,7 +169,7 @@ impl TransitDijkstra {
             gscore.insert(source_id, 0);
             priority_queue.push(Reverse((0, source_id)));
         }
-        
+
         let mut pathed_node;
 
         while !priority_queue.is_empty() {
@@ -190,8 +207,16 @@ impl TransitDijkstra {
                     }
                 }
 
-                paths.entry(neighbor.0).and_modify(|n| n.update(neighbor.0, neighbor.1,
-                    current_node,transfer_count, &mut gscore, &mut priority_queue));
+                paths.entry(neighbor.0).and_modify(|n| {
+                    n.update(
+                        neighbor.0,
+                        neighbor.1,
+                        current_node,
+                        transfer_count,
+                        &mut gscore,
+                        &mut priority_queue,
+                    )
+                });
             }
         }
         //println!("no path exists");
@@ -201,8 +226,8 @@ impl TransitDijkstra {
     pub fn get_random_node_id(&self) -> Option<NodeId> {
         //returns ID of a random valid node from a graph
         let full_node_list = self.graph.nodes.iter().copied().collect::<Vec<NodeId>>();
-        let mut rng = rand::thread_rng();
-        let random: usize = rng.gen_range(0..full_node_list.len());
+        let mut rng = rand::rng();
+        let random: usize = rng.random_range(0..full_node_list.len());
         full_node_list.get(random).copied()
     }
 
@@ -306,11 +331,17 @@ impl TDDijkstra {
                 continue;
             }
 
-            for neighbor in
-                self.get_neighbors(&current_node, &self.connections)
-            {
-                paths.entry(neighbor.0).and_modify(|n| n.update(neighbor.0, neighbor.1,
-                    current_node, 0, &mut gscore, &mut priority_queue));
+            for neighbor in self.get_neighbors(&current_node, &self.connections) {
+                paths.entry(neighbor.0).and_modify(|n| {
+                    n.update(
+                        neighbor.0,
+                        neighbor.1,
+                        current_node,
+                        0,
+                        &mut gscore,
+                        &mut priority_queue,
+                    )
+                });
             }
         }
         None //(None, node_path_tracker)

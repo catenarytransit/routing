@@ -52,8 +52,14 @@ pub fn query_graph_construction(
 
     for station in source_stations.iter() {
         let now = Instant::now();
-        let (l_tps, n_now) =
-            transfer_patterns_from_source(station.id, router, Some(&hubs), paths, None, Some(start_time));
+        let (l_tps, n_now) = transfer_patterns_from_source(
+            station.id,
+            router,
+            Some(&hubs),
+            paths,
+            None,
+            Some(start_time),
+        );
         println!(
             "local tp {:?} or immediate {:?}",
             now.elapsed(),
@@ -76,8 +82,14 @@ pub fn query_graph_construction(
 
     for hub in used_hubs.iter() {
         let now = Instant::now();
-        let (g_tps, n_now) =
-            transfer_patterns_from_source(**hub, router, None, paths, Some(&target_ids), Some(start_time));
+        let (g_tps, n_now) = transfer_patterns_from_source(
+            **hub,
+            router,
+            None,
+            paths,
+            Some(&target_ids),
+            Some(start_time),
+        );
         println!(
             "ran tp for hubs {:?} vs immediate {:?}",
             now.elapsed(),
@@ -244,7 +256,8 @@ pub fn hub_selection(
 
     for _ in 0..random_samples {
         let current_node = vec![time_independent_router.get_random_node_id().unwrap()];
-        let visited_nodes = time_independent_router.time_expanded_dijkstra(current_node, None, &mut paths);
+        let visited_nodes =
+            time_independent_router.time_expanded_dijkstra(current_node, None, &mut paths);
         for node in visited_nodes.iter() {
             match hub_list.entry(*node) {
                 Entry::Occupied(mut o) => {
@@ -327,9 +340,7 @@ pub fn transfer_patterns_from_source(
                     .iter()
                     //err cant find lines per station
                     //chunk this and find the last node in this sequence for the target found?
-                    .position(|node| {
-                        targets.as_ref().unwrap().contains(&node.station_id)
-                    })
+                    .position(|node| targets.as_ref().unwrap().contains(&node.station_id))
                     .unwrap_or(0);
                 if len != 0 {
                     let u: Vec<_> = path.drain(len..).collect();
@@ -440,7 +451,7 @@ pub fn query_graph_search(
     //roads: &RoadNetwork,
     connections: DirectConnections,
     query_info: QueryGraph,
-    paths: &mut HashMap<NodeId, PathedNode>
+    paths: &mut HashMap<NodeId, PathedNode>,
 ) -> Option<(NodeId, PathedNode)> {
     /*let mut source_paths: HashMap<i64, _> = HashMap::new();
 
