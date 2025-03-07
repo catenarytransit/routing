@@ -1,0 +1,87 @@
+{
+    "source": {
+        "x": 0.0,
+        "y": 0.0
+    },
+    "target": {
+        "x": 5.0,
+        "y": 0.0
+    },
+    "edges": {},
+    "source_stations": [
+        {
+            "id": 5,
+            "lat": 0,
+            "lon": 0
+        }
+    ],
+    "target_stations": [
+        {
+            "id": 4,
+            "lat": 0,
+            "lon": 500000000000000
+        }
+    ],
+    "hubs": [
+        3
+    ],
+    "source_nodes": [
+        "Departure,5,21900,5",
+        "Arrival,5,21600,9",
+        "Departure,5,21900,8",
+        "Arrival,5,21600,5",
+        "Transfer,5,21600,6",
+        "Transfer,5,21600,8",
+        "Transfer,5,21600,5",
+        "Arrival,5,21600,6",
+        "Transfer,5,21600,9",
+        "Departure,5,21900,12",
+        "Arrival,5,21600,8",
+        "Transfer,5,21600,12",
+        "Departure,5,21900,6",
+        "Departure,5,21900,9",
+        "Arrival,5,21600,12"
+    ],
+    "target_nodes": [
+        "Transfer,4,21600,10",
+        "Departure,4,21900,10",
+        "Arrival,4,21600,10"
+    ],
+    "station_map": {
+        "C": {
+            "id": 2,
+            "lat": 0,
+            "lon": 200000000000000
+        },
+        "B": {
+            "id": 0,
+            "lat": 0,
+            "lon": 100000000000000
+        },
+        "G": {
+            "id": 1,
+            "lat": 0,
+            "lon": 600000000000000
+        },
+        "F": {
+            "id": 4,
+            "lat": 0,
+            "lon": 500000000000000
+        },
+        "D": {
+            "id": 3,
+            "lat": 0,
+            "lon": 300000000000000
+        },
+        "A": {
+            "id": 5,
+            "lat": 0,
+            "lon": 0
+        },
+        "E": {
+            "id": 6,
+            "lat": 0,
+            "lon": 400000000000000
+        }
+    }
+}

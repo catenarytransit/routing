@@ -181,7 +181,6 @@ impl TransitDijkstra {
             //stop conditions
             //cost or # of settled nodes goes over limit
             if pathed_node.cost_from_start > self.cost_upper_bound {
-                println!("cost over");
                 return visited_nodes;
             }
 

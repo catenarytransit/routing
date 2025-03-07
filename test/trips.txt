@@ -1,0 +1,13 @@
+block_id,route_id,direction_id,trip_headsign,shape_id,service_id,trip_id
+0,AE,0,xxxx,,1,a1
+0,AE,1,xxxx,,1,b1
+0,ABE,0,xxxx,,1,d1
+0,ABE,1,xxxx,,1,e1
+0,ABC,0,xxxx,,1,g1
+0,ABC,1,xxxx,,1,h1
+0,ABDE,0,xxxx,,1,j1
+0,ABDE,1,xxxx,,1,k1
+0,ABCDE,0,xxxx,,1,m1
+0,ABCDE,1,xxxx,,1,n1
+0,CFG,0,xxxx,,1,p1
+0,CFG,1,xxxx,,1,q1
