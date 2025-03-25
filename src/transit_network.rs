@@ -61,7 +61,7 @@ pub fn read_from_gtfs_zip(path: &str) -> Gtfs {
         .read_shapes(false) // Won’t read shapes to save time and memory
         .read(path)
         .ok();
-    gtfs.unwrap()
+    gtfs.unwrap()   
 }
 
 pub fn calendar_date_filter(

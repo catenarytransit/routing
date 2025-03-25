@@ -132,7 +132,7 @@ async fn main() {
 
     else {
         println!("debug mode");
-        let gtfs = read_from_gtfs_zip("test2.zip");
+        let gtfs = read_from_gtfs_zip("test.zip");
 
         //overhead for cloning these strings is very low, it's just for displaying anyway
         let trips = gtfs.trips.clone();
@@ -143,10 +143,8 @@ async fn main() {
         let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
 
         let (source, target) = make_points_from_coords(
-            0.0, //always 0
-            0.0,
-            0.0, //always 0
-            5.0,
+            33.0,-117.00001,
+            33.0,-117.00007
         );
 
         let now = Instant::now();
@@ -166,6 +164,7 @@ async fn main() {
 
         let run_query = query_graph_search(connections, graph, &mut paths);
 
+        println!("stops:\n {:?}", stops);
         if let Some(stuff) = run_query {
             let path = stuff.1.get_tp(stuff.0, &paths, &trips);
             for (node, route) in path.0 {
@@ -173,9 +172,9 @@ async fn main() {
                 if let Some(route) = route {
                     println!("via {:?}", routes.get(&route).unwrap().short_name);
                 } else {
-                    println!("start {}", stops.get(&node.station_id.to_string()).unwrap());
+                    println!("start {:?}", router.graph.station_map.as_ref().unwrap().get(&node.station_id.to_string()));
                 }
-            }
+            } 
         } else {
             println!("no path");
         }

@@ -98,6 +98,7 @@ impl PathedNode {
         if let Some(trip) = try_trip {
             return Some(trip.route_id.clone());
         }
+        
         None
     }
 }
