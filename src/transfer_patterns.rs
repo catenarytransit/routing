@@ -28,11 +28,11 @@ pub struct QueryGraph {
 
 pub fn query_graph_construction(
     router: &mut TransitDijkstra,
+    maps: &NumberNameMaps,
     paths: &mut HashMap<NodeId, PathedNode>,
     source: Point,
     target: Point,
     start_time: u32,
-    hub_time_lim: u32,
     preset_distance: f64, //in meters
 ) -> QueryGraph {
     let now = Instant::now();
@@ -43,8 +43,10 @@ pub fn query_graph_construction(
     let (target_stations, target_nodes): (HashSet<_>, HashSet<_>) =
         stations_near_point(router, target, preset_distance, start_time);
 
+    let cost_limit = 86400; //24 hour searchspace
+
     //get hubs of important stations I(hubs)
-    let hubs = hub_selection(router, 50000, hub_time_lim); //cost limit at 10 hours, arbitrary
+    let hubs = hub_selection(router, maps, 50000, cost_limit); //cost limit at 10 hours, arbitrary
 
     println!("hubs: {:?}, t {:?}", &hubs, now.elapsed());
 
@@ -137,7 +139,7 @@ pub fn query_graph_construction(
 
     println!("collecting paths {:?}", now.elapsed());
 
-    let station_map = router.graph.station_map.clone();
+    let station_map = maps.station_map.clone();
 
     QueryGraph {
         source,
@@ -196,11 +198,12 @@ pub fn stations_near_point(
 //picks important hubs if they are more often visted from Dijkstras-until-all-nodes-settled
 pub fn hub_selection(
     router: &TransitDijkstra,
+    maps: &NumberNameMaps,
     random_samples: u32,
     cost_limit: u32,
 ) -> HashSet<i64> {
     //station ids
-    let num_stations = 1.max((router.graph.station_map.as_ref().unwrap().len() as u32) / 100);
+    let num_stations = 1.max((maps.station_map.as_ref().unwrap().len() as u32) / 100);
     let mut selected_hubs: HashSet<i64> = HashSet::new();
 
     let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, u32>> = HashMap::new();
@@ -245,7 +248,6 @@ pub fn hub_selection(
         //transfer_buffer: router.graph.transfer_buffer,
         nodes: time_independent_nodes,
         edges: time_independent_edges,
-        station_map: None,
         station_info: None,
     };
 

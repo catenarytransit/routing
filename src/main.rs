@@ -55,7 +55,7 @@ async fn main() {
         let stops = gtfs.stops.clone();
 
         //generate Time Expanded Graph and Direct Connections for this GTFS file
-        let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
+        let (transit_graph, connections, maps) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
         let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
 
         println!("{}", router.graph.nodes.len());
@@ -76,11 +76,11 @@ async fn main() {
             let now = Instant::now();
             let graph = query_graph_construction(
                 &mut router,
+                &maps,
                 &mut paths,
                 source,
                 target,
                 18600, //5:10 AM
-                86400, //24 hour searchspace
                 preset_distance,
             );
 
@@ -94,29 +94,10 @@ async fn main() {
         let file = File::open(savepath).ok().unwrap();
         let reader = BufReader::new(file);
         let graph: QueryGraph = serde_json::from_reader(reader).unwrap();
-
-        //road network, for footpaths
-        /*let now = Instant::now();
-        println!("generating street network graph");
-        let path = "ct.pbf";
-        let data = RoadNetwork::read_from_osm_file(path).unwrap();
-        let mut roads = RoadNetwork::new(data.0, data.1);
-        //roads = roads.reduce_to_largest_connected_component();
-
-        println!("time for road {:?}", now.elapsed());
-
-        println!("# of nodes: {}", roads.nodes.len());
-        println!(
-            "# of edges: {}",
-            roads.edges.values().map(|edges| edges.len()).sum::<usize>()
-        );
-        let run_query = query_graph_search(&roads, connections, graph);
-        */
-
         let run_query = query_graph_search(connections, graph, &mut paths);
 
         if let Some(stuff) = run_query {
-            let path = stuff.1.get_tp(stuff.0, &paths, &trips);
+            let path = stuff.1.get_tp(stuff.0, &paths, &maps);
             for (node, route) in path.0 {
                 println!("{:?}", node);
                 if let Some(route) = route {
@@ -135,11 +116,10 @@ async fn main() {
         let gtfs = read_from_gtfs_zip("test.zip");
 
         //overhead for cloning these strings is very low, it's just for displaying anyway
-        let trips = gtfs.trips.clone();
         let routes = gtfs.routes.clone();
         let stops = gtfs.stops.clone();
 
-        let (transit_graph, connections) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
+        let (transit_graph, connections, maps) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
         let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
 
         let (source, target) = make_points_from_coords(
@@ -150,12 +130,12 @@ async fn main() {
         let now = Instant::now();
         let graph = query_graph_construction(
             &mut router,
+            &maps,
             &mut paths,
             source,
             target,
             21600, //5:10 AM
-            86400, //24 hour searchspace
-            preset_distance,
+            preset_distance
         );
 
         let output = File::create("test.json").unwrap();
@@ -164,15 +144,14 @@ async fn main() {
 
         let run_query = query_graph_search(connections, graph, &mut paths);
 
-        println!("stops:\n {:?}", stops);
         if let Some(stuff) = run_query {
-            let path = stuff.1.get_tp(stuff.0, &paths, &trips);
+            let path = stuff.1.get_tp(stuff.0, &paths, &maps);
             for (node, route) in path.0 {
                 println!("{:?}", node);
                 if let Some(route) = route {
-                    println!("via {:?}", routes.get(&route).unwrap().short_name);
+                    println!("via {:?}", route);
                 } else {
-                    println!("start {:?}", router.graph.station_map.as_ref().unwrap().get(&node.station_id.to_string()));
+                    println!("start {:?}", maps.station_num_to_name(&node.station_id));
                 }
             } 
         } else {

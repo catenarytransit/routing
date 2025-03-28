@@ -1,7 +1,6 @@
 //transit_dijkstras algorithms and helper functiions
 use crate::transit_network::*;
 use crate::NodeType;
-use gtfs_structures::Trip;
 use rand::Rng;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -62,7 +61,7 @@ impl PathedNode {
         self,
         id: NodeId,
         nodespace: &HashMap<NodeId, PathedNode>,
-        trips: &HashMap<String, Trip>,
+        trips: &NumberNameMaps,
     ) -> (Vec<(NodeId, Option<String>)>, u32) {
         let mut tp = Vec::new();
         let journey_cost: u32 = self.cost_from_start;
@@ -92,13 +91,12 @@ impl PathedNode {
         (tp, journey_cost)
     }
 
-    pub fn get_route(&self, id: NodeId, trips: &HashMap<String, Trip>) -> Option<String> {
-        let trip_id = id.trip_id.to_string();
-        let try_trip = trips.get(&trip_id);
+    pub fn get_route(&self, id: NodeId, maps: &NumberNameMaps) -> Option<String> {
+        let trip_id = id.trip_id;
+        let try_trip = maps.trip_num_to_name(&trip_id);
         if let Some(trip) = try_trip {
-            return Some(trip.route_id.clone());
-        }
-        
+            return Some(trip.1);
+        }        
         None
     }
 }

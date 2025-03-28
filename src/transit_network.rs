@@ -94,7 +94,6 @@ pub struct TimeExpandedGraph {
     //graph struct that will be used to route
     pub nodes: HashSet<NodeId>,
     pub edges: HashMap<NodeId, HashMap<NodeId, u32>>, // tail.id, <head.id, cost>
-    pub station_map: Option<HashMap<String, Station>>, //station_id string, internal station_id (assigned number)
     pub station_info: Option<HashMap<Station, Vec<(u32, NodeId)>>>, //station_id, <cost, node>
 }
 
@@ -112,22 +111,39 @@ pub struct DirectConnections {
     pub lines_per_station: HashMap<i64, Vec<(String, u16)>>, //<stationid, <routeid, stop sequence number>> //gives lines operating at this station
 }
 
+pub struct NumberNameMaps {
+    pub station_map: Option<HashMap<String, Station>>, //station_id string, internal station_id (assigned number)
+    pub trip_map: HashMap<u32, String> //same as station map but for trips instead
+}
+
+impl NumberNameMaps {
+    pub fn station_num_to_name(&self, id: &i64) -> Option<(i64, String)> {
+        self.station_map.as_ref().unwrap().iter().map(|(k, v)| (v.id, k.clone())).find(|(num, _)| num == id)
+    }
+
+    pub fn trip_num_to_name(&self, id: &u32) -> Option<(u32,String)> {
+        self.trip_map.iter().map(|(k, v)|(*k, v.clone())).find(|(num, _)| num == id)
+    }
+}
+
 //init new transit network graph based on results from reading GTFS zip
 impl TimeExpandedGraph {
     pub fn new(
         mut gtfs: Gtfs,
         mut day_of_week: String,
         transfer_buffer: u32,
-    ) -> (Self, DirectConnections) {
+    ) -> (Self, DirectConnections, NumberNameMaps) {
         day_of_week = day_of_week.to_lowercase();
 
         let mut nodes: HashSet<NodeId> = HashSet::new(); //maps GTFS stop id string to sequential numeric stop id
         let mut edges: HashMap<NodeId, HashMap<NodeId, u32>> = HashMap::new();
-        let mut station_map: HashMap<String, Station> = HashMap::new();
         let mut station_info: HashMap<Station, Vec<(u32, NodeId)>> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
 
         let mut route_tables: HashMap<String, LineConnectionTable> = HashMap::new();
         let mut lines_per_station: HashMap<i64, Vec<(String, u16)>> = HashMap::new();
+
+        let mut station_map: HashMap<String, Station> = HashMap::new();
+        let mut trip_map: HashMap<u32, String> = HashMap::new();
 
         let service_ids_of_given_day: HashSet<String> = gtfs
             .calendar
@@ -162,6 +178,7 @@ impl TimeExpandedGraph {
 
             let trip_id: u32 = trip.id.parse().unwrap_or({
                 custom_trip_id += 1;
+                trip_map.insert(custom_trip_id, trip.id.clone());
                 custom_trip_id
             });
 
@@ -352,13 +369,16 @@ impl TimeExpandedGraph {
             Self {
                 nodes,
                 edges,
-                station_map: Some(station_map),
                 station_info: Some(station_info),
             },
             DirectConnections {
                 route_tables,
                 lines_per_station,
             },
+            NumberNameMaps {
+                station_map: Some(station_map),
+                trip_map,
+            }
         )
     }
 }
