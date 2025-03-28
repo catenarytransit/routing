@@ -113,7 +113,7 @@ pub struct DirectConnections {
 
 pub struct NumberNameMaps {
     pub station_map: Option<HashMap<String, Station>>, //station_id string, internal station_id (assigned number)
-    pub trip_map: HashMap<u32, String> //same as station map but for trips instead
+    pub trip_map: HashMap<u32, Trip> //same as station map but for trips instead
 }
 
 impl NumberNameMaps {
@@ -122,7 +122,11 @@ impl NumberNameMaps {
     }
 
     pub fn trip_num_to_name(&self, id: &u32) -> Option<(u32,String)> {
-        self.trip_map.iter().map(|(k, v)|(*k, v.clone())).find(|(num, _)| num == id)
+        let a = self.trip_map.iter().map(|(k, v)|(*k, v.clone())).find(|(num, _)| num == id);
+        if let Some((id, trip)) = a {
+            return Some((id, trip.route_id))
+        }
+        None
     }
 }
 
@@ -143,7 +147,7 @@ impl TimeExpandedGraph {
         let mut lines_per_station: HashMap<i64, Vec<(String, u16)>> = HashMap::new();
 
         let mut station_map: HashMap<String, Station> = HashMap::new();
-        let mut trip_map: HashMap<u32, String> = HashMap::new();
+        let mut trip_map: HashMap<u32, Trip> = HashMap::new();
 
         let service_ids_of_given_day: HashSet<String> = gtfs
             .calendar
@@ -178,7 +182,7 @@ impl TimeExpandedGraph {
 
             let trip_id: u32 = trip.id.parse().unwrap_or({
                 custom_trip_id += 1;
-                trip_map.insert(custom_trip_id, trip.id.clone());
+                trip_map.insert(custom_trip_id, trip.clone());
                 custom_trip_id
             });
 
