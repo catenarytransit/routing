@@ -54,7 +54,7 @@ pub fn query_graph_construction(
 
     for station in source_stations.iter() {
         let now = Instant::now();
-        let (l_tps, n_now) = transfer_patterns_from_source(
+        let (l_tps, n_now) = transfers_from_source(
             station.id,
             router,
             Some(&hubs),
@@ -84,7 +84,7 @@ pub fn query_graph_construction(
 
     for hub in used_hubs.iter() {
         let now = Instant::now();
-        let (g_tps, n_now) = transfer_patterns_from_source(
+        let (g_tps, n_now) = transfers_from_source(
             **hub,
             router,
             None,
@@ -112,7 +112,7 @@ pub fn query_graph_construction(
         })
         .collect::<Vec<_>>();
 
-    println!("paths {:?}", now.elapsed());
+    println!("paths {:?} {:?}", paths, now.elapsed());
 
     let now = Instant::now();
 
@@ -288,7 +288,7 @@ pub fn hub_selection(
 
 // Precompute transfer patterns from a given station to all other stations.
 // Return the transfer patterns & numbers between each station pair.
-pub fn transfer_patterns_from_source(
+pub fn transfers_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
     hubs: Option<&HashSet<i64>>,
@@ -367,7 +367,7 @@ pub fn transfer_patterns_from_source(
     println!("arrival loop {:?}", now.elapsed());
     let now = Instant::now();
 
-    let total_transfer_patterns = Arc::new(Mutex::new(Vec::new()));
+    let total_transfers = Arc::new(Mutex::new(Vec::new()));
     let thread_num = 4;
     let source_chunk_len = arrival_nodes.len();
     let threaded_sources = Arc::new(arrival_nodes.clone());
@@ -375,14 +375,14 @@ pub fn transfer_patterns_from_source(
 
     for x in 1..thread_num {
         let source = Arc::clone(&threaded_sources);
-        let transfer_patterns = Arc::clone(&total_transfer_patterns);
+        let transfers = Arc::clone(&total_transfers);
         let handle = thread::spawn(move || {
             let src = source;
             for i in ((x - 1) * (source_chunk_len / (thread_num - 1)))
                 ..(x * source_chunk_len / (thread_num - 1))
             {
                 let (target, path, _) = src.get(i).unwrap();
-                let mut transfers = Vec::new();
+                let mut loc_transfers = Vec::new();
                 //transfers.push(*target);
                 //let mut previous_node: NodeId = *target;
                 for &node in path {
@@ -390,15 +390,15 @@ pub fn transfer_patterns_from_source(
                     //previous_node.node_type == NodeType::Departure
                     //|| previous_node.node_type == NodeType::Transfer &&
                     node.node_type == NodeType::Transfer {
-                        transfers.push(node);
+                        loc_transfers.push(node);
                     }
                     //previous_node = node;
                 }
 
-                transfers.push(*target);
+                loc_transfers.push(*target);
                 //transfers.reverse();
 
-                transfer_patterns.lock().unwrap().push(transfers);
+                transfers.lock().unwrap().push(loc_transfers);
             }
         });
 
@@ -409,7 +409,7 @@ pub fn transfer_patterns_from_source(
         handle.join().unwrap();
     }
 
-    let lock = Arc::try_unwrap(total_transfer_patterns).expect("failed to move out of arc");
+    let lock = Arc::try_unwrap(total_transfers).expect("failed to move out of arc");
     println!("found transfers {:?}", now.elapsed());
     let now = Instant::now();
     (lock, now)

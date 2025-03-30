@@ -40,6 +40,6 @@ pub use common_enums::NodeType;
 pub use crate::road_network::road_graph_construction::RoadNetwork;
 
 pub mod road_dijkstras;
-pub mod transfer_patterns;
+pub mod transfers;
 pub mod transit_dijkstras;
 pub mod transit_network;

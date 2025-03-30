@@ -1,1 +1,267 @@
-{"source":{"x":-117.00001,"y":33.0},"target":{"x":-117.00007,"y":33.0},"edges":{},"source_stations":[{"id":2,"lat":3300000000000000,"lon":-11700003000000000},{"id":5,"lat":3300000000000000,"lon":-11700002000000000},{"id":3,"lat":3300000000000000,"lon":-11700006000000000},{"id":6,"lat":3300000000000000,"lon":-11700001000000000},{"id":1,"lat":3300000000000000,"lon":-11700005000000000},{"id":0,"lat":3300000000000000,"lon":-11700004000000000},{"id":4,"lat":3300000000000000,"lon":-11700007000000000}],"target_stations":[{"id":4,"lat":3300000000000000,"lon":-11700007000000000},{"id":6,"lat":3300000000000000,"lon":-11700001000000000},{"id":1,"lat":3300000000000000,"lon":-11700005000000000},{"id":0,"lat":3300000000000000,"lon":-11700004000000000},{"id":2,"lat":3300000000000000,"lon":-11700003000000000},{"id":3,"lat":3300000000000000,"lon":-11700006000000000},{"id":5,"lat":3300000000000000,"lon":-11700002000000000}],"hubs":[1],"source_nodes":["Arrival,5,22200,12","Transfer,0,23400,3","Arrival,0,22800,12","Transfer,1,23400,12","Departure,6,21900,10","Transfer,1,22800,10","Departure,1,24300,3","Transfer,1,25200,6","Arrival,1,25200,8","Arrival,2,22800,3","Departure,0,23700,3","Departure,1,22500,7","Departure,0,23100,12","Transfer,2,25200,2","Transfer,6,21600,3","Arrival,5,22200,11","Arrival,6,21600,11","Departure,1,23700,12","Transfer,2,22800,3","Arrival,0,23400,3","Arrival,2,25200,1","Transfer,5,22200,10","Departure,6,21900,3","Departure,6,21900,7","Arrival,1,25200,4","Transfer,3,21600,1","Arrival,2,22800,11","Transfer,1,25200,8","Transfer,6,21600,12","Departure,2,23100,9","Transfer,6,21600,11","Arrival,1,25200,6","Departure,1,23100,10","Transfer,6,21600,10","Transfer,6,21600,7","Transfer,2,22800,9","Arrival,1,25200,5","Transfer,2,22800,11","Transfer,5,22200,12","Departure,5,22500,11","Departure,6,21900,12","Departure,6,21900,11","Transfer,1,24000,3","Transfer,2,25200,1","Arrival,6,21600,3","Departure,2,23100,11","Arrival,5,22200,3","Arrival,6,21600,12","Arrival,2,22800,9","Transfer,0,22800,12","Arrival,1,22200,7","Arrival,2,25200,2","Arrival,5,22200,10","Transfer,1,25200,4","Departure,5,22500,3","Departure,3,21900,1","Transfer,1,25200,5","Arrival,1,24000,3","Transfer,5,22200,11","Arrival,1,23400,12","Departure,5,22500,12","Departure,5,22500,10","Arrival,3,21600,1","Transfer,5,22200,3","Departure,2,23100,3","Arrival,6,21600,7","Arrival,6,21600,10","Arrival,1,22800,10","Transfer,1,22200,7"],"target_nodes":["Departure,2,23100,3","Transfer,6,21600,3","Departure,6,21900,3","Arrival,6,21600,10","Arrival,1,22200,7","Transfer,1,24000,3","Transfer,2,25200,1","Arrival,6,21600,3","Arrival,5,22200,10","Departure,6,21900,12","Departure,6,21900,7","Departure,6,21900,10","Departure,0,23100,12","Transfer,1,25200,6","Arrival,1,22800,10","Arrival,6,21600,11","Transfer,5,22200,3","Transfer,1,25200,8","Arrival,2,22800,11","Departure,1,23700,12","Arrival,2,22800,9","Transfer,6,21600,7","Transfer,5,22200,11","Transfer,1,25200,4","Transfer,2,22800,3","Transfer,2,22800,11","Arrival,1,25200,5","Departure,5,22500,12","Departure,1,24300,3","Arrival,6,21600,7","Transfer,0,22800,12","Arrival,5,22200,3","Arrival,2,25200,1","Transfer,6,21600,10","Arrival,6,21600,12","Departure,1,23100,10","Transfer,5,22200,10","Transfer,0,23400,3","Departure,5,22500,3","Arrival,1,25200,6","Transfer,6,21600,11","Transfer,1,23400,12","Departure,2,23100,9","Transfer,6,21600,12","Arrival,0,23400,3","Arrival,2,25200,2","Departure,6,21900,11","Arrival,3,21600,1","Transfer,3,21600,1","Transfer,1,22800,10","Arrival,1,24000,3","Departure,2,23100,11","Departure,3,21900,1","Departure,5,22500,10","Transfer,2,25200,2","Departure,5,22500,11","Transfer,1,22200,7","Arrival,2,22800,3","Arrival,1,23400,12","Departure,1,22500,7","Arrival,0,22800,12","Arrival,1,25200,4","Arrival,1,25200,8","Transfer,5,22200,12","Transfer,1,25200,5","Arrival,5,22200,12","Arrival,5,22200,11","Departure,0,23700,3","Transfer,2,22800,9"],"station_map":{"F":{"id":3,"lat":3300000000000000,"lon":-11700006000000000},"G":{"id":4,"lat":3300000000000000,"lon":-11700007000000000},"D":{"id":0,"lat":3300000000000000,"lon":-11700004000000000},"C":{"id":2,"lat":3300000000000000,"lon":-11700003000000000},"E":{"id":1,"lat":3300000000000000,"lon":-11700005000000000},"B":{"id":5,"lat":3300000000000000,"lon":-11700002000000000},"A":{"id":6,"lat":3300000000000000,"lon":-11700001000000000}}}
+{
+    "source": {
+        "x": -117.00001,
+        "y": 33.0
+    },
+    "target": {
+        "x": -117.00007,
+        "y": 33.0
+    },
+    "edges": {},
+    "source_stations": [
+        {
+            "id": 0,
+            "lat": 3300000000000000,
+            "lon": -11700005000000000
+        },
+        {
+            "id": 4,
+            "lat": 3300000000000000,
+            "lon": -11700001000000000
+        },
+        {
+            "id": 6,
+            "lat": 3300000000000000,
+            "lon": -11700004000000000
+        },
+        {
+            "id": 2,
+            "lat": 3300000000000000,
+            "lon": -11700006000000000
+        },
+        {
+            "id": 5,
+            "lat": 3300000000000000,
+            "lon": -11700007000000000
+        },
+        {
+            "id": 3,
+            "lat": 3300000000000000,
+            "lon": -11700002000000000
+        },
+        {
+            "id": 1,
+            "lat": 3300000000000000,
+            "lon": -11700003000000000
+        }
+    ],
+    "target_stations": [
+        {
+            "id": 2,
+            "lat": 3300000000000000,
+            "lon": -11700006000000000
+        },
+        {
+            "id": 4,
+            "lat": 3300000000000000,
+            "lon": -11700001000000000
+        },
+        {
+            "id": 5,
+            "lat": 3300000000000000,
+            "lon": -11700007000000000
+        },
+        {
+            "id": 3,
+            "lat": 3300000000000000,
+            "lon": -11700002000000000
+        },
+        {
+            "id": 1,
+            "lat": 3300000000000000,
+            "lon": -11700003000000000
+        },
+        {
+            "id": 0,
+            "lat": 3300000000000000,
+            "lon": -11700005000000000
+        },
+        {
+            "id": 6,
+            "lat": 3300000000000000,
+            "lon": -11700004000000000
+        }
+    ],
+    "hubs": [
+        6
+    ],
+    "source_nodes": [
+        "Transfer,1,22800,1",
+        "Transfer,4,21600,5",
+        "Departure,0,23700,12",
+        "Departure,6,23700,1",
+        "Arrival,0,25200,10",
+        "Arrival,4,21600,1",
+        "Departure,3,22500,5",
+        "Transfer,0,24000,1",
+        "Transfer,4,21600,4",
+        "Departure,4,21900,4",
+        "Transfer,6,23400,1",
+        "Arrival,0,23400,12",
+        "Transfer,3,22200,2",
+        "Arrival,1,22800,8",
+        "Arrival,0,25200,3",
+        "Transfer,1,22800,8",
+        "Departure,2,21900,9",
+        "Departure,4,21900,5",
+        "Arrival,0,24000,1",
+        "Departure,3,22500,12",
+        "Transfer,0,22800,5",
+        "Departure,4,21900,1",
+        "Arrival,1,25200,9",
+        "Arrival,4,21600,12",
+        "Arrival,4,21600,5",
+        "Arrival,3,22200,2",
+        "Transfer,0,25200,10",
+        "Departure,0,24300,1",
+        "Arrival,3,22200,5",
+        "Departure,1,23100,2",
+        "Transfer,0,25200,11",
+        "Arrival,0,25200,11",
+        "Arrival,4,21600,2",
+        "Transfer,3,22200,12",
+        "Arrival,3,22200,1",
+        "Transfer,2,21600,9",
+        "Transfer,3,22200,5",
+        "Arrival,4,21600,4",
+        "Departure,4,21900,12",
+        "Departure,0,23100,5",
+        "Transfer,4,21600,1",
+        "Arrival,2,21600,9",
+        "Arrival,6,22800,12",
+        "Arrival,0,22200,4",
+        "Departure,1,23100,1",
+        "Arrival,0,22800,5",
+        "Departure,3,22500,1",
+        "Departure,0,22500,4",
+        "Departure,4,21900,2",
+        "Transfer,3,22200,1",
+        "Arrival,0,25200,6",
+        "Departure,3,22500,2",
+        "Arrival,6,23400,1",
+        "Arrival,1,22800,1",
+        "Arrival,1,22800,2",
+        "Arrival,1,25200,7",
+        "Transfer,1,22800,2",
+        "Transfer,1,25200,7",
+        "Transfer,1,25200,9",
+        "Transfer,0,23400,12",
+        "Departure,6,23100,12",
+        "Transfer,0,25200,3",
+        "Arrival,3,22200,12",
+        "Transfer,0,22200,4",
+        "Transfer,4,21600,12",
+        "Departure,1,23100,8",
+        "Transfer,0,25200,6",
+        "Transfer,6,22800,12",
+        "Transfer,4,21600,2"
+    ],
+    "target_nodes": [
+        "Arrival,1,22800,1",
+        "Transfer,4,21600,12",
+        "Transfer,3,22200,2",
+        "Departure,1,23100,2",
+        "Transfer,2,21600,9",
+        "Arrival,6,23400,1",
+        "Departure,3,22500,5",
+        "Departure,4,21900,5",
+        "Transfer,3,22200,5",
+        "Arrival,0,24000,1",
+        "Transfer,4,21600,1",
+        "Transfer,0,23400,12",
+        "Arrival,0,23400,12",
+        "Departure,0,23700,12",
+        "Arrival,4,21600,5",
+        "Arrival,1,22800,2",
+        "Departure,6,23100,12",
+        "Transfer,3,22200,12",
+        "Transfer,3,22200,1",
+        "Departure,2,21900,9",
+        "Transfer,1,22800,2",
+        "Transfer,1,22800,8",
+        "Transfer,4,21600,4",
+        "Departure,0,24300,1",
+        "Arrival,4,21600,4",
+        "Departure,4,21900,2",
+        "Departure,3,22500,2",
+        "Arrival,0,25200,3",
+        "Arrival,4,21600,1",
+        "Arrival,3,22200,2",
+        "Arrival,1,22800,8",
+        "Arrival,0,22800,5",
+        "Transfer,0,25200,3",
+        "Departure,4,21900,1",
+        "Arrival,1,25200,7",
+        "Transfer,0,22200,4",
+        "Departure,3,22500,1",
+        "Transfer,1,22800,1",
+        "Arrival,3,22200,12",
+        "Departure,1,23100,8",
+        "Arrival,0,25200,10",
+        "Arrival,0,25200,11",
+        "Transfer,6,22800,12",
+        "Arrival,3,22200,5",
+        "Transfer,1,25200,7",
+        "Arrival,0,22200,4",
+        "Arrival,2,21600,9",
+        "Transfer,6,23400,1",
+        "Transfer,4,21600,2",
+        "Transfer,0,22800,5",
+        "Transfer,0,25200,6",
+        "Departure,3,22500,12",
+        "Departure,0,23100,5",
+        "Transfer,0,25200,10",
+        "Arrival,0,25200,6",
+        "Departure,4,21900,12",
+        "Transfer,4,21600,5",
+        "Transfer,0,24000,1",
+        "Transfer,1,25200,9",
+        "Arrival,1,25200,9",
+        "Departure,0,22500,4",
+        "Arrival,3,22200,1",
+        "Arrival,6,22800,12",
+        "Transfer,0,25200,11",
+        "Arrival,4,21600,2",
+        "Arrival,4,21600,12",
+        "Departure,4,21900,4",
+        "Departure,6,23700,1",
+        "Departure,1,23100,1"
+    ],
+    "station_map": {
+        "E": {
+            "id": 0,
+            "lat": 3300000000000000,
+            "lon": -11700005000000000
+        },
+        "D": {
+            "id": 6,
+            "lat": 3300000000000000,
+            "lon": -11700004000000000
+        },
+        "A": {
+            "id": 4,
+            "lat": 3300000000000000,
+            "lon": -11700001000000000
+        },
+        "B": {
+            "id": 3,
+            "lat": 3300000000000000,
+            "lon": -11700002000000000
+        },
+        "C": {
+            "id": 1,
+            "lat": 3300000000000000,
+            "lon": -11700003000000000
+        },
+        "F": {
+            "id": 2,
+            "lat": 3300000000000000,
+            "lon": -11700006000000000
+        },
+        "G": {
+            "id": 5,
+            "lat": 3300000000000000,
+            "lon": -11700007000000000
+        }
+    }
+}

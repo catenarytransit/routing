@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::time::Instant;
 use tokio::*;
-use transit_router::{transfer_patterns::*, transit_dijkstras::*, transit_network::*};
+use transit_router::{transfers::*, transit_dijkstras::*, transit_network::*};
 
 //converts raw coordinate points into Point structs
 pub fn make_points_from_coords(
