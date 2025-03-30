@@ -61,7 +61,7 @@ pub fn read_from_gtfs_zip(path: &str) -> Gtfs {
         .read_shapes(false) // Won’t read shapes to save time and memory
         .read(path)
         .ok();
-    gtfs.unwrap()   
+    gtfs.unwrap()
 }
 
 pub fn calendar_date_filter(
@@ -113,18 +113,27 @@ pub struct DirectConnections {
 
 pub struct NumberNameMaps {
     pub station_map: Option<HashMap<String, Station>>, //station_id string, internal station_id (assigned number)
-    pub trip_map: HashMap<u32, Trip> //same as station map but for trips instead
+    pub trip_map: HashMap<u32, Trip>,                  //same as station map but for trips instead
 }
 
 impl NumberNameMaps {
     pub fn station_num_to_name(&self, id: &i64) -> Option<(i64, String)> {
-        self.station_map.as_ref().unwrap().iter().map(|(k, v)| (v.id, k.clone())).find(|(num, _)| num == id)
+        self.station_map
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|(k, v)| (v.id, k.clone()))
+            .find(|(num, _)| num == id)
     }
 
-    pub fn trip_num_to_name(&self, id: &u32) -> Option<(u32,String)> {
-        let a = self.trip_map.iter().map(|(k, v)|(*k, v.clone())).find(|(num, _)| num == id);
+    pub fn trip_num_to_name(&self, id: &u32) -> Option<(u32, String)> {
+        let a = self
+            .trip_map
+            .iter()
+            .map(|(k, v)| (*k, v.clone()))
+            .find(|(num, _)| num == id);
         if let Some((id, trip)) = a {
-            return Some((id, trip.route_id))
+            return Some((id, trip.route_id));
         }
         None
     }
@@ -382,7 +391,7 @@ impl TimeExpandedGraph {
             NumberNameMaps {
                 station_map: Some(station_map),
                 trip_map,
-            }
+            },
         )
     }
 }

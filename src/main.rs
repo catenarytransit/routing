@@ -62,7 +62,8 @@ async fn main() {
         let stops = gtfs.stops.clone();
 
         //generate Time Expanded Graph and Direct Connections for this GTFS file
-        let (transit_graph, connections, maps) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
+        let (transit_graph, connections, maps) =
+            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
         let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
 
         println!("{}", router.graph.nodes.len());
@@ -116,9 +117,7 @@ async fn main() {
         } else {
             println!("no path");
         }
-    }
-
-    else {
+    } else {
         println!("debug mode");
         let gtfs = read_from_gtfs_zip("test.zip");
 
@@ -126,13 +125,11 @@ async fn main() {
         let routes = gtfs.routes.clone();
         let stops = gtfs.stops.clone();
 
-        let (transit_graph, connections, maps) = TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
+        let (transit_graph, connections, maps) =
+            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
         let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
 
-        let (source, target) = make_points_from_coords(
-            33.0,-117.00001,
-            33.0,-117.00007
-        );
+        let (source, target) = make_points_from_coords(33.0, -117.00001, 33.0, -117.00007);
 
         let now = Instant::now();
         let graph = query_graph_construction(
@@ -142,7 +139,7 @@ async fn main() {
             source,
             target,
             21600, //5:10 AM
-            preset_distance
+            preset_distance,
         );
 
         let output = File::create("test.json").unwrap();
@@ -160,10 +157,9 @@ async fn main() {
                 } else {
                     println!("start {:?}", maps.station_num_to_name(&node.station_id));
                 }
-            } 
+            }
         } else {
             println!("no path");
         }
-
     }
 }

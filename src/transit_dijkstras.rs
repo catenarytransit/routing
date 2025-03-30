@@ -96,7 +96,7 @@ impl PathedNode {
         let try_trip = maps.trip_num_to_name(&trip_id);
         if let Some(trip) = try_trip {
             return Some(trip.1);
-        }        
+        }
         None
     }
 }
