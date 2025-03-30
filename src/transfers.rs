@@ -79,7 +79,7 @@ pub fn query_graph_construction(
 
     let target_ids = target_stations.iter().map(|id| id.id).collect();
 
-    //global transfer patterns from I(hubs) to to N(target())
+    //global transfers from I(hubs) to to N(target())
     println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
 
     for hub in used_hubs.iter() {
@@ -286,8 +286,8 @@ pub fn hub_selection(
     selected_hubs
 }
 
-// Precompute transfer patterns from a given station to all other stations.
-// Return the transfer patterns & numbers between each station pair.
+// Precompute transfers from a given station to all other stations.
+// Return the transfers & numbers between each station pair.
 pub fn transfers_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
