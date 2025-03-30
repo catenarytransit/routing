@@ -10,6 +10,13 @@ use std::time::Instant;
 use tokio::*;
 use transit_router::{transfers::*, transit_dijkstras::*, transit_network::*};
 
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemallocator::Jemalloc;
+
+#[cfg(not(target_env = "msvc"))]
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
+
 //converts raw coordinate points into Point structs
 pub fn make_points_from_coords(
     source_lat: f64,
