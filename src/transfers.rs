@@ -35,7 +35,7 @@ pub fn query_graph_construction(
     start_time: u32,
     preset_distance: f64, //in meters
 ) -> QueryGraph {
-    let now = Instant::now();
+    //let now = Instant::now();
     //compute sets of N(source) and N(target) of stations N= near
     let (source_stations, source_nodes): (HashSet<_>, HashSet<_>) =
         stations_near_point(router, source, preset_distance, start_time);
@@ -48,13 +48,13 @@ pub fn query_graph_construction(
     //get hubs of important stations I(hubs)
     let hubs = hub_selection(router, maps, 50000, cost_limit); //cost limit at 10 hours, arbitrary
 
-    println!("hubs: {:?}, t {:?}", &hubs, now.elapsed());
+    //println!("hubs: {:?}, t {:?}", &hubs, now.elapsed());
 
     let mut tps = Vec::new();
 
     for station in source_stations.iter() {
-        let now = Instant::now();
-        let (l_tps, n_now) = transfers_from_source(
+        //let now = Instant::now();
+        let (l_tps, _n_now) = transfers_from_source(
             station.id,
             router,
             Some(&hubs),
@@ -62,25 +62,25 @@ pub fn query_graph_construction(
             None,
             Some(start_time),
         );
-        println!(
+        /*println!(
             "local tp {:?} or immediate {:?}",
             now.elapsed(),
             n_now.elapsed()
-        );
+        );*/
 
-        let now = Instant::now();
+        //let now = Instant::now();
         tps.extend(l_tps.lock().unwrap().drain(..));
-        println!("extending local {:?}", now.elapsed());
+        //println!("extending local {:?}", now.elapsed());
     }
 
-    let now = Instant::now();
+    //let now = Instant::now();
     let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
     let used_hubs: Vec<_> = hubs.iter().filter(|n| reached.contains(n)).collect();
 
     let target_ids = target_stations.iter().map(|id| id.id).collect();
 
     //global transfers from I(hubs) to to N(target())
-    println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
+    //println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
 
     for hub in used_hubs.iter() {
         let now = Instant::now();
@@ -98,12 +98,12 @@ pub fn query_graph_construction(
             n_now.elapsed()
         );
 
-        let now = Instant::now();
+        //let now = Instant::now();
         tps.extend(g_tps.lock().unwrap().drain(..));
-        println!("extending hubs {:?}", now.elapsed());
+        //println!("extending hubs {:?}", now.elapsed());
     }
 
-    let now = Instant::now();
+    //let now = Instant::now();
 
     let paths = tps
         .iter()
@@ -112,15 +112,17 @@ pub fn query_graph_construction(
         })
         .collect::<Vec<_>>();
 
-    println!("paths {:?} {:?}", paths, now.elapsed());
+    println!("paths {}", paths.len());
+    //println!("paths {:?}", now.elapsed());
 
-    let now = Instant::now();
+    //let now = Instant::now();
 
     let mut edges = HashMap::new(); //tail, heads
 
     for path in paths.iter() {
         let mut prev = None;
         for node in path.iter() {
+            println!("check");
             if let Some(prev) = prev {
                 match edges.entry(prev) {
                     Entry::Occupied(mut o) => {
@@ -137,7 +139,7 @@ pub fn query_graph_construction(
         }
     }
 
-    println!("collecting paths {:?}", now.elapsed());
+    //println!("collecting paths {:?}", now.elapsed());
 
     let station_map = maps.station_map.clone();
 
