@@ -36,17 +36,19 @@ pub fn query_graph_construction(
     preset_distance: f64, //in meters
 ) -> QueryGraph {
     let now = Instant::now();
+
     //compute sets of N(source) and N(target) of stations N= near
     let (source_stations, source_nodes): (HashSet<_>, HashSet<_>) =
-        stations_near_point(router, source, preset_distance, start_time);
+        stations_near_point(router, source, preset_distance, start_time, None);
 
+    let end_time = Some(3600 * 3); //3 hours
     let (target_stations, target_nodes): (HashSet<_>, HashSet<_>) =
-        stations_near_point(router, target, preset_distance, start_time);
+        stations_near_point(router, target, preset_distance, start_time, end_time);
 
-    let cost_limit = 86400; //24 hour searchspace
+    let hub_cost_limit = 86400; //24 hour searchspace
 
     //get hubs of important stations I(hubs)
-    let hubs = hub_selection(router, maps, 50000, cost_limit); //cost limit at 10 hours, arbitrary
+    let hubs = hub_selection(router, maps, 50000, hub_cost_limit); //cost limit at 10 hours, arbitrary
 
     println!("hubs: {:?}, t {:?}", &hubs, now.elapsed());
 
@@ -74,8 +76,8 @@ pub fn query_graph_construction(
     }
 
     let now = Instant::now();
-    let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
-    let used_hubs: Vec<_> = hubs.iter().filter(|n| reached.contains(n)).collect();
+    //let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
+    let used_hubs: Vec<_> = hubs.iter().collect(); //hubs.iter().filter(|n| reached.contains(n)).collect();
 
     let target_ids = target_stations.iter().map(|id| id.id).collect();
 
@@ -156,12 +158,13 @@ pub fn query_graph_construction(
 
 pub fn stations_near_point(
     router: &TransitDijkstra,
-    source: Point,
+    point: Point,
     preset_distance: f64,
     start_time: u32,
+    end_time: Option<u32>,
 ) -> (HashSet<Station>, HashSet<NodeId>) {
     let now = Instant::now();
-    let (source_stations, nodes_per_source): (HashSet<_>, Vec<_>)=
+    let (point_stations, nodes_per_point): (HashSet<_>, Vec<_>)=
         router
         .graph
         .station_info
@@ -171,27 +174,27 @@ pub fn stations_near_point(
         .into_iter()
         .filter(|(station, _)| {
             let node_coord = point!(x: station.lon as f64 / f64::powi(10.0, 14), y: station.lat as f64 / f64::powi(10.0, 14));
-            Haversine::distance(source, node_coord) <= preset_distance
+            Haversine::distance(point, node_coord) <= preset_distance
         })
         .unzip();
 
-    let source_nodes: HashSet<NodeId> = nodes_per_source
+    let point_nodes: HashSet<NodeId> = nodes_per_point
         .into_iter()
         .flat_map(|x| {
             x.into_iter()
                 .unzip::<u32, NodeId, Vec<u32>, Vec<NodeId>>()
                 .1
         })
-        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + 3600))
+        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + end_time.unwrap_or(0)))
         .collect();
 
     println!(
         "Possible nodes count: {}, t {:?}",
-        source_stations.len(),
+        point_stations.len(),
         now.elapsed()
     );
 
-    (source_stations, source_nodes)
+    (point_stations, point_nodes)
 }
 
 //only calculate global time expanded dijkstra from hubs (important stations) to save complexity
