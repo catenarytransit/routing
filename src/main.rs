@@ -37,7 +37,7 @@ struct Args {
     /// Number of times to greet
     #[arg(long, default_value_t = true)]
     makequerygraph: bool,
-    #[arg(long, default_value_t = false)]
+    #[arg(long, default_value_t = true)]
     debugmode: bool,
 }
 
