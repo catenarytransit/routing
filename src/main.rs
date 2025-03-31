@@ -44,9 +44,9 @@ struct Args {
 #[tokio::main]
 async fn main() {
     let mut args = Args::parse();
-    let preset_distance = 250.0;
 
     if !args.debugmode {
+        let preset_distance = 250.0;
         println!("Arguments: {:#?}", args);
 
         let savepath = "results.json";
@@ -116,6 +116,7 @@ async fn main() {
             println!("no path");
         }
     } else {
+        let preset_distance = 0.0;
         println!("debug mode");
         let gtfs = read_from_gtfs_zip("test.zip");
 

@@ -386,10 +386,10 @@ pub fn transfers_from_source(
                 //transfers.push(*target);
                 //let mut previous_node: NodeId = *target;
                 for &node in path {
-                    //TODO: push the stupid source and target node in here to so i know where the heck the bus is coming from and where its transfering to
                     if
                     //previous_node.node_type == NodeType::Departure
                     //|| previous_node.node_type == NodeType::Transfer &&
+                    node.node_type == NodeType::Arrival ||
                     node.node_type == NodeType::Transfer {
                         loc_transfers.push(node);
                     }
