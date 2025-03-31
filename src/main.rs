@@ -37,7 +37,7 @@ struct Args {
     /// Number of times to greet
     #[arg(long, default_value_t = true)]
     makequerygraph: bool,
-    #[arg(long, default_value_t = true)]
+    #[arg(long, default_value_t = false)]
     debugmode: bool,
 }
 
@@ -47,8 +47,6 @@ async fn main() {
     let preset_distance = 250.0;
 
     if !args.debugmode {
-        args.makequerygraph = false;
-
         println!("Arguments: {:#?}", args);
 
         let savepath = "results.json";
