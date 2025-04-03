@@ -97,11 +97,10 @@ async fn main() {
 
         //part 2
 
-        println!("\npathed nodes: {:?}", paths);
-
         let file = File::open(savepath).ok().unwrap();
         let reader = BufReader::new(file);
         let graph: QueryGraph = serde_json::from_reader(reader).unwrap();
+
         let run_query = query_graph_search(connections, graph, &mut paths);
 
         if let Some(stuff) = run_query {
@@ -115,7 +114,7 @@ async fn main() {
                 }
             }
         } else {
-            println!("no path");
+            println!("route not found");
         }
     } else {
         let preset_distance = 0.0;
@@ -147,6 +146,8 @@ async fn main() {
         println!("query graph constructed in {:?}", now.elapsed());
         serde_json::to_writer(output, &graph).unwrap();
 
+        println!("pathed nodes: {:?}", paths);
+
         let run_query = query_graph_search(connections, graph, &mut paths);
 
         if let Some(stuff) = run_query {
@@ -160,7 +161,7 @@ async fn main() {
                 }
             }
         } else {
-            println!("no path");
+            println!("route not found");
         }
     }
 }
