@@ -97,6 +97,8 @@ async fn main() {
 
         //part 2
 
+        println!("\npathed nodes: {:?}", paths);
+
         let file = File::open(savepath).ok().unwrap();
         let reader = BufReader::new(file);
         let graph: QueryGraph = serde_json::from_reader(reader).unwrap();
