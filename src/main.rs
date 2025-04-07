@@ -35,7 +35,7 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 struct Args {
     /// Number of times to greet
-    #[arg(long, default_value_t = true)]
+    #[arg(long, default_value_t = false)]
     makequerygraph: bool,
     #[arg(long, default_value_t = true)]
     debugmode: bool,
@@ -146,7 +146,7 @@ async fn main() {
         println!("query graph constructed in {:?}", now.elapsed());
         serde_json::to_writer(output, &graph).unwrap();
 
-        println!("pathed nodes: {:?}", paths);
+        //println!("pathed nodes: {:?}", paths);
 
         let run_query = query_graph_search(connections, graph, &mut paths);
 

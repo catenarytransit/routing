@@ -185,7 +185,9 @@ pub fn stations_near_point(
                 .unzip::<u32, NodeId, Vec<u32>, Vec<NodeId>>()
                 .1
         })
-        .filter(|node| node.time >= Some(start_time) && node.time <= Some(start_time + end_time.unwrap_or(0)))
+        .filter(|node| {
+            node.time >= Some(start_time) && node.time <= Some(start_time + end_time.unwrap_or(0))
+        })
         .collect();
 
     println!(
@@ -315,6 +317,7 @@ pub fn transfers_from_source(
         .copied()
         .collect();
     println!("found sources {:?}", now.elapsed());
+    println!("source are\n{:?}", source_transfer_nodes);
     let now = Instant::now();
 
     let visited_nodes = router.time_expanded_dijkstra(source_transfer_nodes, hubs, paths);
@@ -392,8 +395,7 @@ pub fn transfers_from_source(
                     if
                     //previous_node.node_type == NodeType::Departure
                     //|| previous_node.node_type == NodeType::Transfer &&
-                    node.node_type == NodeType::Arrival ||
-                    node.node_type == NodeType::Transfer {
+                    node.node_type == NodeType::Arrival || node.node_type == NodeType::Transfer {
                         loc_transfers.push(node);
                     }
                     //previous_node = node;

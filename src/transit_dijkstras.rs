@@ -17,6 +17,14 @@ pub struct PathedNode {
 impl PathedNode {
     //some wacky linked-list kind struct
 
+    pub fn new(cost_from_start: u32, parent_node: Option<NodeId>, transfer_count: u8) -> Self {
+        Self {
+            cost_from_start,
+            parent_node,
+            transfer_count,
+        }
+    }
+
     pub fn update(
         &mut self,
         id: NodeId,
@@ -205,16 +213,30 @@ impl TransitDijkstra {
                     }
                 }
 
-                paths.entry(neighbor.0).and_modify(|n| {
-                    n.update(
-                        neighbor.0,
-                        neighbor.1,
-                        current_node,
-                        transfer_count,
-                        &mut gscore,
-                        &mut priority_queue,
-                    )
-                });
+                paths
+                    .entry(neighbor.0)
+                    .and_modify(|n| {
+                        n.update(
+                            neighbor.0,
+                            neighbor.1,
+                            current_node,
+                            transfer_count,
+                            &mut gscore,
+                            &mut priority_queue,
+                        )
+                    })
+                    .or_insert({
+                        let mut n = PathedNode::new(neighbor.1, Some(current_node), transfer_count);
+                        n.update(
+                            neighbor.0,
+                            neighbor.1,
+                            current_node,
+                            transfer_count,
+                            &mut gscore,
+                            &mut priority_queue,
+                        );
+                        n
+                    });
             }
         }
         //println!("no path exists");
