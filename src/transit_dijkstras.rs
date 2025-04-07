@@ -95,7 +95,7 @@ impl PathedNode {
             prev_route = route;
             prev_node = Some(node);
         }
-        tp.reverse();
+        //tp.reverse();
         (tp, journey_cost)
     }
 

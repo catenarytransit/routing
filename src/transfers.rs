@@ -330,7 +330,7 @@ pub fn transfers_from_source(
         .filter(|node| node.node_type == NodeType::Arrival)
         .map(|node| {
             let (mut path, cost) = PathedNode::get_path(node, paths);
-            path.reverse();
+            //path.reverse();
             if hubs.is_some() {
                 let len = path
                     .iter()
