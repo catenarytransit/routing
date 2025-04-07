@@ -75,6 +75,8 @@ pub fn query_graph_construction(
         println!("extending local {:?}", now.elapsed());
     }
 
+    println!("currently, tps are\n{:?}", tps);
+
     let now = Instant::now();
     //let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
     let used_hubs: Vec<_> = hubs.iter().collect(); //hubs.iter().filter(|n| reached.contains(n)).collect();
@@ -323,6 +325,8 @@ pub fn transfers_from_source(
     let visited_nodes = router.time_expanded_dijkstra(source_transfer_nodes, hubs, paths);
 
     println!("visited nodes {:?}", now.elapsed());
+    println!("visted are\n{:?}", visited_nodes);
+
     let now = Instant::now();
 
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u32)> = visited_nodes
