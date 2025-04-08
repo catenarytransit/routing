@@ -62,7 +62,7 @@ impl PathedNode {
             let next_node = nodespace.get(&prev).unwrap();
             current = next_node; //current = current.parent_node
         }
-        shortest_path.reverse();
+
         //shortest_path.push(current_path.unwrap()));
         (shortest_path, total_distance)
     }
@@ -97,7 +97,7 @@ impl PathedNode {
             prev_route = route;
             prev_node = Some(node);
         }
-        //tp.reverse();
+        tp.reverse();
         (tp, journey_cost)
     }
 

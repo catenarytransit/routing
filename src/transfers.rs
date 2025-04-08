@@ -339,7 +339,7 @@ pub fn transfers_from_source(
         .map(|node| {
             let (mut path, cost) = PathedNode::get_path(node, paths);
             println!("currently, tps are\n{:?}", path);
-            //path.reverse();
+            path.reverse();
             if hubs.is_some() {
                 let len = path
                     .iter()
@@ -399,15 +399,15 @@ pub fn transfers_from_source(
                 let (target, path, _) = src.get(i).unwrap();
                 let mut loc_transfers = Vec::new();
                 //transfers.push(*target);
-                let mut previous_node: NodeId = *target;
+                //let mut previous_node: NodeId = *target;
                 for &node in path {
                     if
-                    node.node_type == NodeType::Departure
-                    || previous_node.node_type == NodeType::Transfer &&
+                    //previous_node.node_type == NodeType::Departure
+                    //|| previous_node.node_type == NodeType::Transfer &&
                      node.node_type == NodeType::Transfer {
                         loc_transfers.push(node);
                     }
-                    previous_node = node;
+                    //previous_node = node;
                 }
 
                 loc_transfers.push(*target);
