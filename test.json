@@ -8,34 +8,75 @@
         "y": 33.0
     },
     "edges": {
-        "Transfer,4,22800,4": [
-            "Transfer,4,22800,9"
+        "Transfer,0,25200,12": [
+            "Arrival,5,25800,10",
+            "Arrival,1,25800,11",
+            "Arrival,1,26400,10",
+            "Arrival,2,26400,7",
+            "Arrival,2,27000,10",
+            "Arrival,3,26400,8",
+            "Arrival,2,27600,8",
+            "Arrival,1,27000,8",
+            "Arrival,2,25800,12",
+            "Arrival,2,26400,11",
+            "Arrival,5,25800,8"
         ],
-        "Departure,2,21900,3": [
-            "Transfer,1,22200,4",
-            "Departure,1,22500,3"
+        "Transfer,3,22800,1": [
+            "Transfer,3,22800,5"
         ],
-        "Departure,1,22500,3": [
-            "Arrival,5,30000,9",
-            "Transfer,4,22800,4"
+        "Transfer,3,25200,7": [
+            "Transfer,3,25200,9"
         ],
-        "Departure,4,23100,9": [
-            "Departure,3,26700,9"
+        "Transfer,3,25200,9": [
+            "Arrival,1,25800,7"
         ],
-        "Departure,3,26700,9": [
-            "Arrival,5,30000,9"
+        "Transfer,0,24000,1": [
+            "Transfer,0,25200,8"
+        ],
+        "Transfer,3,22800,5": [
+            "Transfer,3,22800,6"
+        ],
+        "Transfer,1,22200,1": [
+            "Transfer,1,22200,3"
+        ],
+        "Transfer,0,25200,11": [
+            "Transfer,0,25200,12"
         ],
         "Transfer,1,22200,4": [
             "Transfer,1,22200,6"
         ],
-        "Transfer,4,22800,9": [
-            "Departure,4,23100,9"
+        "Transfer,3,22800,6": [
+            "Arrival,6,30000,5",
+            "Transfer,3,25200,7",
+            "Arrival,4,26400,5"
+        ],
+        "Transfer,0,25200,8": [
+            "Transfer,0,25200,10"
+        ],
+        "Transfer,0,25200,10": [
+            "Transfer,0,25200,11"
+        ],
+        "Transfer,1,22200,3": [
+            "Transfer,1,22200,4"
         ],
         "Transfer,1,22200,6": [
-            "Transfer,1,22200,7"
+            "Arrival,5,22800,3",
+            "Arrival,0,23400,3",
+            "Arrival,3,22800,6",
+            "Arrival,0,22800,4"
         ],
-        "Transfer,1,22200,7": [
-            "Departure,1,22500,3"
+        "Transfer,2,21600,6": [
+            "Arrival,5,23400,1",
+            "Transfer,0,24000,1",
+            "Arrival,1,22200,4",
+            "Arrival,0,22200,2",
+            "Transfer,1,22200,1",
+            "Transfer,3,22800,1",
+            "Arrival,0,24000,1",
+            "Arrival,3,22800,1",
+            "Arrival,1,22200,3",
+            "Arrival,1,22200,1",
+            "Arrival,1,22200,6"
         ]
     },
     "source_stations": [
@@ -47,66 +88,66 @@
     ],
     "target_stations": [
         {
-            "id": 5,
+            "id": 6,
             "lat": 3300000000000000,
             "lon": -11700007000000000
         }
     ],
     "hubs": [
-        1
+        0
     ],
     "source_nodes": [
-        "Arrival,2,21600,5",
-        "Arrival,2,21600,3",
-        "Transfer,2,21600,6",
-        "Arrival,2,21600,6",
-        "Arrival,2,21600,4",
+        "Transfer,2,21600,2",
         "Transfer,2,21600,4",
+        "Arrival,2,21600,6",
+        "Arrival,2,21600,3",
+        "Arrival,2,21600,1",
+        "Arrival,2,21600,2",
+        "Transfer,2,21600,6",
         "Transfer,2,21600,3",
-        "Transfer,2,21600,5",
-        "Transfer,2,21600,7",
-        "Arrival,2,21600,7"
+        "Arrival,2,21600,4",
+        "Transfer,2,21600,1"
     ],
     "target_nodes": [
-        "Arrival,5,30000,9",
-        "Transfer,5,30000,9",
-        "Departure,5,30300,9"
+        "Transfer,6,30000,5",
+        "Arrival,6,30000,5",
+        "Departure,6,30300,5"
     ],
     "station_map": {
+        "A": {
+            "id": 2,
+            "lat": 3300000000000000,
+            "lon": -11700001000000000
+        },
+        "C": {
+            "id": 3,
+            "lat": 3300000000000000,
+            "lon": -11700003000000000
+        },
+        "E": {
+            "id": 0,
+            "lat": 3300000000000000,
+            "lon": -11700005000000000
+        },
         "B": {
             "id": 1,
             "lat": 3300000000000000,
             "lon": -11700002000000000
         },
         "F": {
-            "id": 3,
+            "id": 4,
             "lat": 3300000000000000,
             "lon": -11700006000000000
         },
         "D": {
-            "id": 0,
+            "id": 5,
             "lat": 3300000000000000,
             "lon": -11700004000000000
         },
-        "A": {
-            "id": 2,
-            "lat": 3300000000000000,
-            "lon": -11700001000000000
-        },
-        "E": {
+        "G": {
             "id": 6,
             "lat": 3300000000000000,
-            "lon": -11700005000000000
-        },
-        "G": {
-            "id": 5,
-            "lat": 3300000000000000,
             "lon": -11700007000000000
-        },
-        "C": {
-            "id": 4,
-            "lat": 3300000000000000,
-            "lon": -11700003000000000
         }
     }
 }
