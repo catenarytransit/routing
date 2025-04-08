@@ -56,11 +56,13 @@ impl PathedNode {
         let pathed_node = nodespace.get(&id).unwrap();
         let total_distance: u32 = pathed_node.cost_from_start;
         let mut current = pathed_node;
+        shortest_path.push(id);
         while let Some(prev) = current.parent_node {
-            shortest_path.push(id); //current.node_self
+            shortest_path.push(prev);
             let next_node = nodespace.get(&prev).unwrap();
             current = next_node; //current = current.parent_node
         }
+        shortest_path.reverse();
         //shortest_path.push(current_path.unwrap()));
         (shortest_path, total_distance)
     }
