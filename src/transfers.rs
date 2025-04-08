@@ -12,7 +12,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Instant;
-use std::process::exit;
+//use std::process::exit;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryGraph {
@@ -46,12 +46,12 @@ pub fn query_graph_construction(
     let (target_stations, target_nodes): (HashSet<_>, HashSet<_>) =
         stations_near_point(router, target, preset_distance, start_time, end_time);
 
-    let a = router.time_expanded_dijkstra(source_nodes.iter().copied().collect(), None, paths);
+    /*let a = router.time_expanded_dijkstra(source_nodes.iter().copied().collect(), None, paths);
     let x = paths.iter().next().unwrap();
     println!("\nTarget\n{:?}\n\n", x);
     let y = PathedNode::get_path(*x.0, paths);
     println!("Path\n{:?}\n\n", y);
-    exit(0);
+    exit(0);*/
 
     let hub_cost_limit = 86400; //24 hour searchspace
 
