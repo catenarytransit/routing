@@ -12,6 +12,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Instant;
+use std::process::exit;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryGraph {
@@ -45,6 +46,10 @@ pub fn query_graph_construction(
     let (target_stations, target_nodes): (HashSet<_>, HashSet<_>) =
         stations_near_point(router, target, preset_distance, start_time, end_time);
 
+    router.time_expanded_dijkstra(source_nodes.iter().copied().collect(), None, paths);
+    println!("{:?}",paths);
+    exit(0);
+
     let hub_cost_limit = 86400; //24 hour searchspace
 
     //get hubs of important stations I(hubs)
@@ -74,8 +79,6 @@ pub fn query_graph_construction(
         tps.extend(l_tps.lock().unwrap().drain(..));
         println!("extending local {:?}", now.elapsed());
     }
-
-    println!("currently, tps are\n{:?}", tps);
 
     let now = Instant::now();
     //let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
@@ -193,7 +196,7 @@ pub fn stations_near_point(
         .collect();
 
     println!(
-        "Possible nodes count: {}, t {:?}",
+        "Possible stations count: {}, t {:?}",
         point_stations.len(),
         now.elapsed()
     );
@@ -319,13 +322,11 @@ pub fn transfers_from_source(
         .copied()
         .collect();
     println!("found sources {:?}", now.elapsed());
-    println!("source are\n{:?}", source_transfer_nodes);
     let now = Instant::now();
 
     let visited_nodes = router.time_expanded_dijkstra(source_transfer_nodes, hubs, paths);
 
     println!("visited nodes {:?}", now.elapsed());
-    println!("visted are\n{:?}", visited_nodes);
 
     let now = Instant::now();
 
@@ -334,6 +335,7 @@ pub fn transfers_from_source(
         .filter(|node| node.node_type == NodeType::Arrival)
         .map(|node| {
             let (mut path, cost) = PathedNode::get_path(node, paths);
+            println!("currently, tps are\n{:?}", path);
             //path.reverse();
             if hubs.is_some() {
                 let len = path
@@ -343,9 +345,9 @@ pub fn transfers_from_source(
                 let u: Vec<_> = path.drain(len..).collect();
                 let mut iter = u.chunk_by(|a, b| a.station_id == b.station_id);
                 let add_back_node = iter.next().unwrap_or(&[]);
-                //println!("{:?}", add_back_node);
+                println!("{:?}", add_back_node);
                 path.extend(add_back_node);
-                //if len < path.len(){println!("hub t {len}")};
+                if len < path.len(){println!("hub t {len}")};
             }
             if targets.is_some() {
                 let len = path
@@ -356,15 +358,15 @@ pub fn transfers_from_source(
                     .unwrap_or(0);
                 if len != 0 {
                     let u: Vec<_> = path.drain(len..).collect();
-                    //println!("{:?}", u);
+                    println!("{:?}", u);
                     let mut iter = u.chunk_by(|a, b| a.station_id == b.station_id);
                     let add_back_node = iter.next().unwrap_or(&[]);
-                    //println!("{:?}", add_back_node);
+                    println!("{:?}", add_back_node);
                     path.extend(add_back_node);
                 } else {
                     path.clear();
                 }
-                //if len > 0 {println!("targ t {len}")};
+                if len > 0 {println!("targ t {len}")};
             }
             (node, path, cost)
         })
@@ -394,15 +396,15 @@ pub fn transfers_from_source(
                 let (target, path, _) = src.get(i).unwrap();
                 let mut loc_transfers = Vec::new();
                 //transfers.push(*target);
-                //let mut previous_node: NodeId = *target;
+                let mut previous_node: NodeId = *target;
                 for &node in path {
                     if
-                    //previous_node.node_type == NodeType::Departure
-                    //|| previous_node.node_type == NodeType::Transfer &&
-                    node.node_type == NodeType::Arrival || node.node_type == NodeType::Transfer {
+                    node.node_type == NodeType::Departure
+                    || previous_node.node_type == NodeType::Transfer &&
+                     node.node_type == NodeType::Transfer {
                         loc_transfers.push(node);
                     }
-                    //previous_node = node;
+                    previous_node = node;
                 }
 
                 loc_transfers.push(*target);
