@@ -182,7 +182,7 @@ pub fn stations_near_point(
         .into_iter()
         .filter(|(station, _)| {
             let node_coord = point!(x: station.lon as f64 / f64::powi(10.0, 14), y: station.lat as f64 / f64::powi(10.0, 14));
-            Haversine::distance(point, node_coord) <= preset_distance
+            Haversine.distance(point, node_coord) <= preset_distance
         })
         .unzip();
 
@@ -331,14 +331,11 @@ pub fn transfers_from_source(
 
     println!("visited nodes {:?}", now.elapsed());
 
-    let now = Instant::now();
-
     let mut arrival_nodes: Vec<(NodeId, Vec<NodeId>, u32)> = visited_nodes
         .into_iter()
         .filter(|node| node.node_type == NodeType::Arrival)
         .map(|node| {
             let (mut path, cost) = PathedNode::get_path(node, paths);
-            println!("currently, tps are\n{:?}", path);
             path.reverse();
             if hubs.is_some() {
                 let len = path
@@ -348,9 +345,7 @@ pub fn transfers_from_source(
                 let u: Vec<_> = path.drain(len..).collect();
                 let mut iter = u.chunk_by(|a, b| a.station_id == b.station_id);
                 let add_back_node = iter.next().unwrap_or(&[]);
-                println!("{:?}", add_back_node);
                 path.extend(add_back_node);
-                if len < path.len(){println!("hub t {len}")};
             }
             if targets.is_some() {
                 let len = path
@@ -361,21 +356,17 @@ pub fn transfers_from_source(
                     .unwrap_or(0);
                 if len != 0 {
                     let u: Vec<_> = path.drain(len..).collect();
-                    println!("{:?}", u);
                     let mut iter = u.chunk_by(|a, b| a.station_id == b.station_id);
                     let add_back_node = iter.next().unwrap_or(&[]);
-                    println!("{:?}", add_back_node);
                     path.extend(add_back_node);
                 } else {
                     path.clear();
                 }
-                if len > 0 {println!("targ t {len}")};
             }
             (node, path, cost)
         })
         .collect();
     arrival_nodes.retain(|(_, path, _)| !path.is_empty());
-    println!("filtered arrivals {:?}", now.elapsed());
     let now = Instant::now();
 
     arrival_loop(&mut arrival_nodes);
