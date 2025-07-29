@@ -3,7 +3,6 @@ use crate::RoadNetwork;
 use rand::Rng;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap};
-use std::hash::Hash;
 use std::rc::Rc;
 
 use crate::road_network::road_graph_construction::Node;
@@ -47,6 +46,27 @@ impl RoadPathedNode {
     }
 }
 
+pub fn a_star_heuristic(graph: &RoadNetwork, target: i64) -> HashMap<i64, u64> {
+    let tail = *graph.nodes.get(&target).unwrap();
+    //for each current i64 id, enter euciladan distance from current to target, divided by max speed on that path
+    let heuristics = graph
+        .nodes
+        .iter()
+        .map(|(id, head)| {
+            (
+                *id,
+                ((i128::pow(((head.lat - tail.lat) * 111229).into(), 2) as f64
+                    / f64::powi(10.0, 14)
+                    + i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
+                        / f64::powi(10.0, 14))
+                .sqrt() as u64)
+                    / ((110_f64) * 5.0 / 18.0) as u64, //110 is motorway speed --> max speed possible on road network
+            )
+        })
+        .collect::<HashMap<i64, u64>>();
+    heuristics
+}
+
 impl RoadDijkstra {
     //implementation of dijkstra's shortest path algorithm
     pub fn new(graph: &RoadNetwork) -> Self {
@@ -67,26 +87,40 @@ impl RoadDijkstra {
         self.max_settled_nodes = max_settled;
     }
 
-    pub fn get_neighbors(&self, current: &RoadPathedNode) -> Vec<(Node, u64)> {
+    pub fn get_neighbors(
+        &mut self,
+        current: &RoadPathedNode,
+        consider_arc_flags: bool,
+    ) -> Vec<(Node, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
+        let mut next_node_edges = HashMap::new();
         //need some case to handle neighbor to parent instead of just parent to neighbor
-        if let Some(connections) = self.graph.edges.get(&current.node_self.id) {
-            for path in connections {
-                if self.visited_nodes.contains_key(path.0) {
-                    continue;
-                }
-                paths.push((*self.graph.nodes.get(path.0).unwrap(), *path.1));
+        if let Some(connections) = self.graph.edges.get_mut(&current.node_self.id) {
+            next_node_edges.clone_from(connections);
+        }
+        for path in next_node_edges {
+            if self.visited_nodes.contains_key(&path.0) {
+                continue;
             }
+            if consider_arc_flags && !path.1 .1 {
+                continue;
+            }
+            paths.push((*self.graph.nodes.get(&path.0).unwrap(), path.1 .0));
         }
         paths
     }
 
-    pub fn dijkstra(&mut self, source_id: i64, target_id: i64) -> Option<RoadPathedNode> {
-        //(Option<RoadPathedNode>, HashMap<i64, i64>) {
+    pub fn dijkstra(
+        &mut self,
+        source_id: i64,
+        target_id: i64,
+        heuristics: &Option<HashMap<i64, u64>>,
+        consider_arc_flags: bool,
+    ) -> (Option<RoadPathedNode>, HashMap<i64, i64>) {
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, RoadPathedNode)>> = BinaryHeap::new();
-        //let mut previous_nodes = HashMap::new();
+        let mut previous_nodes = HashMap::new();
 
         //set target (-1) for all-node-settle rather than just target settle or smth
         self.visited_nodes.clear();
@@ -103,7 +137,6 @@ impl RoadDijkstra {
             parent_node: (None),
         };
 
-        //stores distances of node relative to target
         let mut gscore: HashMap<i64, u64> = HashMap::new();
         gscore.insert(source_id, 0);
 
@@ -119,8 +152,7 @@ impl RoadDijkstra {
 
             //found target node
             if idx.eq(&target_id) {
-                return Some(pathed_current_node);
-                //return (Some(pathed_current_node), previous_nodes);
+                return (Some(pathed_current_node), previous_nodes);
             }
 
             //stop conditions
@@ -128,8 +160,7 @@ impl RoadDijkstra {
             if cost > self.cost_upper_bound
                 || self.visited_nodes.len() > self.max_settled_nodes as usize
             {
-                return None;
-                //return (None, previous_nodes);
+                return (None, previous_nodes);
             }
 
             //cost is higher than current path (not optimal)
@@ -137,7 +168,7 @@ impl RoadDijkstra {
                 continue;
             }
 
-            for neighbor in self.get_neighbors(&pathed_current_node) {
+            for neighbor in self.get_neighbors(&pathed_current_node, consider_arc_flags) {
                 let temp_distance = pathed_current_node.distance_from_start + neighbor.1;
                 let next_distance = *gscore.get(&neighbor.0.id).unwrap_or(&u64::MAX);
 
@@ -149,22 +180,29 @@ impl RoadDijkstra {
                         distance_from_start: temp_distance,
                         parent_node: Some(prev_node),
                     };
-                    priority_queue.push(Reverse((temp_distance, tentative_new_node)));
+                    let h;
+                    if let Some(heuristic) = heuristics {
+                        h = heuristic.get(&neighbor.0.id).unwrap_or(&0);
+                    } else {
+                        h = &0;
+                    }
+                    //fscore = temp_distance (gscore) + h (hscore)
+                    priority_queue.push(Reverse((temp_distance + h, tentative_new_node)));
+                    previous_nodes.insert(neighbor.0.id, pathed_current_node.node_self.id);
                 }
             }
         }
-        None
-        //(None, previous_nodes)
+        (None, previous_nodes)
     }
 
     pub fn get_random_node_id(&mut self) -> Option<i64> {
         //returns ID of a random valid node from a graph
         let mut rng = rand::rng();
-        let full_node_list: &Vec<_> = &self.graph.nodes.keys().collect();
+        let full_node_list = &self.graph.raw_nodes;
         let random: usize = rng.random_range(0..full_node_list.len());
         let node_id = full_node_list.get(random).unwrap();
 
-        Some(**node_id)
+        Some(*node_id)
     }
 
     pub fn get_random_node_area_id(
@@ -175,9 +213,9 @@ impl RoadDijkstra {
         lon_max: f32,
     ) -> i64 {
         let lat_range =
-            (lat_min * f32::powi(10.0, 14)) as i64..(lat_max * f32::powi(10.0, 14)) as i64;
+            (lat_min * f32::powi(10.0, 7)) as i64..(lat_max * f32::powi(10.0, 7)) as i64;
         let lon_range =
-            (lon_min * f32::powi(10.0, 14)) as i64..(lon_max * f32::powi(10.0, 14)) as i64;
+            (lon_min * f32::powi(10.0, 7)) as i64..(lon_max * f32::powi(10.0, 7)) as i64;
         let mut found = false;
         let mut id = -1;
         while !found {
@@ -197,7 +235,7 @@ impl RoadDijkstra {
         other_located_nodes: &HashMap<i64, i32>,
     ) -> Option<i64> {
         if other_located_nodes.len() == self.graph.nodes.len() {
-            print!("\tall nodes visted\t");
+            println!("all nodes visted");
             return None;
         }
         let other_located_nodes = other_located_nodes
@@ -212,5 +250,13 @@ impl RoadDijkstra {
             }
         }
         None
+    }
+
+    pub fn reset_all_flags(&mut self, state: bool) {
+        for (_, edgelist) in self.graph.edges.iter_mut() {
+            for edge in edgelist.iter_mut() {
+                edge.1 .1 = state;
+            }
+        }
     }
 }

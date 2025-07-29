@@ -85,9 +85,7 @@ impl PathedNode {
             current = next_node;
 
             if let Some(prev) = prev_node {
-                if prev.trip_id != node.trip_id && prev_route != route
-                //&& !(prev.node_type == NodeType::Transfer && prev.station_id == node.station_id)
-                {
+                if prev.trip_id != node.trip_id && prev_route != route {
                     tp.push((node, route.to_owned()));
                 }
             } else {
@@ -345,25 +343,29 @@ impl TDDijkstra {
 
             //found target node
             if target_id.contains(&current_node) {
+                //paths.insert(current_node, PathedNode::new(0, None, 0));
                 return Some(current_node);
             }
 
-            //cost is higher than current path (not optimal)
+            //cost is higher (not optimal)
             if pathed_node.cost_from_start > *gscore.get(&current_node).unwrap_or(&u32::MAX) {
                 continue;
             }
 
             for neighbor in self.get_neighbors(&current_node, &self.connections) {
-                paths.entry(neighbor.0).and_modify(|n| {
-                    n.update(
-                        neighbor.0,
-                        neighbor.1,
-                        current_node,
-                        0,
-                        &mut gscore,
-                        &mut priority_queue,
-                    )
-                });
+                paths
+                    .entry(neighbor.0)
+                    .and_modify(|n| {
+                        n.update(
+                            neighbor.0,
+                            neighbor.1,
+                            current_node,
+                            0,
+                            &mut gscore,
+                            &mut priority_queue,
+                        )
+                    })
+                    .or_insert(PathedNode::new(neighbor.1, Some(current_node), 0));
             }
         }
         None //(None, node_path_tracker)

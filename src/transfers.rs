@@ -395,7 +395,7 @@ pub fn transfers_from_source(
                     if
                     //previous_node.node_type == NodeType::Departure
                     //|| previous_node.node_type == NodeType::Transfer &&
-                     node.node_type == NodeType::Transfer {
+                    node.node_type == NodeType::Transfer {
                         loc_transfers.push(node);
                     }
                     //previous_node = node;
@@ -460,7 +460,7 @@ pub fn query_graph_search(
     connections: DirectConnections,
     query_info: QueryGraph,
     paths: &mut HashMap<NodeId, PathedNode>,
-) -> Option<(NodeId, PathedNode)> {
+) -> Option<(NodeId, NodeId, PathedNode)> {
     /*let mut source_paths: HashMap<i64, _> = HashMap::new();
 
     let road_node_tree = RTree::bulk_load(
@@ -530,22 +530,21 @@ pub fn query_graph_search(
     let mut min_cost = 0;
     let mut router = TDDijkstra::new(connections, query_info.edges);
 
-    let mut returned_val: Option<(NodeId, PathedNode)> = None; //source, target, path
-
+    let mut returned_val: Option<(NodeId, NodeId, PathedNode)> = None; //source, target, path
     for source_id in query_info.source_nodes.iter() {
         //if let Some(_source_path) = source_paths.get(&source_id.station_id){
         //println!("s {:?}", source_id.station_id);
         //if let Some(_target_path) = target_paths.get(&target_id.station_id){
         //println!("t {:?}", target_id.station_id);
         let path = router.time_dependent_dijkstra(paths, *source_id, &query_info.target_nodes);
-        if let Some(target) = path {
-            let transit_path = paths.get(&target).unwrap();
+        if let Some(target_id) = path {
+            let transit_path = paths.get(&target_id).unwrap();
             let new_cost = transit_path.cost_from_start;
             //+ source_path.distance_from_start
             //+ target_path.distance_from_start;
             if new_cost > min_cost {
                 min_cost = new_cost;
-                returned_val = Some((*source_id, transit_path.clone()));
+                returned_val = Some((*source_id, target_id, transit_path.clone()));
             }
         }
     }
