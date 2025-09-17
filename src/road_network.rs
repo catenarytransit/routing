@@ -1,8 +1,6 @@
 #[allow(unused)]
 pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
-    use crate::coord_int_convert::TEN_TO_14;
-    use crate::coord_int_convert::*;
     use crate::road_dijkstras::*;
     use core::num;
     use osmpbfreader::objects::OsmObj;

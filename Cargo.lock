@@ -1966,6 +1966,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e27ee8bb91ca0adcf0ecb116293afa12d393f9c2b9b9cd54d33e8078fe19839"
 
 [[package]]
+name = "routing"
+version = "0.1.0"
+dependencies = [
+ "arguments",
+ "bincode",
+ "chrono",
+ "clap",
+ "geo",
+ "gtfs-structures",
+ "ittapi",
+ "osmpbfreader",
+ "rand",
+ "rstar",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "tikv-jemallocator",
+ "tokio",
+]
+
+[[package]]
 name = "rstar"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2612,27 +2633,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9d12581f227e93f094d3af2ae690a574abb8a2b9b7a96e7cfe9647b2b617678"
 dependencies = [
  "once_cell",
-]
-
-[[package]]
-name = "transit-router"
-version = "0.1.0"
-dependencies = [
- "arguments",
- "bincode",
- "chrono",
- "clap",
- "geo",
- "gtfs-structures",
- "ittapi",
- "osmpbfreader",
- "rand",
- "rstar",
- "serde",
- "serde_json",
- "serde_with",
- "tikv-jemallocator",
- "tokio",
 ]
 
 [[package]]

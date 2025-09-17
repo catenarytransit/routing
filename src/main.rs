@@ -2,13 +2,7 @@
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
 use geo::{point, Point};
-use serde_json::{Result, Value};
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
-use std::time::Instant;
-use tokio::*;
-use transit_router::{
+use routing::{
     road_dijkstras::*,
     road_network::{
         arc_flags_algo::*, contraction_hierarchies::*, landmark_algo::*, road_graph_construction::*,
@@ -17,6 +11,12 @@ use transit_router::{
     transit_dijkstras::*,
     transit_network::*,
 };
+use serde_json::{Result, Value};
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::BufReader;
+use std::time::Instant;
+use tokio::*;
 
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
@@ -51,9 +51,139 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-    //std::env::set_var("RUST_BACKTRACE", "1");
+    std::env::set_var("RUST_BACKTRACE", "1");
     //let path = "bw.pbf";
     //let path = "uci.pbf";
+
+    let mut args = Args::parse();
+
+    if !args.debugmode {
+        let preset_distance = 250.0;
+        println!("Arguments: {args:#?}");
+
+        let savepath = "results.json";
+
+        println!("generating transit network graph");
+        let gtfs = read_from_gtfs_zip("ctt.zip");
+
+        //overhead for cloning these strings is very low, it's just for displaying anyway
+        let trips = gtfs.trips.clone();
+        let routes = gtfs.routes.clone();
+        let stops = gtfs.stops.clone();
+
+        //generate Time Expanded Graph and Direct Connections for this GTFS file
+        let (transit_graph, connections, maps) =
+            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
+        let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
+
+        println!("{}", router.graph.nodes.len());
+
+        //full routing test
+        //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
+        //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
+
+        if (args.makequerygraph) {
+            //pepperidge farm to harriet beecher stowe center
+            let (source, target) = make_points_from_coords(
+                41.86829675142084,
+                -72.71973332600558,
+                41.76726348091365,
+                -72.70049435551549,
+            );
+
+            let now = Instant::now();
+            let graph = query_graph_construction(
+                &mut router,
+                &maps,
+                &mut paths,
+                source,
+                target,
+                18600, //5:10 AM
+                preset_distance,
+            );
+
+            let output = File::create(savepath).unwrap();
+            println!("query graph constructed in {:?}", now.elapsed());
+            serde_json::to_writer(output, &graph).unwrap();
+        }
+
+        //part 2
+
+        let file = File::open(savepath).ok().unwrap();
+        let reader = BufReader::new(file);
+        let graph: QueryGraph = serde_json::from_reader(reader).unwrap();
+
+        let run_query = query_graph_search(connections, graph, &mut paths);
+
+        if let Some((s, t, pathed)) = run_query {
+            let path = pathed.get_tp(s, &paths, &maps);
+            for (node, route) in path.0 {
+                println!("{node:?}");
+                if let Some(route) = route {
+                    println!("via {:?}", routes.get(&route).unwrap().short_name);
+                } else {
+                    println!("start {}", stops.get(&node.station_id.to_string()).unwrap());
+                }
+            }
+        } else {
+            println!("route not found");
+        }
+    } else {
+        let preset_distance = 0.0;
+        println!("debug mode");
+        let gtfs = read_from_gtfs_zip("test.zip");
+
+        //overhead for cloning these strings is very low, it's just for displaying anyway
+        let routes = gtfs.routes.clone();
+        let stops = gtfs.stops.clone();
+
+        let (transit_graph, connections, maps) =
+            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
+        let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
+
+        let (source, target) = make_points_from_coords(33.0, -117.00001, 33.0, -117.00007);
+
+        let now = Instant::now();
+        let graph = query_graph_construction(
+            &mut router,
+            &maps,
+            &mut paths,
+            source,
+            target,
+            21600, //5:10 AM
+            preset_distance,
+        );
+
+        let output = File::create("test.json").unwrap();
+        println!("query graph constructed in {:?}", now.elapsed());
+        serde_json::to_writer(output, &graph).unwrap();
+
+        //println!("pathed nodes: {:?}", paths);
+
+        let run_query = query_graph_search(connections, graph, &mut paths);
+
+        if let Some((s, t, pathed)) = run_query {
+            println!("pathed: {pathed:?}");
+            println!("end {:?}", maps.station_num_to_name(&t.station_id));
+            let path = pathed.get_tp(s, &paths, &maps);
+            for (node, route) in path.0 {
+                println!(
+                    "go to {:?} (details {node:?}",
+                    maps.station_num_to_name(&node.station_id)
+                );
+                if let Some(route) = route {
+                    println!("via {route:?}");
+                } else {
+                    println!("start {:?}", maps.station_num_to_name(&node.station_id));
+                }
+            }
+        } else {
+            println!("route not found");
+        }
+    }
+}
+
+async fn road_stuff() {
     let path = "saarland.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
@@ -77,7 +207,6 @@ async fn main() {
     let mut ch_algo = ContractedGraph::new();
     let now = Instant::now();
 
-    
     routing_graph.reset_all_flags(true);
     routing_graph.set_max_settled_nodes(20);
 
@@ -124,7 +253,6 @@ async fn main() {
     println!("shortcut histogram {shortcut_hg:?}");
 
     println!("edge difference histogram {edge_diff_hg:?}");
-    
 
     routing_graph.reset_all_flags(true);
 
@@ -167,7 +295,7 @@ async fn main() {
 
     //let precompute = landmark_heuristic_precompute(&mut routing_graph, 42);
     let arc_flag_thing = ArcFlags::new(49.20, 49.25, 6.95, 7.05); //saar
-    //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
+                                                                  //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
     arc_flag_thing.arc_flags_precompute(&mut routing_graph);
     time = now.elapsed().as_millis() as f32 * 0.001;
     println!("pre done {time} \n");
@@ -176,9 +304,9 @@ async fn main() {
         let source = routing_graph.get_random_node_id().unwrap();
         //let target = routing_graph.get_random_node_id().unwrap();
         let target = routing_graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
-        //let target = routing_graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
-        //heuristics = a_star_heuristic(&roads, target);
-        //heuristics = landmark_heuristic(&precompute, &routing_graph, target);
+                                                                                      //let target = routing_graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
+                                                                                      //heuristics = a_star_heuristic(&roads, target);
+                                                                                      //heuristics = landmark_heuristic(&precompute, &routing_graph, target);
         let now = Instant::now();
         let result = routing_graph.dijkstra(source, target, &heuristics, true);
         time = now.elapsed().as_millis() as f32 * 0.001;
@@ -392,131 +520,4 @@ async fn main() {
     println!("{:?}", ch_algo.ordered_nodes);
     let result = ContractedGraph::bidirectional_compute(&mut graph, 1, 4);
     println!("cost: {}    joint: {}", result.0, result.1);
-
-    /*let mut args = Args::parse();
-
-     if !args.debugmode {
-        let preset_distance = 250.0;
-        println!("Arguments: {args:#?}");
-
-        let savepath = "results.json";
-
-        println!("generating transit network graph");
-        let gtfs = read_from_gtfs_zip("ctt.zip");
-
-        //overhead for cloning these strings is very low, it's just for displaying anyway
-        let trips = gtfs.trips.clone();
-        let routes = gtfs.routes.clone();
-        let stops = gtfs.stops.clone();
-
-        //generate Time Expanded Graph and Direct Connections for this GTFS file
-        let (transit_graph, connections, maps) =
-            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
-        let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
-
-        println!("{}", router.graph.nodes.len());
-
-        //full routing test
-        //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
-        //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
-
-        if (args.makequerygraph) {
-            //pepperidge farm to harriet beecher stowe center
-            let (source, target) = make_points_from_coords(
-                41.86829675142084,
-                -72.71973332600558,
-                41.76726348091365,
-                -72.70049435551549,
-            );
-
-            let now = Instant::now();
-            let graph = query_graph_construction(
-                &mut router,
-                &maps,
-                &mut paths,
-                source,
-                target,
-                18600, //5:10 AM
-                preset_distance,
-            );
-
-            let output = File::create(savepath).unwrap();
-            println!("query graph constructed in {:?}", now.elapsed());
-            serde_json::to_writer(output, &graph).unwrap();
-        }
-
-        //part 2
-
-        let file = File::open(savepath).ok().unwrap();
-        let reader = BufReader::new(file);
-        let graph: QueryGraph = serde_json::from_reader(reader).unwrap();
-
-        let run_query = query_graph_search(connections, graph, &mut paths);
-
-        if let Some((s, t, pathed)) = run_query {
-            let path = pathed.get_tp(s, &paths, &maps);
-            for (node, route) in path.0 {
-                println!("{node:?}");
-                if let Some(route) = route {
-                    println!("via {:?}", routes.get(&route).unwrap().short_name);
-                } else {
-                    println!("start {}", stops.get(&node.station_id.to_string()).unwrap());
-                }
-            }
-        } else {
-            println!("route not found");
-        }
-    } else {
-        let preset_distance = 0.0;
-        println!("debug mode");
-        let gtfs = read_from_gtfs_zip("test.zip");
-
-        //overhead for cloning these strings is very low, it's just for displaying anyway
-        let routes = gtfs.routes.clone();
-        let stops = gtfs.stops.clone();
-
-        let (transit_graph, connections, maps) =
-            TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
-        let (mut router, mut paths) = TransitDijkstra::new(transit_graph);
-
-        let (source, target) = make_points_from_coords(33.0, -117.00001, 33.0, -117.00007);
-
-        let now = Instant::now();
-        let graph = query_graph_construction(
-            &mut router,
-            &maps,
-            &mut paths,
-            source,
-            target,
-            21600, //5:10 AM
-            preset_distance,
-        );
-
-        let output = File::create("test.json").unwrap();
-        println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();
-
-        //println!("pathed nodes: {:?}", paths);
-
-        let run_query = query_graph_search(connections, graph, &mut paths);
-
-        if let Some((s, t, pathed)) = run_query {
-            println!("pathed: {pathed:?}");
-            println!("end {:?}", maps.station_num_to_name(&t.station_id));
-            let path = pathed.get_tp(s, &paths, &maps);
-            for (node, route) in path.0 {
-                println!(
-                    "go to {:?} (details {node:?}",
-                    maps.station_num_to_name(&node.station_id)
-                );
-                if let Some(route) = route {
-                    println!("via {route:?}");
-                } else {
-                    println!("start {:?}", maps.station_num_to_name(&node.station_id));
-                }
-            }
-        } else {
-            println!("route not found");
-        }
-    } */
 }

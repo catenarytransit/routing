@@ -1,11 +1,10 @@
 //constructs and preprocesses the graph struct from OSM data
-use crate::coord_int_convert::coord_to_int;
+use crate::coord_to_int;
+use crate::NodeType;
+use chrono::prelude::*;
 use gtfs_structures::*;
 use serde::{Deserialize, Serialize};
 use serde_with::*;
-
-use crate::NodeType;
-use chrono::prelude::*;
 use std::collections::hash_map::Entry;
 use std::{
     collections::{HashMap, HashSet},
@@ -41,7 +40,7 @@ impl From<NodeId> for String {
     fn from(val: NodeId) -> Self {
         format!(
             "{},{},{},{}",
-            <crate::common_enums::NodeType as std::convert::Into<String>>::into(val.node_type),
+            <NodeType as std::convert::Into<String>>::into(val.node_type),
             val.station_id,
             val.time.unwrap_or(0),
             val.trip_id
