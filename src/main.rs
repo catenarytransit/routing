@@ -49,9 +49,9 @@ struct Args {
     debugmode: bool,
 }
 
+/* 
 #[tokio::main]
 async fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
     //let path = "bw.pbf";
     //let path = "uci.pbf";
 
@@ -182,8 +182,10 @@ async fn main() {
         }
     }
 }
+  */
 
-async fn road_stuff() {
+#[tokio::main]
+async fn main() {
     let path = "saarland.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
@@ -200,23 +202,27 @@ async fn road_stuff() {
         "time: {}, reduced map nodes: {}, edges: {}",
         time,
         roads.nodes.len(),
-        roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
+        roads
+            .edges.values().map(|edges| edges.len())
+            .sum::<usize>()
+            / 2
     );
 
-    let mut routing_graph = RoadDijkstra::new(&roads);
+    let mut graph = RoadDijkstra::new(&roads);
     let mut ch_algo = ContractedGraph::new();
     let now = Instant::now();
 
-    routing_graph.reset_all_flags(true);
-    routing_graph.set_max_settled_nodes(20);
+    
+    graph.reset_all_flags(true);
+    graph.set_max_settled_nodes(20);
 
-    ch_algo.compute_random_node_ordering(&mut routing_graph, 1000); //here
+    ch_algo.compute_random_node_ordering(&mut graph, 1000); //here
     let mut contraction_time = Vec::new();
     let mut shortcut_hg = vec![0, 0, 0, 0, 0];
     let mut edge_diff_hg = vec![0, 0, 0, 0, 0];
     for (&n, _) in ch_algo.ordered_nodes.clone().iter() {
         let now = Instant::now();
-        let (num_shortcut, num_edge_diff) = ch_algo.contract_node(n, &mut routing_graph, false);
+        let (num_shortcut, num_edge_diff) = ch_algo.contract_node(n, &mut graph, false);
         time = now.elapsed().as_micros() as f32;
         contraction_time.push(time);
 
@@ -250,26 +256,27 @@ async fn road_stuff() {
         contraction_time.iter().sum::<f32>() / contraction_time.len() as f32
     );
 
-    println!("shortcut histogram {shortcut_hg:?}");
+    println!("shortcut histogram {:?}", shortcut_hg);
 
-    println!("edge difference histogram {edge_diff_hg:?}");
+    println!("edge difference histogram {:?}", edge_diff_hg);
 
-    routing_graph.reset_all_flags(true);
 
-    let total_shortcuts = ch_algo.ch_precompute(&mut routing_graph);
+    graph.reset_all_flags(true);
+
+    let total_shortcuts = ch_algo.ch_precompute(&mut graph);
     time = now.elapsed().as_millis() as f32 * 0.001;
-    println!("precomp seconds: {time}");
-    println!("total shortcuts: {total_shortcuts}");
+    println!("precomp seconds: {}", time);
+    println!("total shortcuts: {}", total_shortcuts);
 
     let mut shortest_path_costs = Vec::new();
     let mut query_time = Vec::new();
 
     for _ in 0..1000 {
         //1000
-        let source = routing_graph.get_random_node_id().unwrap();
-        let target = routing_graph.get_random_node_id().unwrap();
+        let source = graph.get_random_node_id().unwrap();
+        let target = graph.get_random_node_id().unwrap();
         let now = Instant::now();
-        let result = ContractedGraph::bidirectional_compute(&mut routing_graph, source, target);
+        let result = ContractedGraph::bidirectional_compute(&mut graph, source, target);
         time = now.elapsed().as_millis() as f32 * 0.001;
         query_time.push(time);
         shortest_path_costs.push(result.0);
@@ -293,22 +300,25 @@ async fn road_stuff() {
     let mut settled_nodes = Vec::new();
     let heuristics = None;
 
-    //let precompute = landmark_heuristic_precompute(&mut routing_graph, 42);
+    //let precompute = landmark_heuristic_precompute(&mut graph, 42);
     let arc_flag_thing = ArcFlags::new(49.20, 49.25, 6.95, 7.05); //saar
-                                                                  //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
-    arc_flag_thing.arc_flags_precompute(&mut routing_graph);
+    //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
+    //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
+    arc_flag_thing.arc_flags_precompute(&mut graph);
     time = now.elapsed().as_millis() as f32 * 0.001;
-    println!("pre done {time} \n");
+    println!("pre done {} \n", time);
+
 
     for _ in 0..100 {
-        let source = routing_graph.get_random_node_id().unwrap();
-        //let target = routing_graph.get_random_node_id().unwrap();
-        let target = routing_graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
-                                                                                      //let target = routing_graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
-                                                                                      //heuristics = a_star_heuristic(&roads, target);
-                                                                                      //heuristics = landmark_heuristic(&precompute, &routing_graph, target);
+        let source = graph.get_random_node_id().unwrap();
+        //let target = graph.get_random_node_id().unwrap();
+        let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
+        //let target = graph.get_random_node_area_id(47.95, 48.05, 7.75, 7.90); //ba-wu
+        //let target = graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
+        //heuristics = a_star_heuristic(&roads, target);
+        //heuristics = landmark_heuristic(&precompute, &graph, target);
         let now = Instant::now();
-        let result = routing_graph.dijkstra(source, target, &heuristics, true);
+        let result = graph.dijkstra(source, target, &heuristics, true);
         time = now.elapsed().as_millis() as f32 * 0.001;
         query_time.push(time);
 
@@ -317,7 +327,7 @@ async fn road_stuff() {
         } else {
             shortest_path_costs.push(0);
         }
-        settled_nodes.push(routing_graph.visited_nodes.len() as u64);
+        settled_nodes.push(graph.visited_nodes.len() as u64);
     }
 
     println!(
@@ -332,192 +342,4 @@ async fn road_stuff() {
         "average settle node number {}",
         settled_nodes.iter().sum::<u64>() / settled_nodes.len() as u64
     );
-
-    let _node0 = Node {
-        id: 0,
-        lat: 490000000,
-        lon: 65000000,
-    };
-    let node1 = Node {
-        id: 1,
-        lat: 491000000,
-        lon: 65100000,
-    };
-    let node2 = Node {
-        id: 2,
-        lat: 495000000,
-        lon: 70000000,
-    };
-    let node3 = Node {
-        id: 3,
-        lat: 493500000,
-        lon: 71250000,
-    };
-    let node4 = Node {
-        id: 4,
-        lat: 492500000,
-        lon: 72500000,
-    };
-    let node5 = Node {
-        id: 5,
-        lat: 497500000,
-        lon: 72500000,
-    };
-    let node6 = Node {
-        id: 6,
-        lat: 0,
-        lon: 0,
-    };
-    let node7 = Node {
-        id: 7,
-        lat: 0,
-        lon: 0,
-    };
-    let node8 = Node {
-        id: 8,
-        lat: 0,
-        lon: 0,
-    };
-    let node9 = Node {
-        id: 9,
-        lat: 0,
-        lon: 0,
-    };
-    let node10 = Node {
-        id: 10,
-        lat: 0,
-        lon: 0,
-    };
-    let node11 = Node {
-        id: 11,
-        lat: 0,
-        lon: 0,
-    };
-    let node12 = Node {
-        id: 12,
-        lat: 0,
-        lon: 0,
-    };
-    let node13 = Node {
-        id: 13,
-        lat: 0,
-        lon: 0,
-    };
-    //based on Professor Bast's example graph from CH lecture 1 slide 16
-    let roads = RoadNetwork {
-        nodes: HashMap::from([
-            (1, node1),
-            (2, node2),
-            (3, node3),
-            (4, node4),
-            (5, node5),
-            (6, node6),
-            (7, node7),
-            (8, node8),
-            (9, node9),
-            (10, node10),
-            (11, node11),
-            (12, node12),
-            (13, node13),
-        ]),
-        edges: HashMap::from([
-            (
-                1,
-                HashMap::from([(2, (3, false)), (13, (4, false)), (6, (7, false))]),
-            ),
-            (
-                2,
-                HashMap::from([(1, (3, false)), (8, (2, false)), (13, (5, false))]),
-            ),
-            (
-                3,
-                HashMap::from([(5, (5, false)), (12, (2, false)), (4, (4, false))]),
-            ),
-            (
-                4,
-                HashMap::from([(3, (4, false)), (12, (3, false)), (7, (4, false))]),
-            ),
-            (
-                5,
-                HashMap::from([(6, (6, false)), (11, (3, false)), (3, (5, false))]),
-            ),
-            (
-                6,
-                HashMap::from([(1, (7, false)), (10, (4, false)), (5, (6, false))]),
-            ),
-            (
-                7,
-                HashMap::from([(9, (7, false)), (11, (3, false)), (4, (4, false))]),
-            ),
-            (
-                8,
-                HashMap::from([(2, (2, false)), (13, (2, false)), (9, (5, false))]),
-            ),
-            (
-                9,
-                HashMap::from([(8, (5, false)), (10, (3, false)), (7, (7, false))]),
-            ),
-            (
-                10,
-                HashMap::from([
-                    (9, (3, false)),
-                    (11, (1, false)),
-                    (6, (4, false)),
-                    (13, (1, false)),
-                ]),
-            ),
-            (
-                11,
-                HashMap::from([
-                    (7, (3, false)),
-                    (12, (1, false)),
-                    (5, (3, false)),
-                    (10, (1, false)),
-                ]),
-            ),
-            (
-                12,
-                HashMap::from([(4, (3, false)), (3, (2, false)), (11, (1, false))]),
-            ),
-            (
-                13,
-                HashMap::from([
-                    (8, (2, false)),
-                    (10, (1, false)),
-                    (1, (4, false)),
-                    (2, (5, false)),
-                ]),
-            ),
-        ]),
-        raw_ways: vec![Way {
-            id: 0,
-            speed: 0,
-            refs: vec![0, 0],
-        }],
-        raw_nodes: vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
-    };
-    let mut graph = RoadDijkstra::new(&roads);
-    let mut ch_algo = ContractedGraph::new();
-    graph.reset_all_flags(true);
-
-    //(#shortcuts, edge difference = #shortcuts - arcs incident to node)
-    print!(
-        "edge diff only{:?}\t",
-        ch_algo.contract_node(2, &mut graph, true)
-    );
-
-    print!(
-        "contract node {:?}\t",
-        ch_algo.contract_node(2, &mut graph, false)
-    );
-
-    let mut graph = RoadDijkstra::new(&roads);
-    let mut ch_algo = ContractedGraph::new();
-    graph.reset_all_flags(true);
-
-    println!("total shortcuts: {}", ch_algo.ch_precompute(&mut graph));
-    println!("{:?}", graph.graph.edges);
-    println!("{:?}", ch_algo.ordered_nodes);
-    let result = ContractedGraph::bidirectional_compute(&mut graph, 1, 4);
-    println!("cost: {}    joint: {}", result.0, result.1);
 }

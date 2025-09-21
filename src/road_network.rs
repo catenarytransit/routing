@@ -41,9 +41,8 @@ pub mod road_graph_construction {
     pub fn speed_calc(highway: &str) -> Option<u16> {
         //for pedestrians
         //picks speed of highway based on given values, in km/h
-        match highway {
-            //"motorway" => None,
-            "pedestrian" => Some(4),
+        match highway {            
+            /* "pedestrian" => Some(4),
             "path" => Some(4),
             "footway" => Some(4),
             "steps" => Some(4),
@@ -56,16 +55,17 @@ pub mod road_graph_construction {
             "unclassified" => Some(4),
             "residential" => Some(4),
             "unsurfaced" => Some(4),
-            "living_street" => Some(4),
-            //"service" => Some(4),
-            //"trunk" => Some(4),
-            //"primary" => Some(4),
-            //"secondary" => Some(4),
-            //"tertiary" => Some(4),
-            //"motorway_link" => Some(4),
-            //"trunk_link" => Some(4),
-            //"primary_link" => Some(4),
-            //"secondary_link" => Some(4),
+            "living_street" => Some(4), */
+            "motorway" => None,
+            "service" => Some(4),
+            "trunk" => Some(4),
+            "primary" => Some(4),
+            "secondary" => Some(4),
+            "tertiary" => Some(4),
+            "motorway_link" => Some(4),
+            "trunk_link" => Some(4),
+            "primary_link" => Some(4),
+            "secondary_link" => Some(4),
             _ => Some(4),
         }
     }

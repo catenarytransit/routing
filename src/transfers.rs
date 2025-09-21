@@ -46,12 +46,14 @@ pub fn query_graph_construction(
     let (target_stations, target_nodes): (HashSet<_>, HashSet<_>) =
         stations_near_point(router, target, preset_distance, start_time, end_time);
 
+    let target_ids = target_stations.iter().map(|id| id.id).collect();
     /*let a = router.time_expanded_dijkstra(source_nodes.iter().copied().collect(), None, paths);
     let x = paths.iter().next().unwrap();
     println!("\nTarget\n{:?}\n\n", x);
     let y = PathedNode::get_path(*x.0, paths);
     println!("Path\n{:?}\n\n", y);
     exit(0);*/
+    
 
     let hub_cost_limit = 86400; //24 hour searchspace
 
@@ -62,7 +64,35 @@ pub fn query_graph_construction(
 
     let mut tps = Vec::new();
 
-    for station in source_stations.iter() {
+    //global transfers from I(hubs) to to N(target())
+    println!("num hubs used {:?}, t {:?}", hubs, now.elapsed());
+
+    //"for each important station compute a global Dijkstra as before"
+    for hub in hubs.iter() {
+        let now = Instant::now();
+        let (g_tps, n_now) = transfers_from_source(
+            *hub,
+            router,
+            None,
+            paths,
+            Some(&target_ids),
+            Some(start_time),
+        );
+        println!(
+            "ran tp for hubs {:?} vs immediate {:?}",
+            now.elapsed(),
+            n_now.elapsed()
+        );
+
+        let now = Instant::now();
+        tps.extend(g_tps.lock().unwrap().drain(..));
+        println!("extending hubs {:?}", now.elapsed());
+    }
+    //"For each non-important station, compute a local Dijkstra, that is, compute all local paths = all paths until an important station or without any important station on them"
+    for station in maps.station_map.as_ref().unwrap().values() {
+        if hubs.contains(&station.id) {
+            continue;
+        }
         let now = Instant::now();
         let (l_tps, n_now) = transfers_from_source(
             station.id,
@@ -83,35 +113,9 @@ pub fn query_graph_construction(
         println!("extending local {:?}", now.elapsed());
     }
 
-    let now = Instant::now();
+    //let now = Instant::now();
     //let reached: Vec<_> = tps.iter().map(|t| t.last().unwrap().station_id).collect();
-    let used_hubs: Vec<_> = hubs.iter().collect(); //hubs.iter().filter(|n| reached.contains(n)).collect();
-
-    let target_ids = target_stations.iter().map(|id| id.id).collect();
-
-    //global transfers from I(hubs) to to N(target())
-    println!("num hubs used {:?}, t {:?}", used_hubs, now.elapsed());
-
-    for hub in used_hubs.iter() {
-        let now = Instant::now();
-        let (g_tps, n_now) = transfers_from_source(
-            **hub,
-            router,
-            None,
-            paths,
-            Some(&target_ids),
-            Some(start_time),
-        );
-        println!(
-            "ran tp for hubs {:?} vs immediate {:?}",
-            now.elapsed(),
-            n_now.elapsed()
-        );
-
-        let now = Instant::now();
-        tps.extend(g_tps.lock().unwrap().drain(..));
-        println!("extending hubs {:?}", now.elapsed());
-    }
+    //let used_hubs: Vec<_> = hubs.iter().collect(); //hubs.iter().filter(|n| reached.contains(n)).collect();
 
     let now = Instant::now();
 
@@ -359,9 +363,9 @@ pub fn transfers_from_source(
                     let mut iter = u.chunk_by(|a, b| a.station_id == b.station_id);
                     let add_back_node = iter.next().unwrap_or(&[]);
                     path.extend(add_back_node);
-                } else {
+                } /* else {
                     path.clear();
-                }
+                } */
             }
             (node, path, cost)
         })
