@@ -186,7 +186,8 @@ async fn main() {
 
 #[tokio::main]
 async fn main() {
-    let path = "saarland.pbf";
+    let savepath = "roads.json";let now = Instant::now();let mut time = now.elapsed().as_millis() as f32 * 0.001;
+    /* let path = "saarland.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
     print!(
@@ -197,7 +198,7 @@ async fn main() {
     );
     let now = Instant::now();
     roads = roads.reduce_to_largest_connected_component();
-    let mut time = now.elapsed().as_millis() as f32 * 0.001;
+    time = now.elapsed().as_millis() as f32 * 0.001;
     println!(
         "time: {}, reduced map nodes: {}, edges: {}",
         time,
@@ -207,9 +208,13 @@ async fn main() {
             .sum::<usize>()
             / 2
     );
+    
 
     let mut graph = RoadDijkstra::new(&roads);
-    let mut ch_algo = ContractedGraph::new();
+    let output = File::create(savepath).unwrap();
+    println!("query graph constructed in {:?}", now.elapsed());
+    serde_json::to_writer(output, &graph).unwrap(); */
+    /* let mut ch_algo = ContractedGraph::new();
     let now = Instant::now();
 
     
@@ -294,30 +299,48 @@ async fn main() {
         "average query time in seconds {}",
         query_time.iter().sum::<f32>() / query_time.len() as f32
     );
+    */
+
+    let file = File::open(savepath).ok().unwrap();
+    let reader = BufReader::new(file);
+    let mut graph: RoadDijkstra = serde_json::from_reader(reader).unwrap();
 
     let mut shortest_path_costs = Vec::new();
     let mut query_time = Vec::new();
     let mut settled_nodes = Vec::new();
-    let heuristics = None;
+    let mut heuristics = None; 
 
     //let precompute = landmark_heuristic_precompute(&mut graph, 42);
     let arc_flag_thing = ArcFlags::new(49.20, 49.25, 6.95, 7.05); //saar
+
+    /*
+    TODO: Given OSM section X,  Y number of arc zones, and coordinate pair Z to chunk into:
+        - Write algo to chunk given OSM section into Y arc zones
+        - Precompute RoadDijkstra graph for section OSM section X --> Save with serde as json --> Compress!
+        - Precompute arcflags for each arc zone Y --> Save with serde as json --> Compress!
+        - For coordinate pair Z, locate the OSM section X' for Z_s and Z_t and arc zone Y' for Z_t
+        - Calculate a_star_heurstic for Z_t
+        - Query with dijkstras
+    Question: How to connect between different OSM sections? Arc Flag hierarchy similar to CH algo? Go from top down
+        --> between OSM sections and then between individual sectors?
+    */
+        
     //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
     //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
     arc_flag_thing.arc_flags_precompute(&mut graph);
     time = now.elapsed().as_millis() as f32 * 0.001;
     println!("pre done {} \n", time);
 
-
-    for _ in 0..100 {
+    for _ in 0..10 {
         let source = graph.get_random_node_id().unwrap();
         //let target = graph.get_random_node_id().unwrap();
         let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
         //let target = graph.get_random_node_area_id(47.95, 48.05, 7.75, 7.90); //ba-wu
         //let target = graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
-        //heuristics = a_star_heuristic(&roads, target);
+        
         //heuristics = landmark_heuristic(&precompute, &graph, target);
         let now = Instant::now();
+        heuristics = Some(a_star_heuristic(&graph.graph, target));
         let result = graph.dijkstra(source, target, &heuristics, true);
         time = now.elapsed().as_millis() as f32 * 0.001;
         query_time.push(time);
@@ -325,6 +348,7 @@ async fn main() {
         if let Some(cost) = result.0 {
             shortest_path_costs.push(cost.get_path().1);
         } else {
+            print!("f");
             shortest_path_costs.push(0);
         }
         settled_nodes.push(graph.visited_nodes.len() as u64);

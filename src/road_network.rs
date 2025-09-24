@@ -7,7 +7,7 @@ pub mod road_graph_construction {
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
 
-    #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord)]
+    #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, serde::Serialize, serde::Deserialize,)]
     pub struct Node {
         //nodes from OSM, each with unique ID and coordinate position
         pub id: i64,
@@ -15,13 +15,7 @@ pub mod road_graph_construction {
         pub lon: i64,
     }
 
-    /*pub struct I64Point {
-        //used to store coordinates of nodes
-        pub lat: i64,
-        pub lon: i64,
-    }*/
-
-    #[derive(Debug, PartialEq, Hash, Eq, Clone)]
+    #[derive(Debug, PartialEq, Hash, Eq, Clone, serde::Serialize, serde::Deserialize,)]
     pub struct Way {
         //ways from OSM, each with unique ID, speed from highway type, and referenced nodes that it connects
         pub id: i64,
@@ -29,7 +23,7 @@ pub mod road_graph_construction {
         pub refs: Vec<i64>,
     }
 
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
     pub struct RoadNetwork {
         //graph struct that will be used to route
         pub nodes: HashMap<i64, Node>, // <node.id, node>
@@ -69,12 +63,6 @@ pub mod road_graph_construction {
             _ => Some(4),
         }
     }
-
-    /*#[derive(serde::Serialize, serde::Deserialize, Clone)]
-    struct ExportOsm {
-        nodes: Vec<osmpbfreader::Node>,
-        ways: Vec<osmpbfreader::Way>,
-    }*/
 
     impl RoadNetwork {
         pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {

@@ -7,6 +7,7 @@ use std::rc::Rc;
 
 use crate::road_network::road_graph_construction::Node;
 
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct RoadDijkstra {
     //handle dijkstra calculations
     pub graph: RoadNetwork,
@@ -15,7 +16,7 @@ pub struct RoadDijkstra {
     max_settled_nodes: u64,
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,)]
 pub struct RoadPathedNode {
     //node that references parent nodes, used to create path from goal node to start node
     pub node_self: Node,
