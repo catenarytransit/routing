@@ -187,7 +187,7 @@ async fn main() {
 #[tokio::main]
 async fn main() {
     let savepath = "roads.json";let now = Instant::now();let mut time = now.elapsed().as_millis() as f32 * 0.001;
-    /* let path = "saarland.pbf";
+    let output = File::create(savepath).unwrap();let path = "saarland.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
     print!(
@@ -209,11 +209,12 @@ async fn main() {
             / 2
     );
     
-
     let mut graph = RoadDijkstra::new(&roads);
-    let output = File::create(savepath).unwrap();
+    
     println!("query graph constructed in {:?}", now.elapsed());
-    serde_json::to_writer(output, &graph).unwrap(); */
+    
+
+
     /* let mut ch_algo = ContractedGraph::new();
     let now = Instant::now();
 
@@ -301,17 +302,11 @@ async fn main() {
     );
     */
 
-    let file = File::open(savepath).ok().unwrap();
-    let reader = BufReader::new(file);
-    let mut graph: RoadDijkstra = serde_json::from_reader(reader).unwrap();
-
-    let mut shortest_path_costs = Vec::new();
-    let mut query_time = Vec::new();
-    let mut settled_nodes = Vec::new();
-    let mut heuristics = None; 
-
+    let now = Instant::now();
     //let precompute = landmark_heuristic_precompute(&mut graph, 42);
     let arc_flag_thing = ArcFlags::new(49.20, 49.25, 6.95, 7.05); //saar
+    arc_flag_thing.arc_flags_precompute(&mut graph);
+     println!("arc flags set in {:?}", now.elapsed());
 
     /*
     TODO: Given OSM section X,  Y number of arc zones, and coordinate pair Z to chunk into:
@@ -327,9 +322,17 @@ async fn main() {
         
     //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
     //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
-    arc_flag_thing.arc_flags_precompute(&mut graph);
-    time = now.elapsed().as_millis() as f32 * 0.001;
-    println!("pre done {} \n", time);
+    
+    serde_json::to_writer(output, &graph).unwrap();
+
+    let file = File::open(savepath).ok().unwrap();
+    let reader = BufReader::new(file);
+    let mut graph: RoadDijkstra = serde_json::from_reader(reader).unwrap();
+
+    let mut shortest_path_costs = Vec::new();
+    let mut query_time = Vec::new();
+    let mut settled_nodes = Vec::new();
+    let mut heuristics = None; 
 
     for _ in 0..10 {
         let source = graph.get_random_node_id().unwrap();

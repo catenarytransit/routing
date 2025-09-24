@@ -7,7 +7,7 @@ pub mod road_graph_construction {
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
 
-    #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, serde::Serialize, serde::Deserialize,)]
+    #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
     pub struct Node {
         //nodes from OSM, each with unique ID and coordinate position
         pub id: i64,
@@ -15,7 +15,7 @@ pub mod road_graph_construction {
         pub lon: i64,
     }
 
-    #[derive(Debug, PartialEq, Hash, Eq, Clone, serde::Serialize, serde::Deserialize,)]
+    #[derive(Debug, PartialEq, Hash, Eq, Clone, serde::Serialize, serde::Deserialize)]
     pub struct Way {
         //ways from OSM, each with unique ID, speed from highway type, and referenced nodes that it connects
         pub id: i64,
@@ -278,6 +278,8 @@ pub mod arc_flags_algo {
     use crate::road_dijkstras::*;
     use core::ops::Range;
     use std::collections::HashSet;
+
+     #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
     pub struct ArcFlags {
         //precomputation stuff for arc flag routing algorithm
         pub lat_range: Range<i64>,
