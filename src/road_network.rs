@@ -202,7 +202,7 @@ pub mod road_graph_construction {
             let mut largest_node_set = Vec::new();
             let mut prev_set_size = 0;
 
-            while let Some(node_set) = connected_components.next() {
+            for node_set in connected_components.by_ref() {
                 if node_set.len() > prev_set_size {
                     largest_node_set = node_set.to_vec();
                     prev_set_size = node_set.len();
@@ -255,13 +255,9 @@ pub mod landmark_algo {
     ) -> HashMap<i64, u64> {
         dijkstra_graph
             .graph
-            .nodes
-            .iter()
-            .map(|(source, _)| {
+            .nodes.keys().map(|source| {
                 (*source, {
-                    landmark_precompute
-                        .iter()
-                        .map(|(_, arr)| {
+                    landmark_precompute.values().map(|arr| {
                             let dist_lu = *arr.get(source).unwrap();
                             let dist_tu = *arr.get(&target).unwrap();
                             dist_lu.abs_diff(dist_tu)

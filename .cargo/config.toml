@@ -1,2 +1,5 @@
 [env]
 RUST_BACKTRACE = "1"
+
+#[target.x86_64-pc-windows-msvc]
+#linker = "aarch64-pc-windows-msvc"

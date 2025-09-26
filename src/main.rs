@@ -187,6 +187,7 @@ async fn main() {
 #[tokio::main]
 async fn main() {
     let savepath = "roads.json";let now = Instant::now();let mut time = now.elapsed().as_millis() as f32 * 0.001;
+    /* let savepath = "roads.json";
     let output = File::create(savepath).unwrap();let path = "saarland.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
@@ -212,9 +213,12 @@ async fn main() {
     let mut graph = RoadDijkstra::new(&roads);
     
     println!("query graph constructed in {:?}", now.elapsed());
-    
-
-
+    let now = Instant::now();
+    //let precompute = landmark_heuristic_precompute(&mut graph, 42);
+    let arc_flag_thing = ArcFlags::new(49.20, 49.25, 6.95, 7.05); //saar
+    arc_flag_thing.arc_flags_precompute(&mut graph);
+    println!("arc flags set in {:?}", now.elapsed()); 
+    serde_json::to_writer(output, &graph).unwrap(); */
     /* let mut ch_algo = ContractedGraph::new();
     let now = Instant::now();
 
@@ -300,13 +304,7 @@ async fn main() {
         "average query time in seconds {}",
         query_time.iter().sum::<f32>() / query_time.len() as f32
     );
-    */
-
-    let now = Instant::now();
-    //let precompute = landmark_heuristic_precompute(&mut graph, 42);
-    let arc_flag_thing = ArcFlags::new(49.20, 49.25, 6.95, 7.05); //saar
-    arc_flag_thing.arc_flags_precompute(&mut graph);
-     println!("arc flags set in {:?}", now.elapsed());
+    */ 
 
     /*
     TODO: Given OSM section X,  Y number of arc zones, and coordinate pair Z to chunk into:
@@ -322,8 +320,6 @@ async fn main() {
         
     //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
     //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
-    
-    serde_json::to_writer(output, &graph).unwrap();
 
     let file = File::open(savepath).ok().unwrap();
     let reader = BufReader::new(file);
