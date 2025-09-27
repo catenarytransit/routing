@@ -12,8 +12,8 @@ pub struct RoadDijkstra {
     //handle dijkstra calculations
     pub graph: RoadNetwork,
     pub visited_nodes: HashMap<i64, u64>,
-    cost_upper_bound: u64,
-    max_settled_nodes: u64,
+    pub cost_upper_bound: u64,
+    pub max_settled_nodes: u64,
 }
 
 #[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,)]
@@ -50,7 +50,7 @@ impl RoadPathedNode {
 pub fn a_star_heuristic(graph: &RoadNetwork, target: i64) -> HashMap<i64, u64> {
     let tail = *graph.nodes.get(&target).unwrap();
     //for each current i64 id, enter euciladan distance from current to target, divided by max speed on that path
-    let heuristics = graph
+    graph
         .nodes
         .iter()
         .map(|(id, head)| {
@@ -64,8 +64,7 @@ pub fn a_star_heuristic(graph: &RoadNetwork, target: i64) -> HashMap<i64, u64> {
                     / ((110_f64) * 5.0 / 18.0) as u64, //110 is motorway speed --> max speed possible on road network
             )
         })
-        .collect::<HashMap<i64, u64>>();
-    heuristics
+        .collect::<HashMap<i64, u64>>()
 }
 
 impl RoadDijkstra {
@@ -220,12 +219,11 @@ impl RoadDijkstra {
         let mut found = false;
         let mut id = -1;
         while !found {
-            if let Some(node_id) = self.get_random_node_id() {
-                if let Some(node) = self.graph.nodes.get(&node_id) {
+            if let Some(node_id) = self.get_random_node_id()
+                && let Some(node) = self.graph.nodes.get(&node_id) {
                     found = lat_range.contains(&node.lat) && lon_range.contains(&node.lon);
                     id = node_id
                 }
-            }
         }
         id
     }

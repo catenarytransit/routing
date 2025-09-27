@@ -36,31 +36,24 @@ pub mod road_graph_construction {
         //for pedestrians
         //picks speed of highway based on given values, in km/h
         match highway {            
-            /* "pedestrian" => Some(4),
-            "path" => Some(4),
-            "footway" => Some(4),
-            "steps" => Some(4),
-            "corridor" => Some(4),
-            "living_street" => Some(4),
-            "sidewalk" => Some(4),
-            "traffic_island" => Some(4),
-            "crossing" => Some(3),
-            "road" => Some(4),
-            "unclassified" => Some(4),
             "residential" => Some(4),
-            "unsurfaced" => Some(4),
-            "living_street" => Some(4), */
-            "motorway" => None,
+            "living_street" => Some(4),            
+            "pedestrian" => Some(4),
+            "footway" => Some(4),
+            "steps" => Some(4), //toggle this on/off for accecibility?
+            "path" => Some(4),
+            "corridor" => Some(4),
             "service" => Some(4),
-            "trunk" => Some(4),
-            "primary" => Some(4),
-            "secondary" => Some(4),
-            "tertiary" => Some(4),
-            "motorway_link" => Some(4),
-            "trunk_link" => Some(4),
-            "primary_link" => Some(4),
-            "secondary_link" => Some(4),
-            _ => Some(4),
+            "motorway" => Some(1),
+            "trunk" => Some(1),
+            "primary" => Some(1),
+            "secondary" => Some(1),
+            "tertiary" => Some(1),
+            "motorway_link" => Some(1),
+            "trunk_link" => Some(1),
+            "primary_link" => Some(1),
+            "secondary_link" => Some(1),
+            _ => Some(1),
         }
     }
 
@@ -90,7 +83,7 @@ pub mod road_graph_construction {
                         let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
                             / f64::powi(10.0, 14);
                         let c = (a + b).sqrt();
-                        let cost = (c as u64) / ((way.speed as f64) * 5.0 / 18.0) as u64; //seconds needed to traverse segment based on road type
+                        let cost = (c / ((way.speed as f64) * 5.0 / 18.0)) as u64 * 1000 ; //miliseconds needed to traverse segment based on road type
                         let flag = false;
                         edges
                             .entry(tail_id)
@@ -156,15 +149,13 @@ pub mod road_graph_construction {
                     OsmObj::Way(e) => {
                         if let Some(road_type) =
                             e.tags.clone().iter().find(|(k, _)| k.eq(&"highway"))
-                        {
-                            if let Some(speed) = speed_calc(road_type.1.as_str()) {
+                            && let Some(speed) = speed_calc(road_type.1.as_str()) {
                                 ways.push(Way {
                                     id: e.id.0,
                                     speed,
                                     refs: e.nodes.into_iter().map(|x| x.0).collect(),
                                 });
                             }
-                        }
                     }
                     _ => {}
                 }
@@ -298,7 +289,7 @@ pub mod arc_flags_algo {
                 .graph
                 .nodes
                 .iter()
-                .filter(|(_, &node)| {
+                .filter(|(_, node)| {
                     self.lat_range.contains(&node.lat) && self.lon_range.contains(&node.lon)
                 })
                 .map(|(id, _)| *id)

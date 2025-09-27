@@ -37,8 +37,7 @@ pub fn make_points_from_coords(
     (source, target)
 }
 
-use clap::Parser;
-
+/* use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -48,7 +47,7 @@ struct Args {
     #[arg(long, default_value_t = true)]
     debugmode: bool,
 }
-
+ */
 /* 
 #[tokio::main]
 async fn main() {
@@ -187,7 +186,7 @@ async fn main() {
 #[tokio::main]
 async fn main() {
     let savepath = "roads.json";let now = Instant::now();let mut time = now.elapsed().as_millis() as f32 * 0.001;
-    /* let savepath = "roads.json";
+  
     let output = File::create(savepath).unwrap();let path = "saarland.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
@@ -218,7 +217,9 @@ async fn main() {
     let arc_flag_thing = ArcFlags::new(49.20, 49.25, 6.95, 7.05); //saar
     arc_flag_thing.arc_flags_precompute(&mut graph);
     println!("arc flags set in {:?}", now.elapsed()); 
-    serde_json::to_writer(output, &graph).unwrap(); */
+    serde_json::to_writer(output, &graph).unwrap();
+    
+    
     /* let mut ch_algo = ContractedGraph::new();
     let now = Instant::now();
 
@@ -338,6 +339,7 @@ async fn main() {
         //let target = graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
         
         //heuristics = landmark_heuristic(&precompute, &graph, target);
+
         let now = Instant::now();
         heuristics = Some(a_star_heuristic(&graph.graph, target));
         let result = graph.dijkstra(source, target, &heuristics, true);
@@ -345,17 +347,19 @@ async fn main() {
         query_time.push(time);
 
         if let Some(cost) = result.0 {
-            shortest_path_costs.push(cost.get_path().1);
+            let result = cost.get_path();
+            shortest_path_costs.push(result.1);
         } else {
             print!("f");
             shortest_path_costs.push(0);
         }
         settled_nodes.push(graph.visited_nodes.len() as u64);
+        
     }
 
     println!(
-        "average cost in minutes {}",
-        shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 60
+        "average travel time in minutes {}",
+        shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 60000
     );
     println!(
         "average query time in seconds {}",

@@ -247,11 +247,10 @@ pub fn hub_selection(
                 .entry(ti_tail)
                 .and_modify(|map| {
                     //update graph if found edge (u, v) with smaller cost than existing edge (u, v)
-                    if let Some(previous_cost) = map.get(head) {
-                        if cost < previous_cost {
+                    if let Some(previous_cost) = map.get(head)
+                        && cost < previous_cost {
                             map.insert(ti_head, *cost);
                         }
-                    }
                 })
                 .or_insert({
                     let mut map: HashMap<NodeId, u32> = HashMap::new();
