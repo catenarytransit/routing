@@ -189,7 +189,6 @@ async fn main() {
     let now = Instant::now();
     let mut time = now.elapsed().as_millis() as f32 * 0.001;
 
-
     let output = File::create(savepath).unwrap();let path = "saarland.pbf";
     let data = RoadNetwork::read_from_osm_file(path).unwrap();
     let mut roads = RoadNetwork::new(data.0, data.1);
@@ -220,7 +219,6 @@ async fn main() {
     arc_flags_precompute(49.20, 49.25, 6.95, 7.05, &mut graph); //saar
     println!("arc flags set in {:?}", now.elapsed());
     serde_json::to_writer(output, &graph).unwrap();
-
 
 /* 
     let mut ch_algo = ContractedGraph::new();
