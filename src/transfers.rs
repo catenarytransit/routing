@@ -3,7 +3,7 @@ use crate::NodeType;
 //use crate::RoadNetwork;
 use crate::{transit_dijkstras::*, transit_network::*};
 //use crate::road_dijkstras::*;
-use geo::{point, Distance, Haversine, Point};
+use geo::{Distance, Haversine, Point, point};
 //use rstar::*;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
@@ -53,7 +53,6 @@ pub fn query_graph_construction(
     let y = PathedNode::get_path(*x.0, paths);
     println!("Path\n{:?}\n\n", y);
     exit(0);*/
-    
 
     let hub_cost_limit = 86400; //24 hour searchspace
 
@@ -248,9 +247,10 @@ pub fn hub_selection(
                 .and_modify(|map| {
                     //update graph if found edge (u, v) with smaller cost than existing edge (u, v)
                     if let Some(previous_cost) = map.get(head)
-                        && cost < previous_cost {
-                            map.insert(ti_head, *cost);
-                        }
+                        && cost < previous_cost
+                    {
+                        map.insert(ti_head, *cost);
+                    }
                 })
                 .or_insert({
                     let mut map: HashMap<NodeId, u32> = HashMap::new();
@@ -363,7 +363,7 @@ pub fn transfers_from_source(
                     let add_back_node = iter.next().unwrap_or(&[]);
                     path.extend(add_back_node);
                 } /* else {
-                    path.clear();
+                path.clear();
                 } */
             }
             (node, path, cost)

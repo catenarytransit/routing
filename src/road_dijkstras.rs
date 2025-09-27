@@ -16,7 +16,9 @@ pub struct RoadDijkstra {
     pub max_settled_nodes: u64,
 }
 
-#[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,)]
+#[derive(
+    Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+)]
 pub struct RoadPathedNode {
     //node that references parent nodes, used to create path from goal node to start node
     pub node_self: Node,
@@ -103,10 +105,10 @@ impl RoadDijkstra {
             if self.visited_nodes.contains_key(&path.0) {
                 continue;
             }
-            if consider_arc_flags && !path.1 .1 {
+            if consider_arc_flags && !path.1.1 {
                 continue;
             }
-            paths.push((*self.graph.nodes.get(&path.0).unwrap(), path.1 .0));
+            paths.push((*self.graph.nodes.get(&path.0).unwrap(), path.1.0));
         }
         paths
     }
@@ -144,7 +146,7 @@ impl RoadDijkstra {
 
         let mut cost;
         while !priority_queue.is_empty() {
-            let pathed_current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
+            let pathed_current_node = priority_queue.pop().unwrap().0.1; //.0 "unwraps" from Reverse()
             cost = pathed_current_node.distance_from_start;
             let idx = pathed_current_node.node_self.id;
 
@@ -220,10 +222,11 @@ impl RoadDijkstra {
         let mut id = -1;
         while !found {
             if let Some(node_id) = self.get_random_node_id()
-                && let Some(node) = self.graph.nodes.get(&node_id) {
-                    found = lat_range.contains(&node.lat) && lon_range.contains(&node.lon);
-                    id = node_id
-                }
+                && let Some(node) = self.graph.nodes.get(&node_id)
+            {
+                found = lat_range.contains(&node.lat) && lon_range.contains(&node.lon);
+                id = node_id
+            }
         }
         id
     }
@@ -254,7 +257,7 @@ impl RoadDijkstra {
     pub fn reset_all_flags(&mut self, state: bool) {
         for (_, edgelist) in self.graph.edges.iter_mut() {
             for edge in edgelist.iter_mut() {
-                edge.1 .1 = state;
+                edge.1.1 = state;
             }
         }
     }

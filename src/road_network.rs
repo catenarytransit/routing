@@ -7,7 +7,18 @@ pub mod road_graph_construction {
     use serde::{Deserialize, Serialize};
     use std::{collections::HashMap, ops::Index};
 
-    #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+    #[derive(
+        Debug,
+        PartialEq,
+        Hash,
+        Eq,
+        Clone,
+        Copy,
+        PartialOrd,
+        Ord,
+        serde::Serialize,
+        serde::Deserialize,
+    )]
     pub struct Node {
         //nodes from OSM, each with unique ID and coordinate position
         pub id: i64,
@@ -35,9 +46,9 @@ pub mod road_graph_construction {
     pub fn speed_calc(highway: &str) -> Option<u16> {
         //for pedestrians
         //picks speed of highway based on given values, in km/h
-        match highway {            
+        match highway {
             "residential" => Some(4),
-            "living_street" => Some(4),            
+            "living_street" => Some(4),
             "pedestrian" => Some(4),
             "footway" => Some(4),
             "steps" => Some(4), //toggle this on/off for accecibility?
@@ -83,7 +94,7 @@ pub mod road_graph_construction {
                         let b = i128::pow(((head.lon - tail.lon) * 71695).into(), 2) as f64
                             / f64::powi(10.0, 14);
                         let c = (a + b).sqrt();
-                        let cost = (c / ((way.speed as f64) * 5.0 / 18.0)) as u64 * 1000 ; //miliseconds needed to traverse segment based on road type
+                        let cost = (c / ((way.speed as f64) * 5.0 / 18.0)) as u64 * 1000; //miliseconds needed to traverse segment based on road type
                         let flag = false;
                         edges
                             .entry(tail_id)
@@ -149,13 +160,14 @@ pub mod road_graph_construction {
                     OsmObj::Way(e) => {
                         if let Some(road_type) =
                             e.tags.clone().iter().find(|(k, _)| k.eq(&"highway"))
-                            && let Some(speed) = speed_calc(road_type.1.as_str()) {
-                                ways.push(Way {
-                                    id: e.id.0,
-                                    speed,
-                                    refs: e.nodes.into_iter().map(|x| x.0).collect(),
-                                });
-                            }
+                            && let Some(speed) = speed_calc(road_type.1.as_str())
+                        {
+                            ways.push(Way {
+                                id: e.id.0,
+                                speed,
+                                refs: e.nodes.into_iter().map(|x| x.0).collect(),
+                            });
+                        }
                     }
                     _ => {}
                 }
@@ -208,6 +220,9 @@ pub mod road_graph_construction {
             RoadNetwork::new(lcc_nodes, self.raw_ways)
         }
     }
+
+    
+
 }
 
 pub mod landmark_algo {
@@ -246,9 +261,13 @@ pub mod landmark_algo {
     ) -> HashMap<i64, u64> {
         dijkstra_graph
             .graph
-            .nodes.keys().map(|source| {
+            .nodes
+            .keys()
+            .map(|source| {
                 (*source, {
-                    landmark_precompute.values().map(|arr| {
+                    landmark_precompute
+                        .values()
+                        .map(|arr| {
                             let dist_lu = *arr.get(source).unwrap();
                             let dist_tu = *arr.get(&target).unwrap();
                             dist_lu.abs_diff(dist_tu)
@@ -266,58 +285,43 @@ pub mod arc_flags_algo {
     use core::ops::Range;
     use std::collections::HashSet;
 
-     #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
-    pub struct ArcFlags {
-        //precomputation stuff for arc flag routing algorithm
-        pub lat_range: Range<i64>,
-        pub lon_range: Range<i64>,
-    }
-    #[allow(dead_code)]
-    impl ArcFlags {
-        pub fn new(lat_min: f32, lat_max: f32, lon_min: f32, lon_max: f32) -> ArcFlags {
-            ArcFlags {
-                lat_range: (lat_min * f32::powi(10.0, 7)) as i64
-                    ..(lat_max * f32::powi(10.0, 7)) as i64,
-                lon_range: (lon_min * f32::powi(10.0, 7)) as i64
-                    ..(lon_max * f32::powi(10.0, 7)) as i64,
+    pub fn arc_flags_precompute(lat_min:f32, lat_max:f32, lon_min:f32, lon_max:f32, dijkstra_graph: &mut RoadDijkstra) {
+        let lat_range:Range<i64> = (lat_min * f32::powi(10.0, 7)) as i64..(lat_max * f32::powi(10.0, 7)) as i64;
+        let lon_range:Range<i64> = (lon_min * f32::powi(10.0, 7)) as i64..(lon_max * f32::powi(10.0, 7)) as i64;
+        
+        let mut boundary_node = HashSet::new();
+        let region_nodes = dijkstra_graph
+            .graph
+            .nodes
+            .iter()
+            .filter(|(_, node)| {
+                lat_range.contains(&node.lat) && lon_range.contains(&node.lon)
+            })
+            .map(|(id, _)| *id)
+            .collect::<Vec<i64>>();
+
+        for node in region_nodes.clone() {
+            if let Some(edge_list) = dijkstra_graph.graph.edges.get_mut(&node) {
+                for edge in edge_list.iter_mut() {
+                    if region_nodes.contains(edge.0) {
+                        edge.1.1 = true;
+                        continue;
+                    }
+                    boundary_node.insert(node);
+                }
             }
         }
 
-        pub fn arc_flags_precompute(self, dijkstra_graph: &mut RoadDijkstra) {
-            let mut boundary_node = HashSet::new();
-            let region_nodes = dijkstra_graph
-                .graph
-                .nodes
-                .iter()
-                .filter(|(_, node)| {
-                    self.lat_range.contains(&node.lat) && self.lon_range.contains(&node.lon)
-                })
-                .map(|(id, _)| *id)
-                .collect::<Vec<i64>>();
+        println!("boundary nodes: {}", boundary_node.len());
 
-            for node in region_nodes.clone() {
-                if let Some(edge_list) = dijkstra_graph.graph.edges.get_mut(&node) {
-                    for edge in edge_list.iter_mut() {
-                        if region_nodes.contains(edge.0) {
-                            edge.1 .1 = true;
-                            continue;
-                        }
-                        boundary_node.insert(node);
-                    }
-                }
-            }
-
-            println!("boundary nodes: {}", boundary_node.len());
-
-            for node in boundary_node {
-                let (_, edges) = dijkstra_graph.dijkstra(node, -1, &None, false);
-                for (head, tail) in edges {
-                    if let Some(edgelist) = dijkstra_graph.graph.edges.get_mut(&head) {
-                        for (&id, (_, arcflag)) in edgelist {
-                            if id == tail {
-                                *arcflag = true;
-                                break;
-                            }
+        for node in boundary_node {
+            let (_, edges) = dijkstra_graph.dijkstra(node, -1, &None, false);
+            for (head, tail) in edges {
+                if let Some(edgelist) = dijkstra_graph.graph.edges.get_mut(&head) {
+                    for (&id, (_, arcflag)) in edgelist {
+                        if id == tail {
+                            *arcflag = true;
+                            break;
                         }
                     }
                 }

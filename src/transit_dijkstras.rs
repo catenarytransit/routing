@@ -1,6 +1,6 @@
 //transit_dijkstras algorithms and helper functiions
-use crate::transit_network::*;
 use crate::NodeType;
+use crate::transit_network::*;
 use rand::Rng;
 use std::cmp::Reverse;
 use std::collections::{BinaryHeap, HashMap, HashSet};
@@ -180,7 +180,7 @@ impl TransitDijkstra {
         let mut pathed_node;
 
         while !priority_queue.is_empty() {
-            let current_node = priority_queue.pop().unwrap().0 .1; //.0 "unwraps" from Reverse()
+            let current_node = priority_queue.pop().unwrap().0.1; //.0 "unwraps" from Reverse()
             pathed_node = paths.get(&current_node).unwrap();
 
             visited_nodes.insert(current_node);
@@ -336,7 +336,7 @@ impl TDDijkstra {
         let mut pathed_node;
 
         while !priority_queue.is_empty() {
-            let current_node = priority_queue.pop().unwrap().0 .1;
+            let current_node = priority_queue.pop().unwrap().0.1;
             pathed_node = paths.get(&current_node).unwrap();
 
             self.visited_nodes.insert(current_node);

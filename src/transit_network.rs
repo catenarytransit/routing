@@ -1,6 +1,6 @@
 //constructs and preprocesses the graph struct from OSM data
-use crate::coord_to_int;
 use crate::NodeType;
+use crate::coord_to_int;
 use chrono::prelude::*;
 use gtfs_structures::*;
 use serde::{Deserialize, Serialize};
