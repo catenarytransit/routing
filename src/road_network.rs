@@ -288,7 +288,7 @@ pub mod arc_flags_algo {
         lon_min: f32,
         lon_max: f32,
         dijkstra_graph: &mut RoadDijkstra,
-    ) {
+    ) -> String {
         let lat_range: Range<i64> =
             (lat_min * f32::powi(10.0, 7)) as i64..(lat_max * f32::powi(10.0, 7)) as i64;
         let lon_range: Range<i64> =
@@ -330,6 +330,9 @@ pub mod arc_flags_algo {
                 }
             }
         }
+
+        format!("_{lat_min}_{lat_max}_{lon_min}_{lon_max}")
+        
     }
 }
 

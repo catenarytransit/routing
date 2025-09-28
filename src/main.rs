@@ -12,7 +12,7 @@ use routing::{
     transit_dijkstras::*,
     transit_network::*,
 };
-use serde_json::{Result, Value};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::*;
 use std::io::*;
@@ -186,10 +186,7 @@ async fn main() {
 
 #[tokio::main]
 async fn main() {
-    //Kyler help me figure out where to store all these files and etc
-    //this is just placeholder code so theres like, actual efficent ways to do it but i need
-    //to get the logic down
-    let dirpath = "/path/to/osm.pbf/directory/";
+    let dirpath = "test_unzip";
     let re = Regex::new(r"(.+)\.").unwrap();
     let entries = read_dir(dirpath)
         .unwrap()
@@ -199,10 +196,6 @@ async fn main() {
     for entry in entries {
         let file = entry.unwrap();
         let path = file.as_path().to_str().unwrap();
-        let filename = re.captures(path).unwrap().extract::<1>().0;
-        let savepath = format!("{filename}.json");
-
-        let output = File::create(savepath.clone()).unwrap();
 
         let now = Instant::now();
         let mut time = now.elapsed().as_millis() as f32 * 0.001;
@@ -229,9 +222,18 @@ async fn main() {
         println!("query graph constructed in {:?}", now.elapsed());
         let now = Instant::now();
         //let precompute = landmark_heuristic_precompute(&mut graph, 42);
-        arc_flags_precompute(49.20, 49.25, 6.95, 7.05, &mut graph); //saar
+
+        //for chunk of bounds (geographic rectangle or something) generate arcflags maps
+
+        let boundstr= arc_flags_precompute(49.20, 49.25, 6.95, 7.05, &mut graph); //saar
         println!("arc flags set in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();
+        
+        let filename = re.captures(path).unwrap().extract::<1>().0;
+        let savepath = format!("{filename}{boundstr}json");
+        let mut output = File::create(savepath.clone()).unwrap();
+        
+        let contents: String = ron::to_string(&graph).unwrap();
+        write!(output, "{contents}");
 
         /*
             let mut ch_algo = ContractedGraph::new();
@@ -335,9 +337,10 @@ async fn main() {
         //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
         //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
 
-        let file = File::open(savepath.as_str()).ok().unwrap();
-        let reader = BufReader::new(file);
-        let mut graph: RoadDijkstra = serde_json::from_reader(reader).unwrap();
+        let mut input = File::open(savepath.as_str()).ok().unwrap();
+        let mut contents: String = "".to_string();
+        let reader = input.read_to_string(&mut contents);
+        let mut graph: RoadDijkstra = ron::from_str(&contents).unwrap();
 
         let mut shortest_path_costs = Vec::new();
         let mut query_time = Vec::new();
