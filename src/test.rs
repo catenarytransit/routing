@@ -13,8 +13,8 @@ fn main() {
         let file = entry.unwrap();
         let path = file.as_path().to_str().unwrap();
         let filename = re.captures(path).unwrap().extract::<1>().0;
-        let savepath = format!("{dirpath}\\{filename}.json");
-
+        let savepath = format!("{filename}json");
+        println!("{savepath}");
         File::create(savepath.clone()).unwrap();
     }
 }
