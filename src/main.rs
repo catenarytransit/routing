@@ -2,6 +2,7 @@
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
 use geo::{Point, point};
+use regex::Regex;
 use routing::{
     road_dijkstras::*,
     road_network::{
@@ -13,8 +14,8 @@ use routing::{
 };
 use serde_json::{Result, Value};
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::BufReader;
+use std::fs::*;
+use std::io::*;
 use std::time::Instant;
 use tokio::*;
 
@@ -181,191 +182,204 @@ async fn main() {
         }
     }
 }
-  */
+*/
 
 #[tokio::main]
 async fn main() {
-    let savepath = "roads.json";
-    let now = Instant::now();
-    let mut time = now.elapsed().as_millis() as f32 * 0.001;
+    //Kyler help me figure out where to store all these files and etc
+    //this is just placeholder code so theres like, actual efficent ways to do it but i need
+    //to get the logic down
+    let dirpath = "/path/to/osm.pbf/directory/";
+    let re = Regex::new(r"(.+)\.").unwrap();
+    let entries = read_dir(dirpath)
+        .unwrap()
+        .map(|res| res.map(|e| e.path()))
+        .collect::<Vec<_>>();
 
-    let output = File::create(savepath).unwrap();let path = "saarland.pbf";
-    let data = RoadNetwork::read_from_osm_file(path).unwrap();
-    let mut roads = RoadNetwork::new(data.0, data.1);
-    print!(
-        "{} Base Graph Nodes: {}, Edges: {}\t\t",
-        path,
-        roads.nodes.len(),
-        roads.edges.len()
-    );
-    let now = Instant::now();
-    roads = roads.reduce_to_largest_connected_component();
-    time = now.elapsed().as_millis() as f32 * 0.001;
-    println!(
-        "time: {}, reduced map nodes: {}, edges: {}",
-        time,
-        roads.nodes.len(),
-        roads
-            .edges.values().map(|edges| edges.len())
-            .sum::<usize>()
-            / 2
-    );
+    for entry in entries {
+        let file = entry.unwrap();
+        let path = file.as_path().to_str().unwrap();
+        let filename = re.captures(path).unwrap().extract::<1>().0;
+        let savepath = format!("{filename}.json");
 
-    let mut graph = RoadDijkstra::new(&roads);
+        let output = File::create(savepath.clone()).unwrap();
 
-    println!("query graph constructed in {:?}", now.elapsed());
-    let now = Instant::now();
-    //let precompute = landmark_heuristic_precompute(&mut graph, 42);
-    arc_flags_precompute(49.20, 49.25, 6.95, 7.05, &mut graph); //saar
-    println!("arc flags set in {:?}", now.elapsed());
-    serde_json::to_writer(output, &graph).unwrap();
-
-/* 
-    let mut ch_algo = ContractedGraph::new();
-    let now = Instant::now();
-
-    graph.reset_all_flags(true);
-    graph.set_max_settled_nodes(20);
-
-    ch_algo.compute_random_node_ordering(&mut graph, 1000); //here
-    let mut contraction_time = Vec::new();
-    let mut shortcut_hg = vec![0, 0, 0, 0, 0];
-    let mut edge_diff_hg = vec![0, 0, 0, 0, 0];
-    for (&n, _) in ch_algo.ordered_nodes.clone().iter() {
         let now = Instant::now();
-        let (num_shortcut, num_edge_diff) = ch_algo.contract_node(n, &mut graph, false);
-        time = now.elapsed().as_micros() as f32;
-        contraction_time.push(time);
-
-        if num_shortcut == 0 {
-            shortcut_hg[0] += 1;
-        } else if num_shortcut == 1 {
-            shortcut_hg[1] += 1;
-        } else if num_shortcut == 2 {
-            shortcut_hg[2] += 1;
-        } else if num_shortcut == 3 {
-            shortcut_hg[3] += 1;
-        } else if num_shortcut >= 4 {
-            shortcut_hg[4] += 1;
-        }
-
-        if num_edge_diff <= -3 {
-            edge_diff_hg[0] += 1;
-        } else if num_edge_diff == -2 {
-            edge_diff_hg[1] += 1;
-        } else if (-1..=1).contains(&num_edge_diff) {
-            edge_diff_hg[2] += 1;
-        } else if num_edge_diff == 2 {
-            edge_diff_hg[3] += 1;
-        } else if num_edge_diff >= 3 {
-            edge_diff_hg[4] += 1;
-        }
-    }
-
-    println!(
-        "average contraction time in micros {}",
-        contraction_time.iter().sum::<f32>() / contraction_time.len() as f32
-    );
-
-    println!("shortcut histogram {:?}", shortcut_hg);
-
-    println!("edge difference histogram {:?}", edge_diff_hg);
-
-
-    graph.reset_all_flags(true);
-
-    let total_shortcuts = ch_algo.ch_precompute(&mut graph);
-    time = now.elapsed().as_millis() as f32 * 0.001;
-    println!("precomp seconds: {}", time);
-    println!("total shortcuts: {}", total_shortcuts);
-
-    let mut shortest_path_costs = Vec::new();
-    let mut query_time = Vec::new();
-
-    for _ in 0..1000 {
-        //1000
-        let source = graph.get_random_node_id().unwrap();
-        let target = graph.get_random_node_id().unwrap();
+        let mut time = now.elapsed().as_millis() as f32 * 0.001;
+        let data = RoadNetwork::read_from_osm_file(path).unwrap();
+        let mut roads = RoadNetwork::new(data.0, data.1);
+        print!(
+            "{} Base Graph Nodes: {}, Edges: {}\t\t",
+            path,
+            roads.nodes.len(),
+            roads.edges.len()
+        );
         let now = Instant::now();
-        let result = ContractedGraph::bidirectional_compute(&mut graph, source, target);
+        roads = roads.reduce_to_largest_connected_component();
         time = now.elapsed().as_millis() as f32 * 0.001;
-        query_time.push(time);
-        shortest_path_costs.push(result.0);
-    }
+        println!(
+            "time: {}, reduced map nodes: {}, edges: {}",
+            time,
+            roads.nodes.len(),
+            roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
+        );
 
-    println!(
-        "average cost mm:ss {}:{} \n\t eg {}, {}, {}",
-        shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 60,
-        shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 60,
-        shortest_path_costs.get(250).unwrap(),
-        shortest_path_costs.get(500).unwrap(),
-        shortest_path_costs.get(750).unwrap()
-    );
-    println!(
-        "average query time in seconds {}",
-        query_time.iter().sum::<f32>() / query_time.len() as f32
-    );
-*/
+        let mut graph = RoadDijkstra::new(&roads);
 
-    /*
-    TODO: Given OSM section X,  Y number of arc zones, and coordinate pair Z to chunk into:
-        🗸 Write algo to chunk given OSM section into Y arc zones
-        🗸 Precompute RoadDijkstra graph for section OSM section X --> Save with serde as json --> Compress!
-        🗸 Precompute arcflags for each arc zone Y --> Save with serde as json --> Compress!
-        - For coordinate pair Z, locate the OSM section X' for Z_s and Z_t and arc zone Y' for Z_t
-        🗸 Calculate a_star_heurstic for Z_t
-        🗸 Query with dijkstras
-    Question: How to connect between different OSM sections? Arc Flag hierarchy similar to CH algo? Go from top down
-        --> between OSM sections and then between individual sectors?
-    */
-
-    //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
-    //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
-
-    let file = File::open(savepath).ok().unwrap();
-    let reader = BufReader::new(file);
-    let mut graph: RoadDijkstra = serde_json::from_reader(reader).unwrap();
-
-    let mut shortest_path_costs = Vec::new();
-    let mut query_time = Vec::new();
-    let mut settled_nodes = Vec::new();
-    let mut heuristics = None;
-
-    for _ in 0..100 {
-        let source = graph.get_random_node_id().unwrap();
-        //let target = graph.get_random_node_id().unwrap();
-        let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
-        //let target = graph.get_random_node_area_id(47.95, 48.05, 7.75, 7.90); //ba-wu
-        //let target = graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
-
-        //heuristics = landmark_heuristic(&precompute, &graph, target);
-
+        println!("query graph constructed in {:?}", now.elapsed());
         let now = Instant::now();
-        heuristics = Some(a_star_heuristic(&graph.graph, target));
-        let result = graph.dijkstra(source, target, &heuristics, true);
-        time = now.elapsed().as_millis() as f32 * 0.001;
-        query_time.push(time);
+        //let precompute = landmark_heuristic_precompute(&mut graph, 42);
+        arc_flags_precompute(49.20, 49.25, 6.95, 7.05, &mut graph); //saar
+        println!("arc flags set in {:?}", now.elapsed());
+        serde_json::to_writer(output, &graph).unwrap();
 
-        if let Some(cost) = result.0 {
-            let result = cost.get_path();
-            shortest_path_costs.push(result.1);
-        } else {
-            print!("f");
-            shortest_path_costs.push(0);
+        /*
+            let mut ch_algo = ContractedGraph::new();
+            let now = Instant::now();
+
+            graph.reset_all_flags(true);
+            graph.set_max_settled_nodes(20);
+
+            ch_algo.compute_random_node_ordering(&mut graph, 1000); //here
+            let mut contraction_time = Vec::new();
+            let mut shortcut_hg = vec![0, 0, 0, 0, 0];
+            let mut edge_diff_hg = vec![0, 0, 0, 0, 0];
+            for (&n, _) in ch_algo.ordered_nodes.clone().iter() {
+                let now = Instant::now();
+                let (num_shortcut, num_edge_diff) = ch_algo.contract_node(n, &mut graph, false);
+                time = now.elapsed().as_micros() as f32;
+                contraction_time.push(time);
+
+                if num_shortcut == 0 {
+                    shortcut_hg[0] += 1;
+                } else if num_shortcut == 1 {
+                    shortcut_hg[1] += 1;
+                } else if num_shortcut == 2 {
+                    shortcut_hg[2] += 1;
+                } else if num_shortcut == 3 {
+                    shortcut_hg[3] += 1;
+                } else if num_shortcut >= 4 {
+                    shortcut_hg[4] += 1;
+                }
+
+                if num_edge_diff <= -3 {
+                    edge_diff_hg[0] += 1;
+                } else if num_edge_diff == -2 {
+                    edge_diff_hg[1] += 1;
+                } else if (-1..=1).contains(&num_edge_diff) {
+                    edge_diff_hg[2] += 1;
+                } else if num_edge_diff == 2 {
+                    edge_diff_hg[3] += 1;
+                } else if num_edge_diff >= 3 {
+                    edge_diff_hg[4] += 1;
+                }
+            }
+
+            println!(
+                "average contraction time in micros {}",
+                contraction_time.iter().sum::<f32>() / contraction_time.len() as f32
+            );
+
+            println!("shortcut histogram {:?}", shortcut_hg);
+
+            println!("edge difference histogram {:?}", edge_diff_hg);
+
+
+            graph.reset_all_flags(true);
+
+            let total_shortcuts = ch_algo.ch_precompute(&mut graph);
+            time = now.elapsed().as_millis() as f32 * 0.001;
+            println!("precomp seconds: {}", time);
+            println!("total shortcuts: {}", total_shortcuts);
+
+            let mut shortest_path_costs = Vec::new();
+            let mut query_time = Vec::new();
+
+            for _ in 0..1000 {
+                //1000
+                let source = graph.get_random_node_id().unwrap();
+                let target = graph.get_random_node_id().unwrap();
+                let now = Instant::now();
+                let result = ContractedGraph::bidirectional_compute(&mut graph, source, target);
+                time = now.elapsed().as_millis() as f32 * 0.001;
+                query_time.push(time);
+                shortest_path_costs.push(result.0);
+            }
+
+            println!(
+                "average cost mm:ss {}:{} \n\t eg {}, {}, {}",
+                shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 60,
+                shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 % 60,
+                shortest_path_costs.get(250).unwrap(),
+                shortest_path_costs.get(500).unwrap(),
+                shortest_path_costs.get(750).unwrap()
+            );
+            println!(
+                "average query time in seconds {}",
+                query_time.iter().sum::<f32>() / query_time.len() as f32
+            );
+        */
+
+        /*
+        TODO: Given OSM section X,  Y number of arc zones, and coordinate pair Z to chunk into:
+            🗸 Write algo to chunk given OSM section into Y arc zones
+            🗸 Precompute RoadDijkstra graph for section OSM section X --> Save with serde as json --> Compress!
+            🗸 Precompute arcflags for each arc zone Y --> Save with serde as json --> Compress!
+            - For coordinate pair Z, locate the OSM section X' for Z_s and Z_t and arc zone Y' for Z_t
+            🗸 Calculate a_star_heurstic for Z_t
+            🗸 Query with dijkstras
+        Question: How to connect between different OSM sections? Arc Flag hierarchy similar to CH algo? Go from top down
+            --> between OSM sections and then between individual sectors?
+        */
+
+        //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
+        //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
+
+        let file = File::open(savepath.as_str()).ok().unwrap();
+        let reader = BufReader::new(file);
+        let mut graph: RoadDijkstra = serde_json::from_reader(reader).unwrap();
+
+        let mut shortest_path_costs = Vec::new();
+        let mut query_time = Vec::new();
+        let mut settled_nodes = Vec::new();
+        let mut heuristics = None;
+
+        for _ in 0..100 {
+            let source = graph.get_random_node_id().unwrap();
+            //let target = graph.get_random_node_id().unwrap();
+            let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
+            //let target = graph.get_random_node_area_id(47.95, 48.05, 7.75, 7.90); //ba-wu
+            //let target = graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
+
+            //heuristics = landmark_heuristic(&precompute, &graph, target);
+
+            let now = Instant::now();
+            heuristics = Some(a_star_heuristic(&graph.graph, target));
+            let result = graph.dijkstra(source, target, &heuristics, true);
+            time = now.elapsed().as_millis() as f32 * 0.001;
+            query_time.push(time);
+
+            if let Some(cost) = result.0 {
+                let result = cost.get_path();
+                shortest_path_costs.push(result.1);
+            } else {
+                print!("f");
+                shortest_path_costs.push(0);
+            }
+            settled_nodes.push(graph.visited_nodes.len() as u64);
         }
-        settled_nodes.push(graph.visited_nodes.len() as u64);
-    }
 
-    println!(
-        "average travel time in minutes {}",
-        shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 60000
-    );
-    println!(
-        "average query time in seconds {}",
-        query_time.iter().sum::<f32>() / query_time.len() as f32
-    );
-    println!(
-        "average settle node number {}",
-        settled_nodes.iter().sum::<u64>() / settled_nodes.len() as u64
-    );
+        println!(
+            "average travel time in minutes {}",
+            shortest_path_costs.iter().sum::<u64>() / shortest_path_costs.len() as u64 / 60000
+        );
+        println!(
+            "average query time in seconds {}",
+            query_time.iter().sum::<f32>() / query_time.len() as f32
+        );
+        println!(
+            "average settle node number {}",
+            settled_nodes.iter().sum::<u64>() / settled_nodes.len() as u64
+        );
+    }
 }

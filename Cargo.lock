@@ -1871,6 +1871,7 @@ dependencies = [
  "ittapi",
  "osmpbfreader",
  "rand",
+ "regex",
  "rstar",
  "serde",
  "serde_json",

@@ -220,9 +220,6 @@ pub mod road_graph_construction {
             RoadNetwork::new(lcc_nodes, self.raw_ways)
         }
     }
-
-    
-
 }
 
 pub mod landmark_algo {
@@ -285,18 +282,24 @@ pub mod arc_flags_algo {
     use core::ops::Range;
     use std::collections::HashSet;
 
-    pub fn arc_flags_precompute(lat_min:f32, lat_max:f32, lon_min:f32, lon_max:f32, dijkstra_graph: &mut RoadDijkstra) {
-        let lat_range:Range<i64> = (lat_min * f32::powi(10.0, 7)) as i64..(lat_max * f32::powi(10.0, 7)) as i64;
-        let lon_range:Range<i64> = (lon_min * f32::powi(10.0, 7)) as i64..(lon_max * f32::powi(10.0, 7)) as i64;
-        
+    pub fn arc_flags_precompute(
+        lat_min: f32,
+        lat_max: f32,
+        lon_min: f32,
+        lon_max: f32,
+        dijkstra_graph: &mut RoadDijkstra,
+    ) {
+        let lat_range: Range<i64> =
+            (lat_min * f32::powi(10.0, 7)) as i64..(lat_max * f32::powi(10.0, 7)) as i64;
+        let lon_range: Range<i64> =
+            (lon_min * f32::powi(10.0, 7)) as i64..(lon_max * f32::powi(10.0, 7)) as i64;
+
         let mut boundary_node = HashSet::new();
         let region_nodes = dijkstra_graph
             .graph
             .nodes
             .iter()
-            .filter(|(_, node)| {
-                lat_range.contains(&node.lat) && lon_range.contains(&node.lon)
-            })
+            .filter(|(_, node)| lat_range.contains(&node.lat) && lon_range.contains(&node.lon))
             .map(|(id, _)| *id)
             .collect::<Vec<i64>>();
 
