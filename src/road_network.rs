@@ -219,61 +219,9 @@ pub mod road_graph_construction {
 
             RoadNetwork::new(lcc_nodes, self.raw_ways)
         }
-    }
-}
 
-pub mod landmark_algo {
-    use crate::road_dijkstras::*;
-    use std::collections::HashMap;
-
-    pub fn landmark_heuristic_precompute(
-        dijkstra_graph: &mut RoadDijkstra,
-        num_landmarks: usize,
-    ) -> HashMap<i64, HashMap<i64, u64>> {
-        let roads = dijkstra_graph.graph.clone();
-        let mut landmarks = Vec::new();
-        for _ in 0..num_landmarks {
-            landmarks.push(dijkstra_graph.get_random_node_id().unwrap());
-        }
-        let mut graph = RoadDijkstra::new(&roads);
-        landmarks
-            .iter()
-            .map(|&l| {
-                (l, {
-                    graph.dijkstra(l, -1, &None, false);
-                    graph
-                        .visited_nodes
-                        .iter()
-                        .map(|(id, dist)| (*id, *dist))
-                        .collect()
-                })
-            })
-            .collect::<HashMap<i64, HashMap<i64, u64>>>() //landmark_id, node_id, distance
-    }
-
-    pub fn landmark_heuristic(
-        landmark_precompute: &HashMap<i64, HashMap<i64, u64>>,
-        dijkstra_graph: &RoadDijkstra,
-        target: i64,
-    ) -> HashMap<i64, u64> {
-        dijkstra_graph
-            .graph
-            .nodes
-            .keys()
-            .map(|source| {
-                (*source, {
-                    landmark_precompute
-                        .values()
-                        .map(|arr| {
-                            let dist_lu = *arr.get(source).unwrap();
-                            let dist_tu = *arr.get(&target).unwrap();
-                            dist_lu.abs_diff(dist_tu)
-                        })
-                        .max()
-                        .unwrap()
-                })
-            })
-            .collect()
+        //pub fn chunk_map(min_area: u64) -> Vec<()> {}
+        
     }
 }
 
@@ -336,7 +284,6 @@ pub mod arc_flags_algo {
     }
 }
 
-#[allow(dead_code)]
 pub mod contraction_hierarchies {
     use crate::road_dijkstras::*;
     use std::{
@@ -539,5 +486,60 @@ pub mod contraction_hierarchies {
             }
             *distances_s_t.iter().min().unwrap_or(&(0, 0))
         }
+    }
+}
+
+pub mod landmark_algo {
+    use crate::road_dijkstras::*;
+    use std::collections::HashMap;
+
+    pub fn landmark_heuristic_precompute(
+        dijkstra_graph: &mut RoadDijkstra,
+        num_landmarks: usize,
+    ) -> HashMap<i64, HashMap<i64, u64>> {
+        let roads = dijkstra_graph.graph.clone();
+        let mut landmarks = Vec::new();
+        for _ in 0..num_landmarks {
+            landmarks.push(dijkstra_graph.get_random_node_id().unwrap());
+        }
+        let mut graph = RoadDijkstra::new(&roads);
+        landmarks
+            .iter()
+            .map(|&l| {
+                (l, {
+                    graph.dijkstra(l, -1, &None, false);
+                    graph
+                        .visited_nodes
+                        .iter()
+                        .map(|(id, dist)| (*id, *dist))
+                        .collect()
+                })
+            })
+            .collect::<HashMap<i64, HashMap<i64, u64>>>() //landmark_id, node_id, distance
+    }
+
+    pub fn landmark_heuristic(
+        landmark_precompute: &HashMap<i64, HashMap<i64, u64>>,
+        dijkstra_graph: &RoadDijkstra,
+        target: i64,
+    ) -> HashMap<i64, u64> {
+        dijkstra_graph
+            .graph
+            .nodes
+            .keys()
+            .map(|source| {
+                (*source, {
+                    landmark_precompute
+                        .values()
+                        .map(|arr| {
+                            let dist_lu = *arr.get(source).unwrap();
+                            let dist_tu = *arr.get(&target).unwrap();
+                            dist_lu.abs_diff(dist_tu)
+                        })
+                        .max()
+                        .unwrap()
+                })
+            })
+            .collect()
     }
 }

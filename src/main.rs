@@ -186,7 +186,7 @@ async fn main() {
 
 #[tokio::main]
 async fn main() {
-    let dirpath = "test_unzip";
+    let dirpath = "osm_folder";
     let re = Regex::new(r"(.+)\.").unwrap();
     let entries = read_dir(dirpath)
         .unwrap()
@@ -223,8 +223,16 @@ async fn main() {
         let now = Instant::now();
         //let precompute = landmark_heuristic_precompute(&mut graph, 42);
 
-        //for chunk of bounds (geographic rectangle or something) generate arcflags maps
-
+        /*
+            take region and divide it into rectangular subregions for arcflags
+            for each subregion, take the four corners and plug it into arc_flags_precompute
+            neven borders? overestimate, any nodes in the blank region will just simply not exist
+            while nodes that stick out will get filtered out
+            thus, double check that total rectangle of region is bigger than entire nodefield
+            global min and max should be that of all nodes, then divide into subregions from there
+        */
+        //for chunk of bounds (geographic rectangle or something) generate arcflags maps {
+            //do all the code below
         let boundstr= arc_flags_precompute(49.20, 49.25, 6.95, 7.05, &mut graph); //saar
         println!("arc flags set in {:?}", now.elapsed());
         
@@ -347,6 +355,16 @@ async fn main() {
         let mut settled_nodes = Vec::new();
         let mut heuristics = None;
 
+        /*
+        hashmap of id of a subregion's RON and the lon/lat ranges it represents?
+        given a target node, search the hashmap and retrieve the id of the subregion it's inside of
+        read graph from that RON and route from the source to that target
+        
+        what about inter-region routing?
+        uh, something with the border nodes potentially? route from source to closest border node of target region
+        then follow into the subregion routing?
+        or maybe have a tier of different arcflags on a top-down level like contraction hiarchies --> is it worth it?
+        */
         for _ in 0..100 {
             let source = graph.get_random_node_id().unwrap();
             //let target = graph.get_random_node_id().unwrap();
