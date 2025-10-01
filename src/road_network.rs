@@ -2,10 +2,13 @@
 pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
     use crate::road_dijkstras::*;
-    use core::num;
+    use core::{fmt, num};
+    use geo::Coord;
     use osmpbfreader::objects::OsmObj;
     use serde::{Deserialize, Serialize};
-    use std::{collections::HashMap, ops::Index};
+    use std::{collections::HashMap, fmt::Display, ops::Index};
+    use core::ops::Range;
+    use std::collections::HashSet;
 
     #[derive(
         Debug,
@@ -41,6 +44,28 @@ pub mod road_graph_construction {
         pub edges: HashMap<i64, HashMap<i64, (u64, bool)>>, // tail.id, <head.id, (cost, arcflag)>
         pub raw_ways: Vec<Way>,
         pub raw_nodes: Vec<i64>,
+    }
+
+    pub struct CoordRange {
+        pub min_lat: f32,
+        pub max_lat: f32,
+        pub min_lon: f32,
+        pub max_lon: f32,
+    }
+    impl Display for CoordRange {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "_{}_{}_{}_{}", self.min_lat, self.max_lat, self.min_lon, self.max_lon)
+        }
+    }
+    impl CoordRange {
+        pub fn new(min_lat: f32, max_lat: f32, min_lon: f32, max_lon: f32) -> Self {
+            Self {
+                min_lat,
+                min_lon,
+                max_lat,
+                max_lon
+            }
+        }
     }
 
     pub fn speed_calc(highway: &str) -> Option<u16> {
@@ -138,7 +163,7 @@ pub mod road_graph_construction {
             }
         }
 
-        pub fn read_from_osm_file(path: &str) -> Option<(HashMap<i64, Node>, Vec<Way>)> {
+        pub fn read_from_osm_file(path: &str) -> (HashMap<i64, Node>, Vec<Way>) {
             //reads osm.pbf file, values are used to make RoadNetwork
             let mut nodes = HashMap::new();
             let mut ways = Vec::new();
@@ -172,7 +197,7 @@ pub mod road_graph_construction {
                     _ => {}
                 }
             }
-            Some((nodes, ways))
+            (nodes, ways)
         }
 
         pub fn reduce_to_largest_connected_component(self) -> Self {
@@ -220,27 +245,24 @@ pub mod road_graph_construction {
             RoadNetwork::new(lcc_nodes, self.raw_ways)
         }
 
-        //pub fn chunk_map(min_area: u64) -> Vec<()> {}
+        pub fn chunk_map(&self, min_area: u64) -> Vec<CoordRange> { 
+            let mut coord_ranges = Vec::new();
+            let node_count = self.nodes.len();
+            
+            coord_ranges
+
+        }
         
     }
-}
 
-pub mod arc_flags_algo {
-    use crate::road_dijkstras::*;
-    use core::ops::Range;
-    use std::collections::HashSet;
-
-    pub fn arc_flags_precompute(
-        lat_min: f32,
-        lat_max: f32,
-        lon_min: f32,
-        lon_max: f32,
+        pub fn arc_flags_precompute(
+        coords: CoordRange,
         dijkstra_graph: &mut RoadDijkstra,
     ) -> String {
         let lat_range: Range<i64> =
-            (lat_min * f32::powi(10.0, 7)) as i64..(lat_max * f32::powi(10.0, 7)) as i64;
+            (coords.min_lat * f32::powi(10.0, 7)) as i64..(coords.max_lat * f32::powi(10.0, 7)) as i64;
         let lon_range: Range<i64> =
-            (lon_min * f32::powi(10.0, 7)) as i64..(lon_max * f32::powi(10.0, 7)) as i64;
+            (coords.min_lon * f32::powi(10.0, 7)) as i64..(coords.max_lon * f32::powi(10.0, 7)) as i64;
 
         let mut boundary_node = HashSet::new();
         let region_nodes = dijkstra_graph
@@ -279,11 +301,10 @@ pub mod arc_flags_algo {
             }
         }
 
-        format!("_{lat_min}_{lat_max}_{lon_min}_{lon_max}")
+        format!("{coords}")
         
     }
 }
-
 pub mod contraction_hierarchies {
     use crate::road_dijkstras::*;
     use std::{

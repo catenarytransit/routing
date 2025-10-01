@@ -6,7 +6,8 @@ use regex::Regex;
 use routing::{
     road_dijkstras::*,
     road_network::{
-        arc_flags_algo::*, contraction_hierarchies::*, landmark_algo::*, road_graph_construction::*,
+        //contraction_hierarchies::*, landmark_algo::*, 
+        road_graph_construction::*,
     },
     transfers::*,
     transit_dijkstras::*,
@@ -199,7 +200,7 @@ async fn main() {
 
         let now = Instant::now();
         let mut time = now.elapsed().as_millis() as f32 * 0.001;
-        let data = RoadNetwork::read_from_osm_file(path).unwrap();
+        let data = RoadNetwork::read_from_osm_file(path);
         let mut roads = RoadNetwork::new(data.0, data.1);
         print!(
             "{} Base Graph Nodes: {}, Edges: {}\t\t",
@@ -233,7 +234,8 @@ async fn main() {
         */
         //for chunk of bounds (geographic rectangle or something) generate arcflags maps {
             //do all the code below
-        let boundstr= arc_flags_precompute(49.20, 49.25, 6.95, 7.05, &mut graph); //saar
+        let bounds = CoordRange::new(49.20, 49.25, 6.95, 7.05);
+        let boundstr= arc_flags_precompute(bounds, &mut graph); //saar
         println!("arc flags set in {:?}", now.elapsed());
         
         let filename = re.captures(path).unwrap().extract::<1>().0;

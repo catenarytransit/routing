@@ -6,10 +6,8 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-arguments = "0.8.0"
 bincode = "2.0.0"
 chrono = "0.4.40"
-#clap = { version = "4.5.31", features = ["derive"] }
 geo = { version = "0.31.0", features = ["serde", "use-serde"] }
 gtfs-structures = "0.45.1"
 ittapi = "0.4.0"
@@ -19,7 +17,6 @@ regex = "1.11.3"
 ron = "0.11.0"
 rstar = "0.12.2"
 serde = { version = "1.0.218", features = ["derive"] }
-serde_with = "3.12.0"
 tokio = { version = "1.42.0", features = ["full"] }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]

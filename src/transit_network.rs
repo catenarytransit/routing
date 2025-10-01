@@ -4,7 +4,6 @@ use crate::coord_to_int;
 use chrono::prelude::*;
 use gtfs_structures::*;
 use serde::{Deserialize, Serialize};
-use serde_with::*;
 use std::collections::hash_map::Entry;
 use std::{
     collections::{HashMap, HashSet},
