@@ -1,6 +1,5 @@
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
-
 #![deny(
     clippy::mutable_key_type,
     clippy::map_entry,
@@ -18,7 +17,6 @@
     clippy::arc_with_non_send_sync,
     clippy::single_char_pattern,
     clippy::for_kv_map,
-    clippy::let_unit_value,
     clippy::let_and_return,
     clippy::iter_nth,
     clippy::iter_cloned_collect,

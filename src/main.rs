@@ -1,3 +1,4 @@
+#![feature(binary_heap_into_iter_sorted)]
 #![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
@@ -6,7 +7,7 @@ use regex::Regex;
 use routing::{
     road_dijkstras::*,
     road_network::{
-        //contraction_hierarchies::*, landmark_algo::*, 
+        //contraction_hierarchies::*, landmark_algo::*,
         road_graph_construction::*,
     },
     transfers::*,
@@ -233,15 +234,15 @@ async fn main() {
             global min and max should be that of all nodes, then divide into subregions from there
         */
         //for chunk of bounds (geographic rectangle or something) generate arcflags maps {
-            //do all the code below
-        let bounds = CoordRange::new(49.20, 49.25, 6.95, 7.05);
-        let boundstr= arc_flags_precompute(bounds, &mut graph); //saar
+        //do all the code below
+        let bounds = CoordRange::from_deci(49.20, 49.25, 6.95, 7.05);
+        let boundstr = arc_flags_precompute(bounds, &mut graph); //saar
         println!("arc flags set in {:?}", now.elapsed());
-        
+
         let filename = re.captures(path).unwrap().extract::<1>().0;
         let savepath = format!("{filename}{boundstr}json");
         let mut output = File::create(savepath.clone()).unwrap();
-        
+
         let contents: String = ron::to_string(&graph).unwrap();
         write!(output, "{contents}");
 
@@ -361,7 +362,7 @@ async fn main() {
         hashmap of id of a subregion's RON and the lon/lat ranges it represents?
         given a target node, search the hashmap and retrieve the id of the subregion it's inside of
         read graph from that RON and route from the source to that target
-        
+
         what about inter-region routing?
         uh, something with the border nodes potentially? route from source to closest border node of target region
         then follow into the subregion routing?

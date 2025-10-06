@@ -1,13 +1,11 @@
-#[allow(unused)]
 pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
     use crate::road_dijkstras::*;
-    use core::{fmt, num};
-    use geo::Coord;
-    use osmpbfreader::objects::OsmObj;
-    use serde::{Deserialize, Serialize};
-    use std::{collections::HashMap, fmt::Display, ops::Index};
+    use core::fmt;
     use core::ops::Range;
+    use std::cmp::min;
+    use osmpbfreader::objects::OsmObj;
+    use std::collections::HashMap;
     use std::collections::HashSet;
 
     #[derive(
@@ -46,24 +44,29 @@ pub mod road_graph_construction {
         pub raw_nodes: Vec<i64>,
     }
 
+    #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
     pub struct CoordRange {
-        pub min_lat: f32,
-        pub max_lat: f32,
-        pub min_lon: f32,
-        pub max_lon: f32,
+        pub min_lat: i64,
+        pub max_lat: i64,
+        pub min_lon: i64,
+        pub max_lon: i64,
     }
-    impl Display for CoordRange {
+    impl fmt::Display for CoordRange {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            write!(f, "_{}_{}_{}_{}", self.min_lat, self.max_lat, self.min_lon, self.max_lon)
+            write!(
+                f,
+                "_{}_{}_{}_{}",
+                self.min_lat, self.max_lat, self.min_lon, self.max_lon
+            )
         }
     }
     impl CoordRange {
-        pub fn new(min_lat: f32, max_lat: f32, min_lon: f32, max_lon: f32) -> Self {
+        pub fn from_deci(min_lat: f32, max_lat: f32, min_lon: f32, max_lon: f32) -> Self {
             Self {
-                min_lat,
-                min_lon,
-                max_lat,
-                max_lon
+                min_lat: (min_lat * f32::powi(10.0, 7)) as i64,
+                min_lon: (min_lon * f32::powi(10.0, 7)) as i64,
+                max_lat: (max_lat * f32::powi(10.0, 7)) as i64,
+                max_lon: (max_lon * f32::powi(10.0, 7)) as i64,
             }
         }
     }
@@ -205,7 +208,6 @@ pub mod road_graph_construction {
             let mut counter = 0;
             let mut number_times_node_visted: HashMap<i64, i32> = HashMap::new();
             let mut shortest_path_graph = RoadDijkstra::new(&self);
-            let mut max_connections = 0;
 
             while let Some(source_id) =
                 shortest_path_graph.get_unvisted_node_id(&number_times_node_visted)
@@ -220,12 +222,11 @@ pub mod road_graph_construction {
                     break;
                 }
             }
-            let mut new_node_list = Vec::new();
-            new_node_list = number_times_node_visted.iter().collect();
-            new_node_list.sort_by(|(node1, counter1), (node2, counter2)| counter1.cmp(counter2));
+            let mut new_node_list = number_times_node_visted.iter().collect::<Vec<_>>();
+            new_node_list.sort_by(|(_, counter1), (_, counter2)| counter1.cmp(counter2));
 
-            let connected_components = &mut new_node_list
-                .chunk_by(|(node1, counter1), (node2, counter2)| counter1 == counter2);
+            let connected_components =
+                &mut new_node_list.chunk_by(|(_, counter1), (_, counter2)| counter1 == counter2);
 
             let mut largest_node_set = Vec::new();
             let mut prev_set_size = 0;
@@ -245,25 +246,61 @@ pub mod road_graph_construction {
             RoadNetwork::new(lcc_nodes, self.raw_ways)
         }
 
-        pub fn chunk_map(&self, min_area: u64) -> Vec<CoordRange> { 
-            let mut coord_ranges = Vec::new();
-            let node_count = self.nodes.len();
-            
-            coord_ranges
+        //min node count per chunk around 28500 or so?
+        pub fn chunk_map(&self, min_node_count: usize) -> Vec<CoordRange> {
+            let mut coords = Vec::new();
 
+            let node_list = self.nodes.clone().into_values().collect::<Vec<_>>();
+
+            let lat_1_lon_0: bool = false;
+            
+            Self::recursive_rectangles(&node_list, min_node_count, &mut coords, lat_1_lon_0);
+            
+            coords
         }
-        
+
+        pub fn recursive_rectangles(node_list: &[Node], min_node_count: usize, coords: &mut Vec<CoordRange>, lat_lon: bool) {
+
+            let node_count = node_list.len() / 2;
+            if node_count < min_node_count {
+                return 
+            }
+            let prev_count = node_list.len();
+
+            let mut temp_list;
+            if lat_lon {
+                temp_list = node_list.clone().sort_by_key(|n| n.lat);
+            }
+            else {
+                temp_list = node_list.clone().sort_by_key(|n|n.lon);
+            }
+
+            let slice_a = &node_list[0..node_count];
+            let slice_b = &node_list[node_count..prev_count];
+
+            let box_a = CoordRange {
+                min_lat: slice_a[0].lat,
+                max_lat: slice_a[node_count - 1].lat,
+                min_lon: slice_a[0].lon,
+                max_lon: slice_a[node_count - 1].lon,
+            };
+            coords.push(box_a);            
+            let box_b = CoordRange {
+                min_lat: slice_b[0].lat,
+                max_lat: slice_b[node_count - 1].lat,
+                min_lon: slice_b[0].lon,
+                max_lon: slice_b[node_count - 1].lon,
+            };
+            coords.push(box_b);
+
+            Self::recursive_rectangles(&slice_a, min_node_count, coords, !lat_lon);
+            Self::recursive_rectangles(&slice_b, min_node_count, coords, !lat_lon);            
+        }
     }
 
-        pub fn arc_flags_precompute(
-        coords: CoordRange,
-        dijkstra_graph: &mut RoadDijkstra,
-    ) -> String {
-        let lat_range: Range<i64> =
-            (coords.min_lat * f32::powi(10.0, 7)) as i64..(coords.max_lat * f32::powi(10.0, 7)) as i64;
-        let lon_range: Range<i64> =
-            (coords.min_lon * f32::powi(10.0, 7)) as i64..(coords.max_lon * f32::powi(10.0, 7)) as i64;
-
+    pub fn arc_flags_precompute(coords: CoordRange, dijkstra_graph: &mut RoadDijkstra) -> String {
+        let lat_range: Range<i64> = coords.min_lat..coords.max_lat;
+        let lon_range: Range<i64> = coords.min_lon..coords.max_lon;
         let mut boundary_node = HashSet::new();
         let region_nodes = dijkstra_graph
             .graph
@@ -272,6 +309,8 @@ pub mod road_graph_construction {
             .filter(|(_, node)| lat_range.contains(&node.lat) && lon_range.contains(&node.lon))
             .map(|(id, _)| *id)
             .collect::<Vec<i64>>();
+
+        println!("number of nodes in region: {}", region_nodes.len());
 
         for node in region_nodes.clone() {
             if let Some(edge_list) = dijkstra_graph.graph.edges.get_mut(&node) {
@@ -302,7 +341,6 @@ pub mod road_graph_construction {
         }
 
         format!("{coords}")
-        
     }
 }
 pub mod contraction_hierarchies {
@@ -564,3 +602,4 @@ pub mod landmark_algo {
             .collect()
     }
 }
+
