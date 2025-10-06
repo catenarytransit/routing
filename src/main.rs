@@ -1,4 +1,3 @@
-#![feature(binary_heap_into_iter_sorted)]
 #![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
@@ -15,7 +14,7 @@ use routing::{
     transit_network::*,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, process::exit};
 use std::fs::*;
 use std::io::*;
 use std::time::Instant;
@@ -193,6 +192,7 @@ async fn main() {
     let entries = read_dir(dirpath)
         .unwrap()
         .map(|res| res.map(|e| e.path()))
+        .filter(|x| x.is_ok())
         .collect::<Vec<_>>();
 
     for entry in entries {
@@ -222,7 +222,7 @@ async fn main() {
         let mut graph = RoadDijkstra::new(&roads);
 
         println!("query graph constructed in {:?}", now.elapsed());
-        let now = Instant::now();
+        
         //let precompute = landmark_heuristic_precompute(&mut graph, 42);
 
         /*
@@ -233,19 +233,28 @@ async fn main() {
             thus, double check that total rectangle of region is bigger than entire nodefield
             global min and max should be that of all nodes, then divide into subregions from there
         */
-        //for chunk of bounds (geographic rectangle or something) generate arcflags maps {
-        //do all the code below
-        let bounds = CoordRange::from_deci(49.20, 49.25, 6.95, 7.05);
-        let boundstr = arc_flags_precompute(bounds, &mut graph); //saar
-        println!("arc flags set in {:?}", now.elapsed());
+        let now = Instant::now();
+        let x = roads.chunk_map(28500);
 
-        let filename = re.captures(path).unwrap().extract::<1>().0;
-        let savepath = format!("{filename}{boundstr}json");
-        let mut output = File::create(savepath.clone()).unwrap();
+        for coord in x {
+            println!("map chunks {coord}");
+            /* let boundstr = arc_flags_precompute(coord, &mut graph); //saar
+            println!("arc flags set in {:?}", now.elapsed());
 
-        let contents: String = ron::to_string(&graph).unwrap();
-        write!(output, "{contents}");
+            let filename = re.captures(path).unwrap().extract::<1>().0;
+            let savepath = format!("{filename}_{boundstr}.ron");
+            let mut output = File::create(savepath.clone()).unwrap();
 
+            let contents: String = ron::to_string(&graph).unwrap();
+            write!(output, "{contents}"); */
+        }
+
+        println!("map chunked in {:?}", now.elapsed());
+        
+        //let bounds = CoordRange::from_deci(49.20, 49.25, 6.95, 7.05);
+        
+
+        //Unused contraction hiearchies stuff
         /*
             let mut ch_algo = ContractedGraph::new();
             let now = Instant::now();
@@ -348,7 +357,7 @@ async fn main() {
         //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
         //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
 
-        let mut input = File::open(savepath.as_str()).ok().unwrap();
+        /* let mut input = File::open(savepath.as_str()).ok().unwrap();
         let mut contents: String = "".to_string();
         let reader = input.read_to_string(&mut contents);
         let mut graph: RoadDijkstra = ron::from_str(&contents).unwrap();
@@ -357,7 +366,7 @@ async fn main() {
         let mut query_time = Vec::new();
         let mut settled_nodes = Vec::new();
         let mut heuristics = None;
-
+ */
         /*
         hashmap of id of a subregion's RON and the lon/lat ranges it represents?
         given a target node, search the hashmap and retrieve the id of the subregion it's inside of
@@ -368,7 +377,8 @@ async fn main() {
         then follow into the subregion routing?
         or maybe have a tier of different arcflags on a top-down level like contraction hiarchies --> is it worth it?
         */
-        for _ in 0..100 {
+
+        /* for _ in 0..100 {
             let source = graph.get_random_node_id().unwrap();
             //let target = graph.get_random_node_id().unwrap();
             let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
@@ -404,6 +414,7 @@ async fn main() {
         println!(
             "average settle node number {}",
             settled_nodes.iter().sum::<u64>() / settled_nodes.len() as u64
-        );
+        ); */
+
     }
 }

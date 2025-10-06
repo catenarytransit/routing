@@ -3,7 +3,6 @@ pub mod road_graph_construction {
     use crate::road_dijkstras::*;
     use core::fmt;
     use core::ops::Range;
-    use std::cmp::min;
     use osmpbfreader::objects::OsmObj;
     use std::collections::HashMap;
     use std::collections::HashSet;
@@ -47,19 +46,23 @@ pub mod road_graph_construction {
     #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
     pub struct CoordRange {
         pub min_lat: i64,
-        pub max_lat: i64,
         pub min_lon: i64,
+        pub max_lat: i64,
         pub max_lon: i64,
     }
     impl fmt::Display for CoordRange {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(
                 f,
-                "_{}_{}_{}_{}",
-                self.min_lat, self.max_lat, self.min_lon, self.max_lon
+                "{}_{},{}_{}",
+                self.min_lat as f32 / f32::powi(10.0, 7), 
+                self.min_lon as f32 / f32::powi(10.0, 7), 
+                self.max_lat as f32 / f32::powi(10.0, 7), 
+                self.max_lon as f32 / f32::powi(10.0, 7),
             )
         }
     }
+    
     impl CoordRange {
         pub fn from_deci(min_lat: f32, max_lat: f32, min_lon: f32, max_lon: f32) -> Self {
             Self {
@@ -249,34 +252,23 @@ pub mod road_graph_construction {
         //min node count per chunk around 28500 or so?
         pub fn chunk_map(&self, min_node_count: usize) -> Vec<CoordRange> {
             let mut coords = Vec::new();
-
             let node_list = self.nodes.clone().into_values().collect::<Vec<_>>();
-
-            let lat_1_lon_0: bool = false;
+            let lat_lon: bool = false;
             
-            Self::recursive_rectangles(&node_list, min_node_count, &mut coords, lat_1_lon_0);
+            Self::recursive_rectangles(node_list, min_node_count, &mut coords, lat_lon);
             
             coords
         }
 
-        pub fn recursive_rectangles(node_list: &[Node], min_node_count: usize, coords: &mut Vec<CoordRange>, lat_lon: bool) {
-
+        pub fn recursive_rectangles(mut node_list: Vec<Node>, min_node_count: usize, coords: &mut Vec<CoordRange>, lat_lon: bool) {
             let node_count = node_list.len() / 2;
-            if node_count < min_node_count {
-                return 
-            }
-            let prev_count = node_list.len();
+            match lat_lon {
+                false => node_list.sort_by(|a, b| a.lat.cmp(&b.lat)),
+                true => node_list.sort_by(|a, b| a.lon.cmp(&b.lon)), 
+            };
 
-            let mut temp_list;
-            if lat_lon {
-                temp_list = node_list.clone().sort_by_key(|n| n.lat);
-            }
-            else {
-                temp_list = node_list.clone().sort_by_key(|n|n.lon);
-            }
-
-            let slice_a = &node_list[0..node_count];
-            let slice_b = &node_list[node_count..prev_count];
+            let slice_b = node_list.split_off(node_count);
+            let slice_a = node_list;            
 
             let box_a = CoordRange {
                 min_lat: slice_a[0].lat,
@@ -284,17 +276,22 @@ pub mod road_graph_construction {
                 min_lon: slice_a[0].lon,
                 max_lon: slice_a[node_count - 1].lon,
             };
-            coords.push(box_a);            
+                       
             let box_b = CoordRange {
-                min_lat: slice_b[0].lat,
+                min_lat: slice_b[0].lat,//slice_a[node_count - 1].lat,
                 max_lat: slice_b[node_count - 1].lat,
-                min_lon: slice_b[0].lon,
+                min_lon: slice_b[0].lon,//slice_a[node_count - 1].lon,
                 max_lon: slice_b[node_count - 1].lon,
             };
-            coords.push(box_b);
 
-            Self::recursive_rectangles(&slice_a, min_node_count, coords, !lat_lon);
-            Self::recursive_rectangles(&slice_b, min_node_count, coords, !lat_lon);            
+            if node_count < min_node_count {
+                coords.push(box_a); 
+                coords.push(box_b);
+                return 
+            }
+
+            Self::recursive_rectangles(slice_a, min_node_count, coords, !lat_lon);
+            Self::recursive_rectangles(slice_b, min_node_count, coords, !lat_lon);            
         }
     }
 
