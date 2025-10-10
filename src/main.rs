@@ -188,7 +188,9 @@ async fn main() {
 #[tokio::main]
 async fn main() {
     let dirpath = "osm_folder";
-    let re = Regex::new(r"(.+)\.").unwrap();
+    let re_parent = Regex::new(r"(.+)\.").unwrap();
+    let re_child = Regex::new(r"\._(.+)_(.+),(.+)_(.+)\.ron").unwrap();
+    
     let entries = read_dir(dirpath)
         .unwrap()
         .map(|res| res.map(|e| e.path()))
@@ -233,23 +235,23 @@ async fn main() {
             thus, double check that total rectangle of region is bigger than entire nodefield
             global min and max should be that of all nodes, then divide into subregions from there
         */
-        let now = Instant::now();
-        let x = roads.chunk_map(28500);
-
+/*         let now = Instant::now();
+        let x = roads.chunk_map(29260);
+        
         for coord in x {
             println!("map chunks {coord}");
-            /* let boundstr = arc_flags_precompute(coord, &mut graph); //saar
+            let boundstr = arc_flags_precompute(coord, &mut graph); //saar
             println!("arc flags set in {:?}", now.elapsed());
 
-            let filename = re.captures(path).unwrap().extract::<1>().0;
+            let filename = re_parent.captures(path).unwrap().extract::<1>().0;
             let savepath = format!("{filename}_{boundstr}.ron");
             let mut output = File::create(savepath.clone()).unwrap();
 
             let contents: String = ron::to_string(&graph).unwrap();
-            write!(output, "{contents}"); */
+            write!(output, "{contents}");
         }
 
-        println!("map chunked in {:?}", now.elapsed());
+        println!("map chunked in {:?}", now.elapsed()); */
         
         //let bounds = CoordRange::from_deci(49.20, 49.25, 6.95, 7.05);
         
@@ -357,16 +359,35 @@ async fn main() {
         //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
         //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
 
-        /* let mut input = File::open(savepath.as_str()).ok().unwrap();
-        let mut contents: String = "".to_string();
-        let reader = input.read_to_string(&mut contents);
-        let mut graph: RoadDijkstra = ron::from_str(&contents).unwrap();
+        let mut region_sects = HashMap::new();
+        let dirpath = "arc_regions";
+    
+        let entries = read_dir(dirpath)
+            .unwrap()
+            .map(|res| res.map(|e| e.path()))
+            .filter(|x| x.is_ok())
+            .collect::<Vec<_>>();
 
+        for entry in entries {
+            let file = entry.unwrap();
+            let path = file.as_path().to_str().unwrap();
+            let min_lon= re_child.captures(path).unwrap().extract::<1>().0.parse().unwrap();
+            let min_lat = re_child.captures(path).unwrap().extract::<2>().0.parse().unwrap();
+            let max_lon = re_child.captures(path).unwrap().extract::<3>().0.parse().unwrap();
+            let max_lat = re_child.captures(path).unwrap().extract::<4>().0.parse().unwrap();
+            let range = CoordRange::from_deci(min_lat, max_lat, min_lon, max_lon);
+            let mut input = File::open(path).ok().unwrap();
+            let mut contents: String = "".to_string();
+            let reader = input.read_to_string(&mut contents);
+            let mut graph: RoadDijkstra = ron::from_str(&contents).unwrap();
+            region_sects.insert(range, graph);
+        }       
+        
         let mut shortest_path_costs = Vec::new();
         let mut query_time = Vec::new();
         let mut settled_nodes = Vec::new();
         let mut heuristics = None;
- */
+    
         /*
         hashmap of id of a subregion's RON and the lon/lat ranges it represents?
         given a target node, search the hashmap and retrieve the id of the subregion it's inside of
@@ -378,10 +399,10 @@ async fn main() {
         or maybe have a tier of different arcflags on a top-down level like contraction hiarchies --> is it worth it?
         */
 
-        /* for _ in 0..100 {
+        for _ in 0..100 {
             let source = graph.get_random_node_id().unwrap();
-            //let target = graph.get_random_node_id().unwrap();
-            let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
+            let target = graph.get_random_node_id().unwrap();
+            //let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
             //let target = graph.get_random_node_area_id(47.95, 48.05, 7.75, 7.90); //ba-wu
             //let target = graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
 
@@ -414,7 +435,7 @@ async fn main() {
         println!(
             "average settle node number {}",
             settled_nodes.iter().sum::<u64>() / settled_nodes.len() as u64
-        ); */
+        );
 
     }
 }

@@ -43,7 +43,7 @@ pub mod road_graph_construction {
         pub raw_nodes: Vec<i64>,
     }
 
-    #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, PartialEq, Hash, Eq, Clone, serde::Serialize, serde::Deserialize)]
     pub struct CoordRange {
         pub min_lat: i64,
         pub min_lon: i64,
@@ -54,7 +54,7 @@ pub mod road_graph_construction {
         fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
             write!(
                 f,
-                "{}_{},{}_{}",
+                "{}_{}_{}_{}",
                 self.min_lat as f32 / f32::powi(10.0, 7), 
                 self.min_lon as f32 / f32::powi(10.0, 7), 
                 self.max_lat as f32 / f32::powi(10.0, 7), 
@@ -284,7 +284,9 @@ pub mod road_graph_construction {
                 max_lon: slice_b[node_count - 1].lon,
             };
 
-            if node_count < min_node_count {
+            if node_count <= min_node_count {
+                //println!("{}", slice_a.len());
+                //println!("{}", slice_b.len());
                 coords.push(box_a); 
                 coords.push(box_b);
                 return 
