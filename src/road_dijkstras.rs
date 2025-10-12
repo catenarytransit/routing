@@ -197,14 +197,14 @@ impl RoadDijkstra {
         (None, previous_nodes)
     }
 
-    pub fn get_random_node_id(&mut self) -> Option<i64> {
+    pub fn get_random_node_id(&mut self) -> Option<Node> {
         //returns ID of a random valid node from a graph
         let mut rng = rand::rng();
-        let full_node_list = &self.graph.raw_nodes;
+        let full_node_list = &self.graph.nodes.values().collect::<Vec<_>>();
         let random: usize = rng.random_range(0..full_node_list.len());
         let node_id = full_node_list.get(random).unwrap();
 
-        Some(*node_id)
+        Some(**node_id)
     }
 
     pub fn get_random_node_area_id(
@@ -221,11 +221,10 @@ impl RoadDijkstra {
         let mut found = false;
         let mut id = -1;
         while !found {
-            if let Some(node_id) = self.get_random_node_id()
-                && let Some(node) = self.graph.nodes.get(&node_id)
+            if let Some(node) = self.get_random_node_id()
             {
                 found = lat_range.contains(&node.lat) && lon_range.contains(&node.lon);
-                id = node_id
+                id = node.id
             }
         }
         id

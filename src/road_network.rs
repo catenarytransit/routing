@@ -43,7 +43,7 @@ pub mod road_graph_construction {
         pub raw_nodes: Vec<i64>,
     }
 
-    #[derive(Debug, PartialEq, Hash, Eq, Clone, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, PartialEq, Hash, Eq, PartialOrd, Ord, Clone, serde::Serialize, serde::Deserialize)]
     pub struct CoordRange {
         pub min_lat: i64,
         pub min_lon: i64,
@@ -343,7 +343,7 @@ pub mod road_graph_construction {
     }
 }
 pub mod contraction_hierarchies {
-    use crate::road_dijkstras::*;
+    use crate::{road_dijkstras::*, road_network};
     use std::{
         cmp::Reverse,
         collections::{BinaryHeap, HashMap},
@@ -369,7 +369,7 @@ pub mod contraction_hierarchies {
             //self.ordered_nodes_to_contract.insert(0);
             while self.ordered_nodes.len() < length {
                 self.ordered_nodes
-                    .insert(graph.get_random_node_id().unwrap_or_default(), 0);
+                    .insert(graph.get_random_node_id().unwrap_or(road_network::road_graph_construction::Node { id: (0), lat: (0), lon: (0) }).id, 0);
             }
             graph.reset_all_flags(true);
         }
@@ -558,7 +558,7 @@ pub mod landmark_algo {
         let roads = dijkstra_graph.graph.clone();
         let mut landmarks = Vec::new();
         for _ in 0..num_landmarks {
-            landmarks.push(dijkstra_graph.get_random_node_id().unwrap());
+            landmarks.push(dijkstra_graph.get_random_node_id().unwrap().id);
         }
         let mut graph = RoadDijkstra::new(&roads);
         landmarks

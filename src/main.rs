@@ -19,6 +19,7 @@ use std::fs::*;
 use std::io::*;
 use std::time::Instant;
 use tokio::*;
+use core::ops::Range;
 
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
@@ -191,6 +192,7 @@ async fn main() {
     let re_parent = Regex::new(r"(.+)\.").unwrap();
     let re_child = Regex::new(r"\._(.+)_(.+),(.+)_(.+)\.ron").unwrap();
     
+    
     let entries = read_dir(dirpath)
         .unwrap()
         .map(|res| res.map(|e| e.path()))
@@ -221,7 +223,7 @@ async fn main() {
             roads.edges.values().map(|edges| edges.len()).sum::<usize>() / 2
         );
 
-        let mut graph = RoadDijkstra::new(&roads);
+        let mut master_graph = RoadDijkstra::new(&roads);
 
         println!("query graph constructed in {:?}", now.elapsed());
         
@@ -349,7 +351,7 @@ async fn main() {
             🗸 Write algo to chunk given OSM section into Y arc zones
             🗸 Precompute RoadDijkstra graph for section OSM section X --> Save with serde as json --> Compress!
             🗸 Precompute arcflags for each arc zone Y --> Save with serde as json --> Compress!
-            - For coordinate pair Z, locate the OSM section X' for Z_s and Z_t and arc zone Y' for Z_t
+            🗸 For coordinate pair Z, locate within OSM section X' for arc zone Y' for Z_t
             🗸 Calculate a_star_heurstic for Z_t
             🗸 Query with dijkstras
         Question: How to connect between different OSM sections? Arc Flag hierarchy similar to CH algo? Go from top down
@@ -358,30 +360,6 @@ async fn main() {
 
         //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
         //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
-
-        let mut region_sects = HashMap::new();
-        let dirpath = "arc_regions";
-    
-        let entries = read_dir(dirpath)
-            .unwrap()
-            .map(|res| res.map(|e| e.path()))
-            .filter(|x| x.is_ok())
-            .collect::<Vec<_>>();
-
-        for entry in entries {
-            let file = entry.unwrap();
-            let path = file.as_path().to_str().unwrap();
-            let min_lon= re_child.captures(path).unwrap().extract::<1>().0.parse().unwrap();
-            let min_lat = re_child.captures(path).unwrap().extract::<2>().0.parse().unwrap();
-            let max_lon = re_child.captures(path).unwrap().extract::<3>().0.parse().unwrap();
-            let max_lat = re_child.captures(path).unwrap().extract::<4>().0.parse().unwrap();
-            let range = CoordRange::from_deci(min_lat, max_lat, min_lon, max_lon);
-            let mut input = File::open(path).ok().unwrap();
-            let mut contents: String = "".to_string();
-            let reader = input.read_to_string(&mut contents);
-            let mut graph: RoadDijkstra = ron::from_str(&contents).unwrap();
-            region_sects.insert(range, graph);
-        }       
         
         let mut shortest_path_costs = Vec::new();
         let mut query_time = Vec::new();
@@ -400,8 +378,11 @@ async fn main() {
         */
 
         for _ in 0..100 {
-            let source = graph.get_random_node_id().unwrap();
-            let target = graph.get_random_node_id().unwrap();
+            let source = master_graph.get_random_node_id().unwrap();
+            let target = master_graph.get_random_node_id().unwrap();
+
+            let mut graph = find_target_section(target, &re_child).unwrap();
+
             //let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
             //let target = graph.get_random_node_area_id(47.95, 48.05, 7.75, 7.90); //ba-wu
             //let target = graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
@@ -409,9 +390,9 @@ async fn main() {
             //heuristics = landmark_heuristic(&precompute, &graph, target);
 
             let now = Instant::now();
-            heuristics = Some(a_star_heuristic(&graph.graph, target));
-            let result = graph.dijkstra(source, target, &heuristics, true);
-            time = now.elapsed().as_millis() as f32 * 0.001;
+            heuristics = Some(a_star_heuristic(&graph.graph, target.id));
+            let result = graph.dijkstra(source.id, target.id, &heuristics, true);
+            let time = now.elapsed().as_millis() as f32 * 0.001;
             query_time.push(time);
 
             if let Some(cost) = result.0 {
@@ -438,4 +419,33 @@ async fn main() {
         );
 
     }
+}
+
+fn find_target_section(node: Node, re_child: &Regex) -> Option<RoadDijkstra> {
+    let dirpath = "arc_regions";
+    let entries = read_dir(dirpath)
+        .unwrap()
+        .map(|res| res.map(|e| e.path()))
+        .filter(|x| x.is_ok())
+        .collect::<Vec<_>>();
+    for entry in entries {
+        let file = entry.unwrap();
+        let path = file.as_path().to_str().unwrap();
+        let mut input = File::open(path).ok().unwrap();
+        let mut contents: String = "".to_string();
+        let min_lon = re_child.captures(path).unwrap().extract::<1>().0.parse().unwrap();
+        let min_lat = re_child.captures(path).unwrap().extract::<2>().0.parse().unwrap();
+        let max_lon = re_child.captures(path).unwrap().extract::<3>().0.parse().unwrap();
+        let max_lat = re_child.captures(path).unwrap().extract::<4>().0.parse().unwrap();
+        let lat_range: Range<i64> = min_lat..max_lat;
+        let lon_range: Range<i64> = min_lon..max_lon;
+        let mut found = false;
+        let mut id = -1;
+        if lat_range.contains(&node.lat) && lon_range.contains(&node.lon) {
+            let reader = input.read_to_string(&mut contents);
+            let graph: RoadDijkstra = ron::from_str(&contents).unwrap();
+            return Some(graph)
+        }
+    }
+    None
 }
