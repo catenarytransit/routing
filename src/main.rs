@@ -182,7 +182,7 @@ async fn main() {
 async fn main() {
     //let dirpath = "osm_folder";
     //let re_parent = Regex::new(r"\\(.+)\.").unwrap();
-    let re_child = Regex::new(r"\\(?:.+)_(.+)_(.+),(.+)_(.+)\.ron").unwrap();
+    let re_child = Regex::new(r"(?:.+)\\(?:.+)_(.+)_(.+)_(.+)_(.+)\.ron").unwrap();
     
     
     /* let entries = read_dir(dirpath)
@@ -442,7 +442,7 @@ fn find_target_section(node: Node, re_child: &Regex) -> Option<RoadDijkstra> {
             let max_lon = res.get(4).unwrap().as_str().parse::<f32>().unwrap();
             let coords = CoordRange::from_deci(min_lat, max_lat, min_lon, max_lon);
             let (lat_range, lon_range) = coords.give_ranges();
-            println!("range {:?} {:?} and node {} {}", lat_range, lon_range, node.lat, node.lon);
+            //println!("range {:?} {:?} and node {} {}", lat_range, lon_range, node.lat, node.lon);
             if lat_range.contains(&node.lat) && lon_range.contains(&node.lon) {
                 let _ = input.read_to_string(&mut contents);
                 let graph: RoadDijkstra = ron::from_str(&contents).unwrap();
