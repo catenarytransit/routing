@@ -72,6 +72,11 @@ pub mod road_graph_construction {
                 max_lon: (max_lon * f32::powi(10.0, 7)) as i64,
             }
         }
+        pub fn give_ranges(&self) -> (Range<i64>, Range<i64>) {
+            let lat_range: Range<i64> = self.min_lat..self.max_lat;
+            let lon_range: Range<i64> = self.min_lon..self.max_lon;
+            (lat_range, lon_range)
+        }
     }
 
     pub fn speed_calc(highway: &str) -> Option<u16> {
@@ -261,28 +266,71 @@ pub mod road_graph_construction {
         }
 
         pub fn recursive_rectangles(mut node_list: Vec<Node>, min_node_count: usize, coords: &mut Vec<CoordRange>, lat_lon: bool) {
+            let mut slice_b;
+            let mut slice_a;  
+            let a_min_lat;
+            let a_max_lat;
+            let b_min_lat;
+            let b_max_lat;
+            let a_min_lon;
+            let a_max_lon;
+            let b_min_lon;
+            let b_max_lon;
+        
             let node_count = node_list.len() / 2;
             match lat_lon {
-                false => node_list.sort_by(|a, b| a.lat.cmp(&b.lat)),
-                true => node_list.sort_by(|a, b| a.lon.cmp(&b.lon)), 
+                false => {
+                    node_list.sort_by(|a, b| a.lat.cmp(&b.lat));
+                    slice_b = node_list.split_off(node_count);
+
+                    slice_a = node_list;
+                    a_min_lat = slice_a[0].lat;
+                    a_max_lat = slice_a[node_count - 1].lat;
+                    b_min_lat = slice_b[0].lat;
+                    b_max_lat = slice_b[node_count - 1].lat;
+
+                    slice_a.sort_by(|a, b| a.lon.cmp(&b.lon));                    
+                    slice_b.sort_by(|a, b| a.lon.cmp(&b.lon));
+
+                    a_min_lon = slice_a[0].lon;
+                    a_max_lon = slice_a[node_count - 1].lon;
+                    b_min_lon = slice_b[0].lon;
+                    b_max_lon = slice_b[node_count - 1].lon;
+                },
+
+                true => {
+                    node_list.sort_by(|a, b| a.lon.cmp(&b.lon));
+                    slice_b = node_list.split_off(node_count);
+                    slice_a = node_list;
+                    a_min_lon = slice_a[0].lon;
+                    a_max_lon = slice_a[node_count - 1].lon;
+                    b_min_lon = slice_b[0].lon;
+                    b_max_lon = slice_b[node_count - 1].lon;
+
+                    slice_a.sort_by(|a, b| a.lat.cmp(&b.lat));                    
+                    slice_b.sort_by(|a, b| a.lat.cmp(&b.lat));
+
+                    a_min_lat = slice_a[0].lat;
+                    a_max_lat = slice_a[node_count - 1].lat;
+                    b_min_lat = slice_b[0].lat;
+                    b_max_lat = slice_b[node_count - 1].lat;
+                },
             };
 
-            let slice_b = node_list.split_off(node_count);
-            let slice_a = node_list;            
-
-            let box_a = CoordRange {
-                min_lat: slice_a[0].lat,
-                max_lat: slice_a[node_count - 1].lat,
-                min_lon: slice_a[0].lon,
-                max_lon: slice_a[node_count - 1].lon,
+          let box_a = CoordRange {
+                min_lat: a_min_lat,
+                max_lat: a_max_lat,
+                min_lon: a_min_lon,
+                max_lon: a_max_lon,
             };
                        
-            let box_b = CoordRange {
-                min_lat: slice_b[0].lat,//slice_a[node_count - 1].lat,
-                max_lat: slice_b[node_count - 1].lat,
-                min_lon: slice_b[0].lon,//slice_a[node_count - 1].lon,
-                max_lon: slice_b[node_count - 1].lon,
+            let box_b= CoordRange {
+                min_lat: b_min_lat,
+                max_lat: b_max_lat,
+                min_lon: b_min_lon,
+                max_lon: b_max_lon,
             };
+            
 
             if node_count <= min_node_count {
                 //println!("{}", slice_a.len());
@@ -298,8 +346,7 @@ pub mod road_graph_construction {
     }
 
     pub fn arc_flags_precompute(coords: CoordRange, dijkstra_graph: &mut RoadDijkstra) -> String {
-        let lat_range: Range<i64> = coords.min_lat..coords.max_lat;
-        let lon_range: Range<i64> = coords.min_lon..coords.max_lon;
+        let (lat_range, lon_range) = coords.give_ranges();
         let mut boundary_node = HashSet::new();
         let region_nodes = dijkstra_graph
             .graph

@@ -1,4 +1,3 @@
-#![allow(unused)]
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
 use geo::{Point, point};
@@ -9,17 +8,10 @@ use routing::{
         //contraction_hierarchies::*, landmark_algo::*,
         road_graph_construction::*,
     },
-    transfers::*,
-    transit_dijkstras::*,
-    transit_network::*,
 };
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, process::exit};
 use std::fs::*;
 use std::io::*;
 use std::time::Instant;
-use tokio::*;
-use core::ops::Range;
 
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
@@ -188,12 +180,12 @@ async fn main() {
 
 #[tokio::main]
 async fn main() {
-    let dirpath = "osm_folder";
-    let re_parent = Regex::new(r"(.+)\.").unwrap();
-    let re_child = Regex::new(r"\._(.+)_(.+),(.+)_(.+)\.ron").unwrap();
+    //let dirpath = "osm_folder";
+    //let re_parent = Regex::new(r"\\(.+)\.").unwrap();
+    let re_child = Regex::new(r"\\(?:.+)_(.+)_(.+),(.+)_(.+)\.ron").unwrap();
     
     
-    let entries = read_dir(dirpath)
+    /* let entries = read_dir(dirpath)
         .unwrap()
         .map(|res| res.map(|e| e.path()))
         .filter(|x| x.is_ok())
@@ -208,10 +200,11 @@ async fn main() {
         let data = RoadNetwork::read_from_osm_file(path);
         let mut roads = RoadNetwork::new(data.0, data.1);
         print!(
-            "{} Base Graph Nodes: {}, Edges: {}\t\t",
+            "{} Base Graph Nodes: {}, Edges: {} at time {}\t\t",
             path,
             roads.nodes.len(),
-            roads.edges.len()
+            roads.edges.len(),
+            time
         );
         let now = Instant::now();
         roads = roads.reduce_to_largest_connected_component();
@@ -226,7 +219,15 @@ async fn main() {
         let mut master_graph = RoadDijkstra::new(&roads);
 
         println!("query graph constructed in {:?}", now.elapsed());
+
+        let filename = re_parent.captures(path).unwrap().get(1).unwrap().as_str();
+
+        let savepath = format!("arc_regions\\{filename}.ron");
+        let mut output = File::create(savepath.clone()).unwrap();
         
+        let contents: String = ron::to_string(&master_graph).unwrap();
+        let _ = write!(output, "{contents}");
+         */
         //let precompute = landmark_heuristic_precompute(&mut graph, 42);
 
         /*
@@ -237,27 +238,26 @@ async fn main() {
             thus, double check that total rectangle of region is bigger than entire nodefield
             global min and max should be that of all nodes, then divide into subregions from there
         */
+        
 /*         let now = Instant::now();
         let x = roads.chunk_map(29260);
         
         for coord in x {
             println!("map chunks {coord}");
-            let boundstr = arc_flags_precompute(coord, &mut graph); //saar
+            let boundstr = arc_flags_precompute(coord, &mut master_graph); //saar
             println!("arc flags set in {:?}", now.elapsed());
 
-            let filename = re_parent.captures(path).unwrap().extract::<1>().0;
-            let savepath = format!("{filename}_{boundstr}.ron");
+            let savepath = format!("arc_regions\\{filename}_{boundstr}.ron");
             let mut output = File::create(savepath.clone()).unwrap();
 
-            let contents: String = ron::to_string(&graph).unwrap();
-            write!(output, "{contents}");
+            let contents: String = ron::to_string(&master_graph).unwrap();
+            let _ = write!(output, "{contents}");
         }
 
         println!("map chunked in {:?}", now.elapsed()); */
         
         //let bounds = CoordRange::from_deci(49.20, 49.25, 6.95, 7.05);
         
-
         //Unused contraction hiearchies stuff
         /*
             let mut ch_algo = ContractedGraph::new();
@@ -358,13 +358,12 @@ async fn main() {
             --> between OSM sections and then between individual sectors?
         */
 
-        //let arc_flag_thing = ArcFlags::new(47.95, 48.05, 7.75, 7.90); //ba-wu
         //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
         
         let mut shortest_path_costs = Vec::new();
         let mut query_time = Vec::new();
         let mut settled_nodes = Vec::new();
-        let mut heuristics = None;
+        let mut heuristics;
     
         /*
         hashmap of id of a subregion's RON and the lon/lat ranges it represents?
@@ -376,6 +375,10 @@ async fn main() {
         then follow into the subregion routing?
         or maybe have a tier of different arcflags on a top-down level like contraction hiarchies --> is it worth it?
         */
+        let mut input = File::open("arc_regions\\saarland.ron").ok().unwrap();
+        let mut contents: String = "".to_string();
+        let _ = input.read_to_string(&mut contents);
+        let mut master_graph: RoadDijkstra = ron::from_str(&contents).unwrap();
 
         for _ in 0..100 {
             let source = master_graph.get_random_node_id().unwrap();
@@ -384,7 +387,6 @@ async fn main() {
             let mut graph = find_target_section(target, &re_child).unwrap();
 
             //let target = graph.get_random_node_area_id(49.20, 49.25, 6.95, 7.05); //saar
-            //let target = graph.get_random_node_area_id(47.95, 48.05, 7.75, 7.90); //ba-wu
             //let target = graph.get_random_node_area_id(33.63, 33.64, -117.84, -117.83); //uci
 
             //heuristics = landmark_heuristic(&precompute, &graph, target);
@@ -418,7 +420,7 @@ async fn main() {
             settled_nodes.iter().sum::<u64>() / settled_nodes.len() as u64
         );
 
-    }
+    //}
 }
 
 fn find_target_section(node: Node, re_child: &Regex) -> Option<RoadDijkstra> {
@@ -433,18 +435,19 @@ fn find_target_section(node: Node, re_child: &Regex) -> Option<RoadDijkstra> {
         let path = file.as_path().to_str().unwrap();
         let mut input = File::open(path).ok().unwrap();
         let mut contents: String = "".to_string();
-        let min_lon = re_child.captures(path).unwrap().extract::<1>().0.parse().unwrap();
-        let min_lat = re_child.captures(path).unwrap().extract::<2>().0.parse().unwrap();
-        let max_lon = re_child.captures(path).unwrap().extract::<3>().0.parse().unwrap();
-        let max_lat = re_child.captures(path).unwrap().extract::<4>().0.parse().unwrap();
-        let lat_range: Range<i64> = min_lat..max_lat;
-        let lon_range: Range<i64> = min_lon..max_lon;
-        let mut found = false;
-        let mut id = -1;
-        if lat_range.contains(&node.lat) && lon_range.contains(&node.lon) {
-            let reader = input.read_to_string(&mut contents);
-            let graph: RoadDijkstra = ron::from_str(&contents).unwrap();
-            return Some(graph)
+        if let Some(res) = re_child.captures(path) {
+            let min_lat = res.get(1).unwrap().as_str().parse::<f32>().unwrap();
+            let min_lon = res.get(2).unwrap().as_str().parse::<f32>().unwrap();
+            let max_lat = res.get(3).unwrap().as_str().parse::<f32>().unwrap();
+            let max_lon = res.get(4).unwrap().as_str().parse::<f32>().unwrap();
+            let coords = CoordRange::from_deci(min_lat, max_lat, min_lon, max_lon);
+            let (lat_range, lon_range) = coords.give_ranges();
+            println!("range {:?} {:?} and node {} {}", lat_range, lon_range, node.lat, node.lon);
+            if lat_range.contains(&node.lat) && lon_range.contains(&node.lon) {
+                let _ = input.read_to_string(&mut contents);
+                let graph: RoadDijkstra = ron::from_str(&contents).unwrap();
+                return Some(graph)
+            }
         }
     }
     None
