@@ -2,12 +2,11 @@
 // Cleaned up somewhat by Kyler Chin
 use geo::{Point, point};
 use regex::Regex;
+use routing::transit_dijkstras::TransitDijkstra;
 use routing::{
+    transfers::*,
     road_dijkstras::*,
-    road_network::{
-        //contraction_hierarchies::*, landmark_algo::*,
-        road_graph_construction::*,
-    },
+    road_network::*, transit_network::*,
 };
 use std::fs::*;
 use std::io::*;
@@ -32,7 +31,7 @@ pub fn make_points_from_coords(
     (source, target)
 }
 
-/* use clap::Parser;
+use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
@@ -42,14 +41,14 @@ struct Args {
     #[arg(long, default_value_t = true)]
     debugmode: bool,
 }
- */
-/*
+ 
+
 #[tokio::main]
 async fn main() {
     //let path = "bw.pbf";
     //let path = "uci.pbf";
 
-    let mut args = Args::parse();
+    let args = Args::parse();
 
     if !args.debugmode {
         let preset_distance = 250.0;
@@ -61,7 +60,7 @@ async fn main() {
         let gtfs = read_from_gtfs_zip("ctt.zip");
 
         //overhead for cloning these strings is very low, it's just for displaying anyway
-        let trips = gtfs.trips.clone();
+        let _trips = gtfs.trips.clone();
         let routes = gtfs.routes.clone();
         let stops = gtfs.stops.clone();
 
@@ -76,7 +75,7 @@ async fn main() {
         //see following link, anything but first option (which includes walking between stations, hasnt been implemented yet)
         //https://www.google.com/maps/dir/Bloomfield,+Connecticut+06002/77+Forest+St,+Hartford,+CT+06105/@41.823207,-72.7745391,34082m/data=!3m1!1e3!4m20!4m19!1m5!1m1!1s0x89e7001af40714d7:0xc4be608b22d7e4a8!2m2!1d-72.7197095!2d41.8683576!1m5!1m1!1s0x89e653502e880197:0xc1f0096f7d179457!2m2!1d-72.7005256!2d41.7671825!2m4!4e3!6e0!7e2!8j1727241000!3e3!5i1
 
-        if (args.makequerygraph) {
+        if args.makequerygraph {
             //pepperidge farm to harriet beecher stowe center
             let (source, target) = make_points_from_coords(
                 41.86829675142084,
@@ -96,20 +95,22 @@ async fn main() {
                 preset_distance,
             );
 
-            let output = File::create(savepath).unwrap();
+            let mut output = File::create(savepath).unwrap();
             println!("query graph constructed in {:?}", now.elapsed());
-            serde_json::to_writer(output, &graph).unwrap();
+            let contents: String = ron::to_string(&graph).unwrap();
+            let _ = write!(output, "{contents}");
         }
 
         //part 2
 
-        let file = File::open(savepath).ok().unwrap();
-        let reader = BufReader::new(file);
-        let graph: QueryGraph = serde_json::from_reader(reader).unwrap();
+    let mut input = File::open(savepath).ok().unwrap();
+        let mut contents: String = "".to_string();
+        let _ = input.read_to_string(&mut contents);
+        let graph: QueryGraph = ron::from_str(&contents).unwrap();
 
         let run_query = query_graph_search(connections, graph, &mut paths);
 
-        if let Some((s, t, pathed)) = run_query {
+        if let Some((s, _t, pathed)) = run_query {
             let path = pathed.get_tp(s, &paths, &maps);
             for (node, route) in path.0 {
                 println!("{node:?}");
@@ -128,8 +129,8 @@ async fn main() {
         let gtfs = read_from_gtfs_zip("test.zip");
 
         //overhead for cloning these strings is very low, it's just for displaying anyway
-        let routes = gtfs.routes.clone();
-        let stops = gtfs.stops.clone();
+        let _routes = gtfs.routes.clone();
+        let _stops = gtfs.stops.clone();
 
         let (transit_graph, connections, maps) =
             TimeExpandedGraph::new(gtfs, "Wednesday".to_string(), 0);
@@ -148,9 +149,10 @@ async fn main() {
             preset_distance,
         );
 
-        let output = File::create("test.json").unwrap();
+        let mut output = File::create("test.json").unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-        serde_json::to_writer(output, &graph).unwrap();
+       let contents: String = ron::to_string(&graph).unwrap();
+            let _ = write!(output, "{contents}");
 
         //println!("pathed nodes: {:?}", paths);
 
@@ -176,8 +178,8 @@ async fn main() {
         }
     }
 }
-*/
 
+/*
 #[tokio::main]
 async fn main() {
     //let dirpath = "osm_folder";
@@ -239,7 +241,8 @@ async fn main() {
             global min and max should be that of all nodes, then divide into subregions from there
         */
         
-/*         let now = Instant::now();
+        /*
+        let now = Instant::now();
         let x = roads.chunk_map(29260);
         
         for coord in x {
@@ -422,8 +425,10 @@ async fn main() {
 
     //}
 }
+*/
 
-fn find_target_section(node: Node, re_child: &Regex) -> Option<RoadDijkstra> {
+#[allow(dead_code)]
+fn find_target_section(node: road_graph_construction::Node, re_child: &Regex) -> Option<RoadDijkstra> {
     let dirpath = "arc_regions";
     let entries = read_dir(dirpath)
         .unwrap()
@@ -440,7 +445,7 @@ fn find_target_section(node: Node, re_child: &Regex) -> Option<RoadDijkstra> {
             let min_lon = res.get(2).unwrap().as_str().parse::<f32>().unwrap();
             let max_lat = res.get(3).unwrap().as_str().parse::<f32>().unwrap();
             let max_lon = res.get(4).unwrap().as_str().parse::<f32>().unwrap();
-            let coords = CoordRange::from_deci(min_lat, max_lat, min_lon, max_lon);
+            let coords = road_graph_construction::CoordRange::from_deci(min_lat, max_lat, min_lon, max_lon);
             let (lat_range, lon_range) = coords.give_ranges();
             //println!("range {:?} {:?} and node {} {}", lat_range, lon_range, node.lat, node.lon);
             if lat_range.contains(&node.lat) && lon_range.contains(&node.lon) {
