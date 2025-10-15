@@ -221,8 +221,7 @@ impl RoadDijkstra {
         let mut found = false;
         let mut id = -1;
         while !found {
-            if let Some(node) = self.get_random_node_id()
-            {
+            if let Some(node) = self.get_random_node_id() {
                 found = lat_range.contains(&node.lat) && lon_range.contains(&node.lon);
                 id = node.id
             }

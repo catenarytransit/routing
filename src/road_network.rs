@@ -43,7 +43,9 @@ pub mod road_graph_construction {
         pub raw_nodes: Vec<i64>,
     }
 
-    #[derive(Debug, PartialEq, Hash, Eq, PartialOrd, Ord, Clone, serde::Serialize, serde::Deserialize)]
+    #[derive(
+        Debug, PartialEq, Hash, Eq, PartialOrd, Ord, Clone, serde::Serialize, serde::Deserialize,
+    )]
     pub struct CoordRange {
         pub min_lat: i64,
         pub min_lon: i64,
@@ -55,14 +57,14 @@ pub mod road_graph_construction {
             write!(
                 f,
                 "{}_{}_{}_{}",
-                self.min_lat as f32 / f32::powi(10.0, 7), 
-                self.min_lon as f32 / f32::powi(10.0, 7), 
-                self.max_lat as f32 / f32::powi(10.0, 7), 
+                self.min_lat as f32 / f32::powi(10.0, 7),
+                self.min_lon as f32 / f32::powi(10.0, 7),
+                self.max_lat as f32 / f32::powi(10.0, 7),
                 self.max_lon as f32 / f32::powi(10.0, 7),
             )
         }
     }
-    
+
     impl CoordRange {
         pub fn from_deci(min_lat: f32, max_lat: f32, min_lon: f32, max_lon: f32) -> Self {
             Self {
@@ -259,15 +261,20 @@ pub mod road_graph_construction {
             let mut coords = Vec::new();
             let node_list = self.nodes.clone().into_values().collect::<Vec<_>>();
             let lat_lon: bool = false;
-            
+
             Self::recursive_rectangles(node_list, min_node_count, &mut coords, lat_lon);
-            
+
             coords
         }
 
-        pub fn recursive_rectangles(mut node_list: Vec<Node>, min_node_count: usize, coords: &mut Vec<CoordRange>, lat_lon: bool) {
+        pub fn recursive_rectangles(
+            mut node_list: Vec<Node>,
+            min_node_count: usize,
+            coords: &mut Vec<CoordRange>,
+            lat_lon: bool,
+        ) {
             let mut slice_b;
-            let mut slice_a;  
+            let mut slice_a;
             let a_min_lat;
             let a_max_lat;
             let b_min_lat;
@@ -276,7 +283,7 @@ pub mod road_graph_construction {
             let a_max_lon;
             let b_min_lon;
             let b_max_lon;
-        
+
             let node_count = node_list.len() / 2;
             match lat_lon {
                 false => {
@@ -289,14 +296,14 @@ pub mod road_graph_construction {
                     b_min_lat = slice_b[0].lat;
                     b_max_lat = slice_b[node_count - 1].lat;
 
-                    slice_a.sort_by(|a, b| a.lon.cmp(&b.lon));                    
+                    slice_a.sort_by(|a, b| a.lon.cmp(&b.lon));
                     slice_b.sort_by(|a, b| a.lon.cmp(&b.lon));
 
                     a_min_lon = slice_a[0].lon;
                     a_max_lon = slice_a[node_count - 1].lon;
                     b_min_lon = slice_b[0].lon;
                     b_max_lon = slice_b[node_count - 1].lon;
-                },
+                }
 
                 true => {
                     node_list.sort_by(|a, b| a.lon.cmp(&b.lon));
@@ -307,41 +314,40 @@ pub mod road_graph_construction {
                     b_min_lon = slice_b[0].lon;
                     b_max_lon = slice_b[node_count - 1].lon;
 
-                    slice_a.sort_by(|a, b| a.lat.cmp(&b.lat));                    
+                    slice_a.sort_by(|a, b| a.lat.cmp(&b.lat));
                     slice_b.sort_by(|a, b| a.lat.cmp(&b.lat));
 
                     a_min_lat = slice_a[0].lat;
                     a_max_lat = slice_a[node_count - 1].lat;
                     b_min_lat = slice_b[0].lat;
                     b_max_lat = slice_b[node_count - 1].lat;
-                },
+                }
             };
 
-          let box_a = CoordRange {
+            let box_a = CoordRange {
                 min_lat: a_min_lat,
                 max_lat: a_max_lat,
                 min_lon: a_min_lon,
                 max_lon: a_max_lon,
             };
-                       
-            let box_b= CoordRange {
+
+            let box_b = CoordRange {
                 min_lat: b_min_lat,
                 max_lat: b_max_lat,
                 min_lon: b_min_lon,
                 max_lon: b_max_lon,
             };
-            
 
             if node_count <= min_node_count {
                 //println!("{}", slice_a.len());
                 //println!("{}", slice_b.len());
-                coords.push(box_a); 
+                coords.push(box_a);
                 coords.push(box_b);
-                return 
+                return;
             }
 
             Self::recursive_rectangles(slice_a, min_node_count, coords, !lat_lon);
-            Self::recursive_rectangles(slice_b, min_node_count, coords, !lat_lon);            
+            Self::recursive_rectangles(slice_b, min_node_count, coords, !lat_lon);
         }
     }
 
@@ -415,8 +421,17 @@ pub mod contraction_hierarchies {
         pub fn compute_random_node_ordering(&mut self, graph: &mut RoadDijkstra, length: usize) {
             //self.ordered_nodes_to_contract.insert(0);
             while self.ordered_nodes.len() < length {
-                self.ordered_nodes
-                    .insert(graph.get_random_node_id().unwrap_or(road_network::road_graph_construction::Node { id: (0), lat: (0), lon: (0) }).id, 0);
+                self.ordered_nodes.insert(
+                    graph
+                        .get_random_node_id()
+                        .unwrap_or(road_network::road_graph_construction::Node {
+                            id: (0),
+                            lat: (0),
+                            lon: (0),
+                        })
+                        .id,
+                    0,
+                );
             }
             graph.reset_all_flags(true);
         }
@@ -648,4 +663,3 @@ pub mod landmark_algo {
             .collect()
     }
 }
-

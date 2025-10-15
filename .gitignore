@@ -1,11 +1,7 @@
 *.pbf
 /target
-*.osm.bincode
-*:Zone.Identifier
 /tmp
 /vtune
 *.zip
-good.json
 /router
-results.json
-/arc_regions
+*.ron

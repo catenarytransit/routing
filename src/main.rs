@@ -3,11 +3,7 @@
 use geo::{Point, point};
 use regex::Regex;
 use routing::transit_dijkstras::TransitDijkstra;
-use routing::{
-    transfers::*,
-    road_dijkstras::*,
-    road_network::*, transit_network::*,
-};
+use routing::{road_dijkstras::*, road_network::*, transfers::*, transit_network::*};
 use std::fs::*;
 use std::io::*;
 use std::time::Instant;
@@ -41,7 +37,6 @@ struct Args {
     #[arg(long, default_value_t = true)]
     debugmode: bool,
 }
- 
 
 #[tokio::main]
 async fn main() {
@@ -103,7 +98,7 @@ async fn main() {
 
         //part 2
 
-    let mut input = File::open(savepath).ok().unwrap();
+        let mut input = File::open(savepath).ok().unwrap();
         let mut contents: String = "".to_string();
         let _ = input.read_to_string(&mut contents);
         let graph: QueryGraph = ron::from_str(&contents).unwrap();
@@ -151,8 +146,8 @@ async fn main() {
 
         let mut output = File::create("test.json").unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
-       let contents: String = ron::to_string(&graph).unwrap();
-            let _ = write!(output, "{contents}");
+        let contents: String = ron::to_string(&graph).unwrap();
+        let _ = write!(output, "{contents}");
 
         //println!("pathed nodes: {:?}", paths);
 
@@ -185,8 +180,8 @@ async fn main() {
     //let dirpath = "osm_folder";
     //let re_parent = Regex::new(r"\\(.+)\.").unwrap();
     let re_child = Regex::new(r"(?:.+)\\(?:.+)_(.+)_(.+)_(.+)_(.+)\.ron").unwrap();
-    
-    
+
+
     /* let entries = read_dir(dirpath)
         .unwrap()
         .map(|res| res.map(|e| e.path()))
@@ -226,7 +221,7 @@ async fn main() {
 
         let savepath = format!("arc_regions\\{filename}.ron");
         let mut output = File::create(savepath.clone()).unwrap();
-        
+
         let contents: String = ron::to_string(&master_graph).unwrap();
         let _ = write!(output, "{contents}");
          */
@@ -240,11 +235,11 @@ async fn main() {
             thus, double check that total rectangle of region is bigger than entire nodefield
             global min and max should be that of all nodes, then divide into subregions from there
         */
-        
+
         /*
         let now = Instant::now();
         let x = roads.chunk_map(29260);
-        
+
         for coord in x {
             println!("map chunks {coord}");
             let boundstr = arc_flags_precompute(coord, &mut master_graph); //saar
@@ -258,9 +253,9 @@ async fn main() {
         }
 
         println!("map chunked in {:?}", now.elapsed()); */
-        
+
         //let bounds = CoordRange::from_deci(49.20, 49.25, 6.95, 7.05);
-        
+
         //Unused contraction hiearchies stuff
         /*
             let mut ch_algo = ContractedGraph::new();
@@ -362,12 +357,12 @@ async fn main() {
         */
 
         //let arc_flag_thing = ArcFlags::new(33.63, 33.64, -117.84, -117.83); //uci
-        
+
         let mut shortest_path_costs = Vec::new();
         let mut query_time = Vec::new();
         let mut settled_nodes = Vec::new();
         let mut heuristics;
-    
+
         /*
         hashmap of id of a subregion's RON and the lon/lat ranges it represents?
         given a target node, search the hashmap and retrieve the id of the subregion it's inside of
@@ -428,7 +423,10 @@ async fn main() {
 */
 
 #[allow(dead_code)]
-fn find_target_section(node: road_graph_construction::Node, re_child: &Regex) -> Option<RoadDijkstra> {
+fn find_target_section(
+    node: road_graph_construction::Node,
+    re_child: &Regex,
+) -> Option<RoadDijkstra> {
     let dirpath = "arc_regions";
     let entries = read_dir(dirpath)
         .unwrap()
@@ -445,13 +443,14 @@ fn find_target_section(node: road_graph_construction::Node, re_child: &Regex) ->
             let min_lon = res.get(2).unwrap().as_str().parse::<f32>().unwrap();
             let max_lat = res.get(3).unwrap().as_str().parse::<f32>().unwrap();
             let max_lon = res.get(4).unwrap().as_str().parse::<f32>().unwrap();
-            let coords = road_graph_construction::CoordRange::from_deci(min_lat, max_lat, min_lon, max_lon);
+            let coords =
+                road_graph_construction::CoordRange::from_deci(min_lat, max_lat, min_lon, max_lon);
             let (lat_range, lon_range) = coords.give_ranges();
             //println!("range {:?} {:?} and node {} {}", lat_range, lon_range, node.lat, node.lon);
             if lat_range.contains(&node.lat) && lon_range.contains(&node.lon) {
                 let _ = input.read_to_string(&mut contents);
                 let graph: RoadDijkstra = ron::from_str(&contents).unwrap();
-                return Some(graph)
+                return Some(graph);
             }
         }
     }
