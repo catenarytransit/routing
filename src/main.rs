@@ -49,7 +49,7 @@ async fn main() {
         let preset_distance = 250.0;
         println!("Arguments: {args:#?}");
 
-        let savepath = "results.json";
+        let savepath = "results.ron";
 
         println!("generating transit network graph");
         let gtfs = read_from_gtfs_zip("ctt.zip");
@@ -144,7 +144,7 @@ async fn main() {
             preset_distance,
         );
 
-        let mut output = File::create("test.json").unwrap();
+        let mut output = File::create("test.ron").unwrap();
         println!("query graph constructed in {:?}", now.elapsed());
         let contents: String = ron::to_string(&graph).unwrap();
         let _ = write!(output, "{contents}");
@@ -347,8 +347,8 @@ async fn main() {
         /*
         TODO: Given OSM section X,  Y number of arc zones, and coordinate pair Z to chunk into:
             🗸 Write algo to chunk given OSM section into Y arc zones
-            🗸 Precompute RoadDijkstra graph for section OSM section X --> Save with serde as json --> Compress!
-            🗸 Precompute arcflags for each arc zone Y --> Save with serde as json --> Compress!
+            🗸 Precompute RoadDijkstra graph for section OSM section X --> Save with serde as ron --> Compress!
+            🗸 Precompute arcflags for each arc zone Y --> Save with serde as ron --> Compress!
             🗸 For coordinate pair Z, locate within OSM section X' for arc zone Y' for Z_t
             🗸 Calculate a_star_heurstic for Z_t
             🗸 Query with dijkstras
