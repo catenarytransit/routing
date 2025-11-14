@@ -267,84 +267,49 @@ pub mod road_graph_construction {
             coords
         }
 
+        fn get_bounding_box(nodes: &[Node]) -> CoordRange {
+            let mut min_lat = i64::MAX;
+            let mut max_lat = i64::MIN;
+            let mut min_lon = i64::MAX;
+            let mut max_lon = i64::MIN;
+
+            for node in nodes {
+                min_lat = min_lat.min(node.lat);
+                max_lat = max_lat.max(node.lat);
+                min_lon = min_lon.min(node.lon);
+                max_lon = max_lon.max(node.lon);
+            }
+
+            CoordRange {
+                min_lat,
+                min_lon,
+                max_lat,
+                max_lon,
+            }
+        }
+
         pub fn recursive_rectangles(
             mut node_list: Vec<Node>,
             min_node_count: usize,
             coords: &mut Vec<CoordRange>,
             lat_lon: bool,
         ) {
-            let mut slice_b;
-            let mut slice_a;
-            let a_min_lat;
-            let a_max_lat;
-            let b_min_lat;
-            let b_max_lat;
-            let a_min_lon;
-            let a_max_lon;
-            let b_min_lon;
-            let b_max_lon;
-
-            let node_count = node_list.len() / 2;
-            match lat_lon {
-                false => {
-                    node_list.sort_by(|a, b| a.lat.cmp(&b.lat));
-                    slice_b = node_list.split_off(node_count);
-
-                    slice_a = node_list;
-                    a_min_lat = slice_a[0].lat;
-                    a_max_lat = slice_a[node_count - 1].lat;
-                    b_min_lat = slice_b[0].lat;
-                    b_max_lat = slice_b[node_count - 1].lat;
-
-                    slice_a.sort_by(|a, b| a.lon.cmp(&b.lon));
-                    slice_b.sort_by(|a, b| a.lon.cmp(&b.lon));
-
-                    a_min_lon = slice_a[0].lon;
-                    a_max_lon = slice_a[node_count - 1].lon;
-                    b_min_lon = slice_b[0].lon;
-                    b_max_lon = slice_b[node_count - 1].lon;
+            if node_list.len() <= min_node_count * 2 {
+                if !node_list.is_empty() {
+                    coords.push(Self::get_bounding_box(&node_list));
                 }
-
-                true => {
-                    node_list.sort_by(|a, b| a.lon.cmp(&b.lon));
-                    slice_b = node_list.split_off(node_count);
-                    slice_a = node_list;
-                    a_min_lon = slice_a[0].lon;
-                    a_max_lon = slice_a[node_count - 1].lon;
-                    b_min_lon = slice_b[0].lon;
-                    b_max_lon = slice_b[node_count - 1].lon;
-
-                    slice_a.sort_by(|a, b| a.lat.cmp(&b.lat));
-                    slice_b.sort_by(|a, b| a.lat.cmp(&b.lat));
-
-                    a_min_lat = slice_a[0].lat;
-                    a_max_lat = slice_a[node_count - 1].lat;
-                    b_min_lat = slice_b[0].lat;
-                    b_max_lat = slice_b[node_count - 1].lat;
-                }
-            };
-
-            let box_a = CoordRange {
-                min_lat: a_min_lat,
-                max_lat: a_max_lat,
-                min_lon: a_min_lon,
-                max_lon: a_max_lon,
-            };
-
-            let box_b = CoordRange {
-                min_lat: b_min_lat,
-                max_lat: b_max_lat,
-                min_lon: b_min_lon,
-                max_lon: b_max_lon,
-            };
-
-            if node_count <= min_node_count {
-                //println!("{}", slice_a.len());
-                //println!("{}", slice_b.len());
-                coords.push(box_a);
-                coords.push(box_b);
                 return;
             }
+
+            let mid = node_list.len() / 2;
+
+            match lat_lon {
+                false => node_list.sort_unstable_by_key(|n| n.lat),
+                true => node_list.sort_unstable_by_key(|n| n.lon),
+            }
+
+            let slice_b = node_list.split_off(mid);
+            let slice_a = node_list;
 
             Self::recursive_rectangles(slice_a, min_node_count, coords, !lat_lon);
             Self::recursive_rectangles(slice_b, min_node_count, coords, !lat_lon);
