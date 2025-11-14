@@ -2,8 +2,9 @@
 use crate::RoadNetwork;
 use rand::Rng;
 use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap};
+use std::collections::BinaryHeap;
 use std::rc::Rc;
+use ahash::AHashMap;
 
 use crate::road_network::road_graph_construction::Node;
 
@@ -11,7 +12,7 @@ use crate::road_network::road_graph_construction::Node;
 pub struct RoadDijkstra {
     //handle dijkstra calculations
     pub graph: RoadNetwork,
-    pub visited_nodes: HashMap<i64, u64>,
+    pub visited_nodes: AHashMap<i64, u64>,
     pub cost_upper_bound: u64,
     pub max_settled_nodes: u64,
 }
@@ -49,7 +50,7 @@ impl RoadPathedNode {
     }
 }
 
-pub fn a_star_heuristic(graph: &RoadNetwork, target: i64) -> HashMap<i64, u64> {
+pub fn a_star_heuristic(graph: &RoadNetwork, target: i64) -> AHashMap<i64, u64> {
     let tail = *graph.nodes.get(&target).unwrap();
     //for each current i64 id, enter euciladan distance from current to target, divided by max speed on that path
     graph
@@ -66,13 +67,13 @@ pub fn a_star_heuristic(graph: &RoadNetwork, target: i64) -> HashMap<i64, u64> {
                     / ((110_f64) * 5.0 / 18.0) as u64, //110 is motorway speed --> max speed possible on road network
             )
         })
-        .collect::<HashMap<i64, u64>>()
+        .collect::<AHashMap<i64, u64>>()
 }
 
 impl RoadDijkstra {
     //implementation of dijkstra's shortest path algorithm
     pub fn new(graph: &RoadNetwork) -> Self {
-        let visited_nodes = HashMap::new();
+        let visited_nodes = AHashMap::new();
         Self {
             graph: graph.clone(),
             visited_nodes,
@@ -96,7 +97,7 @@ impl RoadDijkstra {
     ) -> Vec<(Node, u64)> {
         //return node id of neighbors
         let mut paths = Vec::new();
-        let mut next_node_edges = HashMap::new();
+        let mut next_node_edges = AHashMap::new();
         //need some case to handle neighbor to parent instead of just parent to neighbor
         if let Some(connections) = self.graph.edges.get_mut(&current.node_self.id) {
             next_node_edges.clone_from(connections);
@@ -117,12 +118,12 @@ impl RoadDijkstra {
         &mut self,
         source_id: i64,
         target_id: i64,
-        heuristics: &Option<HashMap<i64, u64>>,
+        heuristics: &Option<AHashMap<i64, u64>>,
         consider_arc_flags: bool,
-    ) -> (Option<RoadPathedNode>, HashMap<i64, i64>) {
+    ) -> (Option<RoadPathedNode>, AHashMap<i64, i64>) {
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
         let mut priority_queue: BinaryHeap<Reverse<(u64, RoadPathedNode)>> = BinaryHeap::new();
-        let mut previous_nodes = HashMap::new();
+        let mut previous_nodes = AHashMap::new();
 
         //set target (-1) for all-node-settle rather than just target settle or smth
         self.visited_nodes.clear();
@@ -139,7 +140,7 @@ impl RoadDijkstra {
             parent_node: (None),
         };
 
-        let mut gscore: HashMap<i64, u64> = HashMap::new();
+        let mut gscore: AHashMap<i64, u64> = AHashMap::new();
         gscore.insert(source_id, 0);
 
         priority_queue.push(Reverse((0, source_node.clone())));
@@ -232,7 +233,7 @@ impl RoadDijkstra {
     pub fn get_unvisted_node_id(
         //returns the first unvisted node that function parses upon (used to find largest connected component)
         &mut self,
-        other_located_nodes: &HashMap<i64, i32>,
+        other_located_nodes: &AHashMap<i64, i32>,
     ) -> Option<i64> {
         if other_located_nodes.len() == self.graph.nodes.len() {
             println!("all nodes visted");

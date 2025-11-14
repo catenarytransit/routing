@@ -4,7 +4,7 @@ pub mod road_graph_construction {
     use core::fmt;
     use core::ops::Range;
     use osmpbfreader::objects::OsmObj;
-    use std::collections::HashMap;
+    use ahash::AHashMap;
     use std::collections::HashSet;
 
     #[derive(
@@ -37,8 +37,8 @@ pub mod road_graph_construction {
     #[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize)]
     pub struct RoadNetwork {
         //graph struct that will be used to route
-        pub nodes: HashMap<i64, Node>, // <node.id, node>
-        pub edges: HashMap<i64, HashMap<i64, (u64, bool)>>, // tail.id, <head.id, (cost, arcflag)>
+        pub nodes: AHashMap<i64, Node>, // <node.id, node>
+        pub edges: AHashMap<i64, AHashMap<i64, (u64, bool)>>, // tail.id, <head.id, (cost, arcflag)>
         pub raw_ways: Vec<Way>,
         pub raw_nodes: Vec<i64>,
     }
@@ -107,9 +107,9 @@ pub mod road_graph_construction {
     }
 
     impl RoadNetwork {
-        pub fn new(mut nodes: HashMap<i64, Node>, ways: Vec<Way>) -> Self {
+        pub fn new(mut nodes: AHashMap<i64, Node>, ways: Vec<Way>) -> Self {
             //init new RoadNetwork based on results from reading .pbf file
-            let mut edges: HashMap<i64, HashMap<i64, (u64, bool)>> = HashMap::new();
+            let mut edges: AHashMap<i64, AHashMap<i64, (u64, bool)>> = AHashMap::new();
             for way in ways.clone() {
                 let mut previous_head_node_now_tail: Option<&Node> = None;
                 let mut previous_head_node_index: usize = 0;
@@ -140,7 +140,7 @@ pub mod road_graph_construction {
                                 inner.insert(head_id, (cost, flag));
                             })
                             .or_insert({
-                                let mut a = HashMap::new();
+                                let mut a = AHashMap::new();
                                 a.insert(head_id, (cost, flag));
                                 a
                             });
@@ -150,7 +150,7 @@ pub mod road_graph_construction {
                                 inner.insert(tail_id, (cost, flag));
                             })
                             .or_insert({
-                                let mut a = HashMap::new();
+                                let mut a = AHashMap::new();
                                 a.insert(tail_id, (cost, flag));
                                 a
                             });
@@ -176,9 +176,9 @@ pub mod road_graph_construction {
             }
         }
 
-        pub fn read_from_osm_file(path: &str) -> (HashMap<i64, Node>, Vec<Way>) {
+        pub fn read_from_osm_file(path: &str) -> (AHashMap<i64, Node>, Vec<Way>) {
             //reads osm.pbf file, values are used to make RoadNetwork
-            let mut nodes = HashMap::new();
+            let mut nodes = AHashMap::new();
             let mut ways = Vec::new();
             let path_cleaned = std::path::Path::new(&path);
             let r = std::fs::File::open(path_cleaned).unwrap();
@@ -216,7 +216,7 @@ pub mod road_graph_construction {
         pub fn reduce_to_largest_connected_component(self) -> Self {
             //reduces graph to largest connected component through nodes visited with dijkstra
             let mut counter = 0;
-            let mut number_times_node_visted: HashMap<i64, i32> = HashMap::new();
+            let mut number_times_node_visted: AHashMap<i64, i32> = AHashMap::new();
             let mut shortest_path_graph = RoadDijkstra::new(&self);
 
             while let Some(source_id) =
@@ -251,7 +251,7 @@ pub mod road_graph_construction {
             let lcc_nodes = largest_node_set
                 .iter()
                 .map(|(id, _)| (**id, *self.nodes.get(id).unwrap()))
-                .collect::<HashMap<i64, Node>>();
+                .collect::<AHashMap<i64, Node>>();
 
             RoadNetwork::new(lcc_nodes, self.raw_ways)
         }
@@ -364,11 +364,12 @@ pub mod contraction_hierarchies {
     use crate::{road_dijkstras::*, road_network};
     use std::{
         cmp::Reverse,
-        collections::{BinaryHeap, HashMap},
+        collections::BinaryHeap,
     };
+    use ahash::AHashMap;
 
     pub struct ContractedGraph {
-        pub ordered_nodes: HashMap<i64, u32>, //id, order number
+        pub ordered_nodes: AHashMap<i64, u32>, //id, order number
     }
 
     impl Default for ContractedGraph {
@@ -379,7 +380,7 @@ pub mod contraction_hierarchies {
     impl ContractedGraph {
         pub fn new() -> ContractedGraph {
             ContractedGraph {
-                ordered_nodes: HashMap::new(),
+                ordered_nodes: AHashMap::new(),
             }
         }
 
@@ -410,8 +411,8 @@ pub mod contraction_hierarchies {
             //(#shortcuts, edge difference = #shortcuts - arcs incident to node)
             let mut num_shortcuts: u8 = 0;
             let mut edge_diff: i8 = 0;
-            let mut costs_of_uv = HashMap::new();
-            let mut costs_of_vw = HashMap::new();
+            let mut costs_of_uv = AHashMap::new();
+            let mut costs_of_vw = AHashMap::new();
             if let Some(edgelist) = graph.graph.edges.get_mut(&node_id) {
                 //if Some
                 for (w, (cost, flag)) in edgelist {
@@ -449,7 +450,7 @@ pub mod contraction_hierarchies {
                 2 * costs_of_vw.clone().into_values().max().unwrap_or_default(),
             );
 
-            let mut temp_shortcuts = HashMap::new();
+            let mut temp_shortcuts = AHashMap::new();
             for (u, cost_uv) in costs_of_uv.iter() {
                 graph.dijkstra(*u, -1, &None, true);
                 for (w, cost_vw) in costs_of_vw.iter() {
@@ -576,12 +577,12 @@ pub mod contraction_hierarchies {
 
 pub mod landmark_algo {
     use crate::road_dijkstras::*;
-    use std::collections::HashMap;
+    use ahash::AHashMap;
 
     pub fn landmark_heuristic_precompute(
         dijkstra_graph: &mut RoadDijkstra,
         num_landmarks: usize,
-    ) -> HashMap<i64, HashMap<i64, u64>> {
+    ) -> AHashMap<i64, AHashMap<i64, u64>> {
         let roads = dijkstra_graph.graph.clone();
         let mut landmarks = Vec::new();
         for _ in 0..num_landmarks {
@@ -600,14 +601,14 @@ pub mod landmark_algo {
                         .collect()
                 })
             })
-            .collect::<HashMap<i64, HashMap<i64, u64>>>() //landmark_id, node_id, distance
+            .collect::<AHashMap<i64, AHashMap<i64, u64>>>() //landmark_id, node_id, distance
     }
 
     pub fn landmark_heuristic(
-        landmark_precompute: &HashMap<i64, HashMap<i64, u64>>,
+        landmark_precompute: &AHashMap<i64, AHashMap<i64, u64>>,
         dijkstra_graph: &RoadDijkstra,
         target: i64,
-    ) -> HashMap<i64, u64> {
+    ) -> AHashMap<i64, u64> {
         dijkstra_graph
             .graph
             .nodes
