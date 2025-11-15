@@ -1,11 +1,11 @@
 //transit_dijkstras algorithms and helper functiions
 use crate::NodeType;
 use crate::transit_network::*;
+use ahash::AHashMap;
+use ahash::AHashSet;
 use rand::Rng;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
-use ahash::AHashMap;
-use ahash::AHashSet;
 use std::hash::Hash;
 
 #[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash, Default)]

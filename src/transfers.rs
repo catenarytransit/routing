@@ -5,15 +5,15 @@ use crate::{transit_dijkstras::*, transit_network::*};
 //use crate::road_dijkstras::*;
 use geo::{Distance, Haversine, Point, point};
 //use rstar::*;
+use ahash::AHashMap;
+use ahash::AHashSet;
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::Entry;
 use std::collections::BinaryHeap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Instant;
-use ahash::AHashMap;
-use ahash::AHashSet;
 //use std::process::exit;
 
 #[derive(Serialize, Deserialize, Debug)]

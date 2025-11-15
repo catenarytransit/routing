@@ -1,10 +1,10 @@
 //routing algorithms and helper functiions
 use crate::RoadNetwork;
+use ahash::AHashMap;
 use rand::Rng;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::rc::Rc;
-use ahash::AHashMap;
 
 use crate::road_network::road_graph_construction::Node;
 

@@ -1,15 +1,13 @@
 //constructs and preprocesses the graph struct from OSM data
 use crate::NodeType;
 use crate::coord_to_int;
+use ahash::AHashMap;
+use ahash::AHashSet;
 use chrono::prelude::*;
 use gtfs_structures::*;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
-use std::{
-    hash::Hash,
-};
-use ahash::AHashMap;
-use ahash::AHashSet;
+use std::hash::Hash;
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(into = "String")]

@@ -1,11 +1,11 @@
 pub mod road_graph_construction {
     //constructs and preprocesses the graph struct from OSM data
     use crate::road_dijkstras::*;
+    use ahash::AHashMap;
+    use ahash::AHashSet;
     use core::fmt;
     use core::ops::Range;
     use osmpbfreader::objects::OsmObj;
-    use ahash::AHashMap;
-    use ahash::AHashSet;
 
     #[derive(
         Debug,
@@ -362,11 +362,8 @@ pub mod road_graph_construction {
 }
 pub mod contraction_hierarchies {
     use crate::{road_dijkstras::*, road_network};
-    use std::{
-        cmp::Reverse,
-        collections::BinaryHeap,
-    };
     use ahash::AHashMap;
+    use std::{cmp::Reverse, collections::BinaryHeap};
 
     pub struct ContractedGraph {
         pub ordered_nodes: AHashMap<i64, u32>, //id, order number
