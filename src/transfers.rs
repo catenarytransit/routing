@@ -7,30 +7,32 @@ use geo::{Distance, Haversine, Point, point};
 //use rstar::*;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::BinaryHeap;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Instant;
+use ahash::AHashMap;
+use ahash::AHashSet;
 //use std::process::exit;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QueryGraph {
     source: Point,
     target: Point,
-    pub edges: HashMap<NodeId, HashSet<NodeId>>,
-    source_stations: HashSet<Station>,
-    target_stations: HashSet<Station>,
-    hubs: HashSet<i64>,
-    source_nodes: HashSet<NodeId>,
-    target_nodes: HashSet<NodeId>,
-    station_map: HashMap<String, Station>,
+    pub edges: AHashMap<NodeId, AHashSet<NodeId>>,
+    source_stations: AHashSet<Station>,
+    target_stations: AHashSet<Station>,
+    hubs: AHashSet<i64>,
+    source_nodes: AHashSet<NodeId>,
+    target_nodes: AHashSet<NodeId>,
+    station_map: AHashMap<String, Station>,
 }
 
 pub fn query_graph_construction(
     router: &mut TransitDijkstra,
     maps: &NumberNameMaps,
-    paths: &mut HashMap<NodeId, PathedNode>,
+    paths: &mut AHashMap<NodeId, PathedNode>,
     source: Point,
     target: Point,
     start_time: u32,
@@ -39,11 +41,11 @@ pub fn query_graph_construction(
     let now = Instant::now();
 
     //compute sets of N(source) and N(target) of stations N= near
-    let (source_stations, source_nodes): (HashSet<_>, HashSet<_>) =
+    let (source_stations, source_nodes): (AHashSet<_>, AHashSet<_>) =
         stations_near_point(router, source, preset_distance, start_time, None);
 
     let end_time = Some(3600 * 3); //3 hours
-    let (target_stations, target_nodes): (HashSet<_>, HashSet<_>) =
+    let (target_stations, target_nodes): (AHashSet<_>, AHashSet<_>) =
         stations_near_point(router, target, preset_distance, start_time, end_time);
 
     let target_ids = target_stations.iter().map(|id| id.id).collect();
@@ -129,7 +131,7 @@ pub fn query_graph_construction(
 
     let now = Instant::now();
 
-    let mut edges = HashMap::new(); //tail, heads
+    let mut edges = AHashMap::new(); //tail, heads
 
     for path in paths.iter() {
         let mut prev = None;
@@ -137,11 +139,11 @@ pub fn query_graph_construction(
             if let Some(prev) = prev {
                 match edges.entry(prev) {
                     Entry::Occupied(mut o) => {
-                        let heads: &mut HashSet<NodeId> = o.get_mut();
+                        let heads: &mut AHashSet<NodeId> = o.get_mut();
                         heads.insert(*node);
                     }
                     Entry::Vacant(v) => {
-                        let heads = HashSet::from([*node]);
+                        let heads = AHashSet::from([*node]);
                         v.insert(heads);
                     }
                 }
@@ -173,9 +175,9 @@ pub fn stations_near_point(
     preset_distance: f64,
     start_time: u32,
     end_time: Option<u32>,
-) -> (HashSet<Station>, HashSet<NodeId>) {
+) -> (AHashSet<Station>, AHashSet<NodeId>) {
     let now = Instant::now();
-    let (point_stations, nodes_per_point): (HashSet<_>, Vec<_>)=
+    let (point_stations, nodes_per_point): (AHashSet<_>, Vec<_>)=
         router
         .graph
         .station_info
@@ -189,7 +191,7 @@ pub fn stations_near_point(
         })
         .unzip();
 
-    let point_nodes: HashSet<NodeId> = nodes_per_point
+    let point_nodes: AHashSet<NodeId> = nodes_per_point
         .into_iter()
         .flat_map(|x| {
             x.into_iter()
@@ -217,14 +219,14 @@ pub fn hub_selection(
     maps: &NumberNameMaps,
     random_samples: u32,
     cost_limit: u32,
-) -> HashSet<i64> {
+) -> AHashSet<i64> {
     //station ids
     let num_stations = 1.max((maps.station_map.as_ref().unwrap().len() as u32) / 100);
-    let mut selected_hubs: HashSet<i64> = HashSet::new();
+    let mut selected_hubs: AHashSet<i64> = AHashSet::new();
 
-    let mut time_independent_edges: HashMap<NodeId, HashMap<NodeId, u32>> = HashMap::new();
+    let mut time_independent_edges: AHashMap<NodeId, AHashMap<NodeId, u32>> = AHashMap::new();
 
-    let mut time_independent_nodes = HashSet::new();
+    let mut time_independent_nodes = AHashSet::new();
 
     for (tail, edge) in router.graph.edges.iter() {
         let ti_tail = NodeId {
@@ -253,7 +255,7 @@ pub fn hub_selection(
                     }
                 })
                 .or_insert({
-                    let mut map: HashMap<NodeId, u32> = HashMap::new();
+                    let mut map: AHashMap<NodeId, u32> = AHashMap::new();
                     map.insert(ti_head, *cost);
                     map
                 });
@@ -270,7 +272,7 @@ pub fn hub_selection(
     let (mut time_independent_router, mut paths) = TransitDijkstra::new(time_independent_graph);
     time_independent_router.set_cost_upper_bound(cost_limit);
 
-    let mut hub_list: HashMap<NodeId, u16> = HashMap::new();
+    let mut hub_list: AHashMap<NodeId, u16> = AHashMap::new();
 
     for _ in 0..random_samples {
         let current_node = vec![time_independent_router.get_random_node_id().unwrap()];
@@ -307,9 +309,9 @@ pub fn hub_selection(
 pub fn transfers_from_source(
     source_station_id: i64,
     router: &TransitDijkstra,
-    hubs: Option<&HashSet<i64>>,
-    paths: &mut HashMap<NodeId, PathedNode>,
-    targets: Option<&HashSet<i64>>,
+    hubs: Option<&AHashSet<i64>>,
+    paths: &mut AHashMap<NodeId, PathedNode>,
+    targets: Option<&AHashSet<i64>>,
     start_time: Option<u32>,
 ) -> (Mutex<Vec<Vec<NodeId>>>, Instant) {
     println!("start tp calc \t");
@@ -462,9 +464,9 @@ pub fn query_graph_search(
     //roads: &RoadNetwork,
     connections: DirectConnections,
     query_info: QueryGraph,
-    paths: &mut HashMap<NodeId, PathedNode>,
+    paths: &mut AHashMap<NodeId, PathedNode>,
 ) -> Option<(NodeId, NodeId, PathedNode)> {
-    /*let mut source_paths: HashMap<i64, _> = HashMap::new();
+    /*let mut source_paths: AHashMap<i64, _> = AHashMap::new();
 
     let road_node_tree = RTree::bulk_load(
         roads
@@ -504,7 +506,7 @@ pub fn query_graph_search(
 
     println!("source paths {:?}", source_paths.keys());
 
-    let mut target_paths: HashMap<i64, _> = HashMap::new();
+    let mut target_paths: AHashMap<i64, _> = AHashMap::new();
 
     if let Some(end_road_node) = road_node_tree.nearest_neighbor(&(query_info.target.0.x_y())) {
         for target in query_info.target_stations.iter() {

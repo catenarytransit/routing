@@ -6,9 +6,10 @@ use gtfs_structures::*;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::Entry;
 use std::{
-    collections::{HashMap, HashSet},
     hash::Hash,
 };
+use ahash::AHashMap;
+use ahash::AHashSet;
 
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Copy, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(into = "String")]
@@ -90,28 +91,28 @@ pub fn calendar_date_filter(
 #[derive(Debug, PartialEq, Clone)]
 pub struct TimeExpandedGraph {
     //graph struct that will be used to route
-    pub nodes: HashSet<NodeId>,
-    pub edges: HashMap<NodeId, HashMap<NodeId, u32>>, // tail.id, <head.id, cost>
-    pub station_info: Option<HashMap<Station, Vec<(u32, NodeId)>>>, //station_id, <cost, node>
+    pub nodes: AHashSet<NodeId>,
+    pub edges: AHashMap<NodeId, AHashMap<NodeId, u32>>, // tail.id, <head.id, cost>
+    pub station_info: Option<AHashMap<Station, Vec<(u32, NodeId)>>>, //station_id, <cost, node>
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct LineConnectionTable {
     //for a single line/route, gives the following information:
-    pub times_from_start: HashMap<i64, u32>, //<stationid, time from start> for every station along the line/route
+    pub times_from_start: AHashMap<i64, u32>, //<stationid, time from start> for every station along the line/route
     pub start_times: Vec<u32>, //start times for vehicle from first station of this line
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct DirectConnections {
     //helps find quick transfers between two different lines/routes by matching the station where two lines intersect --> used by Direct Connection Query
-    pub route_tables: HashMap<String, LineConnectionTable>, //route_id, table
-    pub lines_per_station: HashMap<i64, Vec<(String, u16)>>, //<stationid, <routeid, stop sequence number>> //gives lines operating at this station
+    pub route_tables: AHashMap<String, LineConnectionTable>, //route_id, table
+    pub lines_per_station: AHashMap<i64, Vec<(String, u16)>>, //<stationid, <routeid, stop sequence number>> //gives lines operating at this station
 }
 
 pub struct NumberNameMaps {
-    pub station_map: Option<HashMap<String, Station>>, //station_id string, internal station_id (assigned number)
-    pub trip_map: HashMap<u32, Trip>,                  //same as station map but for trips instead
+    pub station_map: Option<AHashMap<String, Station>>, //station_id string, internal station_id (assigned number)
+    pub trip_map: AHashMap<u32, Trip>,                  //same as station map but for trips instead
 }
 
 impl NumberNameMaps {
@@ -146,17 +147,17 @@ impl TimeExpandedGraph {
     ) -> (Self, DirectConnections, NumberNameMaps) {
         day_of_week = day_of_week.to_lowercase();
 
-        let mut nodes: HashSet<NodeId> = HashSet::new(); //maps GTFS stop id string to sequential numeric stop id
-        let mut edges: HashMap<NodeId, HashMap<NodeId, u32>> = HashMap::new();
-        let mut station_info: HashMap<Station, Vec<(u32, NodeId)>> = HashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
+        let mut nodes: AHashSet<NodeId> = AHashSet::new(); //maps GTFS stop id string to sequential numeric stop id
+        let mut edges: AHashMap<NodeId, AHashMap<NodeId, u32>> = AHashMap::new();
+        let mut station_info: AHashMap<Station, Vec<(u32, NodeId)>> = AHashMap::new(); // <stationid, (time, node_id)>, # of stations and # of times
 
-        let mut route_tables: HashMap<String, LineConnectionTable> = HashMap::new();
-        let mut lines_per_station: HashMap<i64, Vec<(String, u16)>> = HashMap::new();
+        let mut route_tables: AHashMap<String, LineConnectionTable> = AHashMap::new();
+        let mut lines_per_station: AHashMap<i64, Vec<(String, u16)>> = AHashMap::new();
 
-        let mut station_map: HashMap<String, Station> = HashMap::new();
-        let mut trip_map: HashMap<u32, Trip> = HashMap::new();
+        let mut station_map: AHashMap<String, Station> = AHashMap::new();
+        let mut trip_map: AHashMap<u32, Trip> = AHashMap::new();
 
-        let service_ids_of_given_day: HashSet<String> = gtfs
+        let service_ids_of_given_day: AHashSet<String> = gtfs
             .calendar
             .iter()
             .filter_map(|(service_id, calendar)| {
@@ -164,7 +165,7 @@ impl TimeExpandedGraph {
             })
             .collect();
 
-        let trip_ids_of_given_day: HashSet<String> = gtfs
+        let trip_ids_of_given_day: AHashSet<String> = gtfs
             .trips
             .iter()
             .filter(|(_, trip)| service_ids_of_given_day.contains(&trip.service_id))
@@ -197,7 +198,7 @@ impl TimeExpandedGraph {
                 .sort_by(|a, b| a.stop_sequence.cmp(&b.stop_sequence));
 
             let trip_start_time: u32 = trip.stop_times.first().unwrap().arrival_time.unwrap();
-            let mut stations_time_from_trip_start = HashMap::new();
+            let mut stations_time_from_trip_start = AHashMap::new();
 
             let route_id = &trip.route_id;
 
@@ -259,7 +260,7 @@ impl TimeExpandedGraph {
                             //head
                         })
                         .or_insert({
-                            let mut a = HashMap::new();
+                            let mut a = AHashMap::new();
                             a.insert(arrival_node, arrival_time - prev_dep_time); //head
                             a
                         });
@@ -272,7 +273,7 @@ impl TimeExpandedGraph {
                         //head
                     })
                     .or_insert({
-                        let mut a = HashMap::new();
+                        let mut a = AHashMap::new();
                         a.insert(departure_node, departure_time - arrival_time); //head
                         a
                     });
@@ -284,7 +285,7 @@ impl TimeExpandedGraph {
                         //head
                     })
                     .or_insert({
-                        let mut a = HashMap::new();
+                        let mut a = AHashMap::new();
                         a.insert(transfer_node, transfer_buffer); //head
                         a
                     });
@@ -346,7 +347,7 @@ impl TimeExpandedGraph {
                                     //head
                                 })
                                 .or_insert({
-                                    let mut a = HashMap::new();
+                                    let mut a = AHashMap::new();
                                     a.insert(future_node.1, future_node.0 - node.0); //head
                                     a
                                 });
@@ -361,7 +362,7 @@ impl TimeExpandedGraph {
                                     //head
                                 })
                                 .or_insert({
-                                    let mut a = HashMap::new();
+                                    let mut a = AHashMap::new();
                                     a.insert(future_node.1, future_node.0 - node.0); //head
                                     a
                                 });
@@ -394,12 +395,12 @@ impl TimeExpandedGraph {
     }
 }
 
-//For each station: Hashmap<stationid, (line, stop sequence #)>
-//Line struct: line_id, hashmap<station, time_from_start>, hashset<starttime>
+//For each station: AHashMap<stationid, (line, stop sequence #)>
+//Line struct: line_id, AHashMap<station, time_from_start>, AHashSet<starttime>
 //Given time and connection: find intersection of route of two stations where
 //(station line start) > (station line end)
-//find (first start time) after given time - (hashmap find start)
-//compute arrival time from (first start time) + (hashmap find end)
+//find (first start time) after given time - (AHashMap find start)
+//compute arrival time from (first start time) + (AHashMap find end)
 
 pub fn direct_connection_query(
     connections: &DirectConnections,

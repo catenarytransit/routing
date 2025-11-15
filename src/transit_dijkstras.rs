@@ -3,7 +3,9 @@ use crate::NodeType;
 use crate::transit_network::*;
 use rand::Rng;
 use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::BinaryHeap;
+use ahash::AHashMap;
+use ahash::AHashSet;
 use std::hash::Hash;
 
 #[derive(Debug, PartialEq, Clone, Eq, PartialOrd, Ord, Hash, Default)]
@@ -31,7 +33,7 @@ impl PathedNode {
         new_cost: u32,
         parent: NodeId,
         transfers: u8,
-        gscore: &mut HashMap<NodeId, u32>,
+        gscore: &mut AHashMap<NodeId, u32>,
         priority_queue: &mut BinaryHeap<Reverse<(u32, NodeId)>>,
     ) {
         let temp_distance = self.cost_from_start + new_cost;
@@ -48,7 +50,7 @@ impl PathedNode {
         }
     }
 
-    pub fn get_path(id: NodeId, nodespace: &HashMap<NodeId, PathedNode>) -> (Vec<NodeId>, u32) {
+    pub fn get_path(id: NodeId, nodespace: &AHashMap<NodeId, PathedNode>) -> (Vec<NodeId>, u32) {
         //path, cost
         //uses reference to find the source node with parent_node == None
         //vec.get(0) = target node
@@ -70,7 +72,7 @@ impl PathedNode {
     pub fn get_tp(
         self,
         id: NodeId,
-        nodespace: &HashMap<NodeId, PathedNode>,
+        nodespace: &AHashMap<NodeId, PathedNode>,
         trips: &NumberNameMaps,
     ) -> (Vec<(NodeId, Option<String>)>, u32) {
         let mut tp = Vec::new();
@@ -118,9 +120,9 @@ pub struct TransitDijkstra {
 
 impl TransitDijkstra {
     //implementation of time expanded dijkstra's shortest path algorithm
-    pub fn new(graph: TimeExpandedGraph) -> (Self, HashMap<NodeId, PathedNode>) {
+    pub fn new(graph: TimeExpandedGraph) -> (Self, AHashMap<NodeId, PathedNode>) {
         let t_graph = graph.clone();
-        let mut paths = HashMap::new();
+        let mut paths = AHashMap::new();
         for node in graph.nodes {
             paths.insert(node, PathedNode::default());
         }
@@ -140,7 +142,7 @@ impl TransitDijkstra {
     pub fn get_neighbors(
         &self,
         current: &NodeId,
-        visited_nodes: &HashSet<NodeId>,
+        visited_nodes: &AHashSet<NodeId>,
     ) -> Vec<(NodeId, u32)> {
         //return node id of neighbors
         let mut paths = Vec::new();
@@ -159,19 +161,19 @@ impl TransitDijkstra {
     pub fn time_expanded_dijkstra(
         &self,
         source_id_set: Vec<NodeId>,
-        hubs: Option<&HashSet<i64>>,
-        paths: &mut HashMap<NodeId, PathedNode>,
-    ) -> HashSet<NodeId> {
+        hubs: Option<&AHashSet<i64>>,
+        paths: &mut AHashMap<NodeId, PathedNode>,
+    ) -> AHashSet<NodeId> {
         //path, visted nodes, transfer count
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
 
         let mut priority_queue: BinaryHeap<Reverse<(u32, NodeId)>> = BinaryHeap::new();
-        let mut visited_nodes: HashSet<NodeId> = HashSet::new();
-        //let mut inactive_nodes: HashSet<NodeId> = HashSet::new();
+        let mut visited_nodes: AHashSet<NodeId> = AHashSet::new();
+        //let mut inactive_nodes: AHashSet<NodeId> = AHashSet::new();
 
         //stores distances of node relative to target
-        let mut gscore: HashMap<NodeId, u32> = HashMap::new();
+        let mut gscore: AHashMap<NodeId, u32> = AHashMap::new();
         for source_id in source_id_set {
             gscore.insert(source_id, 0);
             priority_queue.push(Reverse((0, source_id)));
@@ -274,14 +276,14 @@ impl TransitDijkstra {
 pub struct TDDijkstra {
     //handle time dependent dijkstra calculations
     pub connections: DirectConnections,
-    pub edges: HashMap<NodeId, HashSet<NodeId>>,
-    pub visited_nodes: HashSet<NodeId>,
+    pub edges: AHashMap<NodeId, AHashSet<NodeId>>,
+    pub visited_nodes: AHashSet<NodeId>,
 }
 
 impl TDDijkstra {
     //implementation of time dependent shortest path algorithm
-    pub fn new(connections: DirectConnections, edges: HashMap<NodeId, HashSet<NodeId>>) -> Self {
-        let visited_nodes = HashSet::new();
+    pub fn new(connections: DirectConnections, edges: AHashMap<NodeId, AHashSet<NodeId>>) -> Self {
+        let visited_nodes = AHashSet::new();
         Self {
             connections,
             edges,
@@ -319,15 +321,15 @@ impl TDDijkstra {
 
     pub fn time_dependent_dijkstra(
         &mut self,
-        paths: &mut HashMap<NodeId, PathedNode>,
+        paths: &mut AHashMap<NodeId, PathedNode>,
         source_id: NodeId,
-        target_id: &HashSet<NodeId>, //if target == None, settles all reachable nodes
+        target_id: &AHashSet<NodeId>, //if target == None, settles all reachable nodes
     ) -> Option<NodeId> {
         //returns path from the source to target if exists, also path from every node to source
         //Heap(distance, node), Reverse turns binaryheap into minheap (default is maxheap)
 
         let mut priority_queue: BinaryHeap<Reverse<(u32, NodeId)>> = BinaryHeap::new();
-        let mut gscore: HashMap<NodeId, u32> = HashMap::new(); //stores distances of node relative to target
+        let mut gscore: AHashMap<NodeId, u32> = AHashMap::new(); //stores distances of node relative to target
         self.visited_nodes.clear();
 
         gscore.insert(source_id, 0);

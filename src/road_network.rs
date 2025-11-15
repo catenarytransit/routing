@@ -5,7 +5,7 @@ pub mod road_graph_construction {
     use core::ops::Range;
     use osmpbfreader::objects::OsmObj;
     use ahash::AHashMap;
-    use std::collections::HashSet;
+    use ahash::AHashSet;
 
     #[derive(
         Debug,
@@ -318,7 +318,7 @@ pub mod road_graph_construction {
 
     pub fn arc_flags_precompute(coords: CoordRange, dijkstra_graph: &mut RoadDijkstra) -> String {
         let (lat_range, lon_range) = coords.give_ranges();
-        let mut boundary_node = HashSet::new();
+        let mut boundary_node = AHashSet::new();
         let region_nodes = dijkstra_graph
             .graph
             .nodes
