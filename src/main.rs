@@ -431,8 +431,7 @@ fn find_target_section(
     let entries = read_dir(dirpath)
         .unwrap()
         .map(|res| res.map(|e| e.path()))
-        .filter(|x| x.is_ok())
-        .collect::<Vec<_>>();
+        .filter(|x| x.is_ok());
     for entry in entries {
         let file = entry.unwrap();
         let path = file.as_path().to_str().unwrap();
