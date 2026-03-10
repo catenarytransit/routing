@@ -12,27 +12,54 @@ pub struct RaptorPref {
     pub maximum_footpath_len_m: u32,
 }
 
-/// Encodes a timetable for a public transit agency.
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StationId(i64);
+impl From<i64> for StationId {
+    fn from(value: i64) -> Self {
+        StationId(value)
+    }
+}
+
+#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct RouteId(u32);
+
+impl From<u32> for RouteId {
+    fn from(value: u32) -> Self {
+        RouteId(value)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Route {
+    /// Unique identifier of the route
+    id: RouteId,
+    /// List of stops with the (station_id, stop_id)
+    stops: Vec<(StationId, u32)>,
+    /// List of starting times of vehicles.
+    vehicles: Vec<u32>,
+}
+
+/// Encodes a timetable for for many routes and stations.
 #[derive(Clone, PartialEq, Debug)]
 pub struct Timetable {
     /// Maps route_id to the route timing struct.
     /// The timing struct has a vector of (station_id,time_offset) and a vector of vehicle start times
-    pub routes: AHashMap<u32, (Vec<(i64, u32)>, Vec<u32>)>,
+    pub routes: AHashMap<RouteId, Route>,
     /// Maps station_id to (route_id, stop_index)
-    pub lines_per_station: AHashMap<i64, Vec<(u32, u32)>>,
+    pub lines_per_station: AHashMap<StationId, Vec<(RouteId, usize)>>,
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct Mapping {
-    /// Map station_id to (latitude, longitude, station_name)
-    pub stations: AHashMap<i64, (i64, i64, String)>,
-    // Map (station_id,vehicle_id) to Trip name
-    pub trips: AHashMap<(i64, u32), String>,
+pub struct NameMap {
+    /// Map station_id to (latitude, longitude, Chateau, stop_id)
+    pub stations: AHashMap<i64, (i64, i64, String, String)>,
+    // Map (station_id,vehicle_id) to (Chateau, trip_id)
+    pub trips: AHashMap<(i64, u32), (String, String)>,
 }
 
 impl Timetable {
     /// Returns the index of a station along a route
-    fn get_stop_index(&self, station_id: i64, route_id: u32) -> Option<usize> {
+    fn get_stop_index(&self, station_id: StationId, route_id: RouteId) -> Option<usize> {
         self.lines_per_station
             .get(&station_id)?
             .iter()
@@ -41,13 +68,16 @@ impl Timetable {
     }
     fn get_next_vehicle_id(
         &self,
-        station_id: i64,
-        route_id: u32,
+        station_id: StationId,
+        route_id: RouteId,
         departing_time: u32,
     ) -> Option<usize> {
-        println!("st{station_id} on r{route_id} @ {departing_time}");
         let stop_id = self.get_stop_index(station_id, route_id)?;
-        let (station_offsets, vehicles) = self.routes.get(&route_id)?;
+        let Route {
+            stops: station_offsets,
+            vehicles,
+            id: _,
+        } = self.routes.get(&route_id)?;
 
         let start_time = departing_time.checked_sub(station_offsets[stop_id as usize].1)?;
         vehicles
@@ -64,7 +94,7 @@ impl Timetable {
 #[derive(Clone, PartialEq, Debug)]
 pub struct Journey {
     /// List of ((departure_station,departure_time), (arrival_station,arrival_time), trip_id, vehicle_id)
-    pub legs: Vec<((i64, u32), (i64, u32), u32, u32)>,
+    pub legs: Vec<((StationId, u32), (StationId, u32), RouteId, usize)>,
 }
 
 /// Based on the direct connection dataset, calculate the round-based routing.
@@ -76,9 +106,9 @@ pub struct Journey {
 /// Returns a pareto-optimal map of journeys where the key is (distance, num_transfers). The list of trips can be obtained by iterating over the entire AHashMap.
 pub fn route_raptor(
     timetable: &Timetable,
-    start_station: i64,
+    start_station: StationId,
     start_time: u32,
-    dest_station: i64,
+    dest_station: StationId,
     pref: RaptorPref,
 ) -> AHashMap<(u32, usize), Journey> {
     let Timetable {
@@ -89,16 +119,17 @@ pub fn route_raptor(
     // Stores a list of earliest arrivals by round and the origin route and departing station id of the arrival.
     // Maps station_id to (time,route_id,departing_station)
     // Arrival time of u32::MAX implies it's not possible in that round
-    let mut earliest_arrival_by_round: AHashMap<i64, Vec<(u32, u32, i64)>> = AHashMap::new();
+    let mut earliest_arrival_by_round: AHashMap<StationId, Vec<(u32, RouteId, StationId)>> =
+        AHashMap::new();
     // Stores the earliest possible arrival time for each station.
-    let mut earliest_arrival: AHashMap<i64, u32> = AHashMap::new();
+    let mut earliest_arrival: AHashMap<StationId, u32> = AHashMap::new();
     earliest_arrival.insert(start_station, start_time);
-    earliest_arrival_by_round.insert(start_station, vec![(start_time, 0, 0)]);
-    let mut marked_stops: AHashSet<i64> = AHashSet::new();
+    earliest_arrival_by_round.insert(start_station, vec![(start_time, RouteId(0), StationId(0))]);
+    let mut marked_stops: AHashSet<StationId> = AHashSet::new();
     marked_stops.insert(start_station);
     for k in 1..pref.max_transfer_limit {
         // Stores a list of route ids mapped to (stop_id, stop_index).
-        let mut queue: AHashMap<u32, (i64, u32)> = AHashMap::new();
+        let mut queue: AHashMap<RouteId, (StationId, usize)> = AHashMap::new();
         // Finds the earliest stop for each route based on the marked stations.
         for stop in marked_stops.drain() {
             let Some(routes_list) = lines_per_station.get(&stop) else {
@@ -124,7 +155,11 @@ pub fn route_raptor(
         for (route, (departing_station, departing_idx)) in queue {
             // Keep track of the earliest trip we can board on the route as we iterate through stations. This is an index into the routes vehicle departure list.
             let mut earliest_trip = usize::MAX;
-            let (route_stops, route_vehicles) = routes.get(&route).unwrap();
+            let Route {
+                stops: route_stops,
+                vehicles: route_vehicles,
+                id: _,
+            } = routes.get(&route).unwrap();
             // Iterate through the stops later in the route. Update earliest_trip if there is a faster way to get to this route.
             for next_stop in route_stops[(departing_idx as usize)..].iter() {
                 // Earliest arrival of this trip to this station
@@ -144,12 +179,13 @@ pub fn route_raptor(
                     // Add (quickest_time,route_id,departing_station) to the kth (round_id) entry of the earliest arrival matrix.
                     match earliest_arrival_by_round.entry(next_stop.0) {
                         Entry::Occupied(mut occ) => {
-                            occ.get_mut().resize(k + 1, (u32::MAX, 0, 0));
+                            occ.get_mut()
+                                .resize(k + 1, (u32::MAX, RouteId(0), StationId(0)));
                             occ.get_mut()[k] = (quickest_time, route, departing_station);
                         }
                         Entry::Vacant(ent) => {
                             let mut vec = vec![];
-                            vec.resize(k + 1, (u32::MAX, 0, 0));
+                            vec.resize(k + 1, (u32::MAX, RouteId(0), StationId(0)));
                             vec[k] = (quickest_time, route, departing_station);
                             ent.insert(vec);
                         }
@@ -193,7 +229,8 @@ pub fn route_raptor(
             println!("No route in round {final_round}");
             continue;
         }
-        let mut legs: Vec<((i64, u32), (i64, u32), u32, u32)> = Vec::with_capacity(final_round);
+        let mut legs: Vec<((StationId, u32), (StationId, u32), RouteId, usize)> =
+            Vec::with_capacity(final_round);
 
         // Follow arrival and departure chain
         let mut cur_station = dest_station;
@@ -206,14 +243,14 @@ pub fn route_raptor(
             let departing_stop_id = timetable
                 .get_stop_index(departing_station, route_id)
                 .unwrap();
-            let departing_time = routes.get(&route_id).unwrap().1[vehicle_id]
-                + routes.get(&route_id).unwrap().0[departing_stop_id as usize].1;
+            let departing_time = routes.get(&route_id).unwrap().vehicles[vehicle_id]
+                + routes.get(&route_id).unwrap().stops[departing_stop_id as usize].1;
 
             legs.push((
                 (departing_station, departing_time),
                 (cur_station, time),
                 route_id,
-                vehicle_id as u32,
+                vehicle_id,
             ));
             cur_station = departing_station;
         }
@@ -235,6 +272,10 @@ pub fn route_raptor(
 mod tests {
     use ahash::AHashMap;
 
+    use crate::raptor::route::Route;
+    use crate::raptor::route::RouteId;
+    use crate::raptor::route::StationId;
+
     use super::Journey;
     use super::RaptorPref;
     use super::Timetable;
@@ -255,38 +296,63 @@ mod tests {
         // 9   8     7        6
         // 5               4  3
         // 2            1     0
+        let r_1 = RouteId(1);
+        let r_2 = RouteId(2);
+        let r_3 = RouteId(3);
+        let r_4 = RouteId(4);
+        let r_5 = RouteId(5);
         #[rustfmt::skip]
         let timetable = Timetable {
             routes: AHashMap::from([
-                (1, (vec![(0, 0), (1, 10), (2, 15)], vec![0, 5])),
-                (2, (vec![(0, 0), (3, 10), (6, 20), (13, 30), (14, 40)], vec![5, 15])),
-                (3, (vec![(0, 0), (1, 5), (4, 15), (7, 20), (8, 30), (10, 60)], vec![0, 5, 20])), 
-                (4, (vec![(2, 0), (5, 5), (9, 10), (10, 15)], vec![0, 5, 10, 15, 20, 25])),
-                (5, (vec![(13, 0), (12, 10), (11, 20), (10, 30)], vec![0, 10, 12, 20, 25, 30])),
+                (r_1, Route { 
+                    id: r_1,
+                    stops: vec![(StationId(0), 0), (StationId(1), 10), (StationId(2), 15)], 
+                    vehicles: vec![0, 5]
+                }),
+                (r_2, Route {
+                    id: r_2,
+                    stops: vec![(StationId(0), 0), (StationId(3), 10), (StationId(6), 20), (StationId(13), 30), (StationId(14), 40)], 
+                    vehicles: vec![5, 15],
+                }),
+                (r_3, Route {
+                    id: r_3,
+                    stops: vec![(StationId(0), 0), (StationId(1), 5), (StationId(4), 15), (StationId(7), 20), (StationId(8), 30), (StationId(10), 60)], 
+                    vehicles: vec![0, 5, 20]
+                }),
+                (r_4, Route {
+                    id: r_3,
+                    stops: vec![(StationId(2), 0), (StationId(5), 5), (StationId(9), 10), (StationId(10), 15)], 
+                    vehicles: vec![0, 5, 10, 15, 20, 25],
+                }),
+                (r_5, Route {
+                    id: r_3,
+                    stops: vec![(StationId(13), 0), (StationId(12), 10), (StationId(11), 20), (StationId(10), 30)], 
+                    vehicles: vec![0, 10, 12, 20, 25, 30],
+                }),
             ]),
             lines_per_station: AHashMap::from([
-                (0, vec![(1, 0), (2, 0), (3, 0)]),
-                (1, vec![(1, 1), (3, 1)]),
-                (2, vec![(1, 2), (4, 0)]),
-                (3, vec![(2, 1)]),
-                (4, vec![(3, 2)]),
-                (5, vec![(4, 1)]),
-                (6, vec![(2, 2)]),
-                (7, vec![(3, 3)]),
-                (8, vec![(3, 4)]),
-                (9, vec![(4, 2)]),
-                (10, vec![(4, 3), (3, 5), (5, 3)]),
-                (11, vec![(5, 2)]),
-                (12, vec![(5, 1)]),
-                (13, vec![(5, 0), (2, 3)]),
-                (14, vec![(2, 4)]),
+                (StationId(0), vec![(r_1, 0), (r_2, 0), (r_3, 0)]),
+                (StationId(1), vec![(r_1, 1), (r_3, 1)]),
+                (StationId(2), vec![(r_1, 2), (r_4, 0)]),
+                (StationId(3), vec![(r_2, 1)]),
+                (StationId(4), vec![(r_3, 2)]),
+                (StationId(5), vec![(r_4, 1)]),
+                (StationId(6), vec![(r_2, 2)]),
+                (StationId(7), vec![(r_3, 3)]),
+                (StationId(8), vec![(r_3, 4)]),
+                (StationId(9), vec![(r_4, 2)]),
+                (StationId(10), vec![(r_4, 3), (r_3, 5), (r_5, 3)]),
+                (StationId(11), vec![(r_5, 2)]),
+                (StationId(12), vec![(r_5, 1)]),
+                (StationId(13), vec![(r_5, 0), (r_2, 3)]),
+                (StationId(14), vec![(r_2, 4)]),
             ]),
         };
         let output = route_raptor(
             &timetable,
+            StationId(0),
             0,
-            0,
-            10,
+            StationId(10),
             RaptorPref {
                 max_transfer_limit: 5,
                 minimum_layover_s: 3,
@@ -294,13 +360,11 @@ mod tests {
             },
         );
 
-        println!("{:?}", output);
-
         // Direct but slow route (60 seconds)
         assert_eq!(
             output.get(&(60, 1)),
             Some(&Journey {
-                legs: vec![((0, 5), (10, 65), 3, 1)]
+                legs: vec![((StationId(0), 5), (StationId(10), 65), RouteId(3), 1)]
             })
         );
         // Follow route 1 then route 4 in 35 seconds.
@@ -309,9 +373,9 @@ mod tests {
             Some(&Journey {
                 legs: vec![
                     // Go from station 0 to station 2 on route 1 with vehicle 0
-                    ((0, 5), (2, 20), 1, 1),
+                    ((StationId(0), 5), (StationId(2), 20), RouteId(1), 1),
                     // Go from station 2 to station 10 on route 4 with vehicle 3. Wait 5 seconds for layover because I set minimum layover time to 3 seconds, missing the train that was at the exact same second.
-                    ((2, 25), (10, 40), 4, 5)
+                    ((StationId(2), 25), (StationId(10), 40), RouteId(4), 5)
                 ]
             }),
         );
