@@ -32,6 +32,10 @@
 pub mod road_network;
 pub use crate::road_network::road_graph_construction::RoadNetwork;
 
+mod raptor {
+    mod route;
+    mod walking;
+}
 pub mod road_dijkstras;
 pub mod transfers;
 pub mod transit_dijkstras;
