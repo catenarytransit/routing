@@ -1,5 +1,5 @@
+//constructs and preprocesses the road network graph from OSM data
 pub mod road_graph_construction {
-    //constructs and preprocesses the graph struct from OSM data
     use crate::road_dijkstras::*;
     use ahash::AHashMap;
     use ahash::AHashSet;

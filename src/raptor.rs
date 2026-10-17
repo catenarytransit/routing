@@ -1,6 +1,6 @@
+// Algorithm written by Benjamin Cates
+//integrated with GTFS by C. Wen
 use std::collections::hash_map::Entry;
-
-// File written by Benjamin Cates
 use ahash::AHashMap;
 use ahash::AHashSet;
 
@@ -272,9 +272,9 @@ pub fn route_raptor(
 mod tests {
     use ahash::AHashMap;
 
-    use crate::raptor::route::Route;
-    use crate::raptor::route::RouteId;
-    use crate::raptor::route::StationId;
+    use crate::raptor::Route;
+    use crate::raptor::RouteId;
+    use crate::raptor::StationId;
 
     use super::Journey;
     use super::RaptorPref;

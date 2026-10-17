@@ -6,30 +6,24 @@ edition = "2024"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ahash = {version = "0.8.12", features = ["serde"] }
-bincode = "2.0.0"
-chrono = "0.4.40"
+ahash = { version = "*", features = ["serde"] }
+bytemuck = { version = "*", features = ["derive", "zeroable_maybe_uninit"] }
+chrono = "*"
 clap = { version = "*", features = ["derive"] }
-geo = { version = "0.31.0", features = ["serde", "use-serde"] }
+geo = { version = "*", features = ["serde", "use-serde"] }
 gtfs-structures = "*"
-ittapi = "0.4.0"
-kd-tree = "0.6.2"
-osmpbfreader = "0.19.1"
-rand = "0.9.0"
+osmpbfreader = "*"
+rand = "*"
 regex = "*"
-ron = "0.11.0"
-rstar = "0.12.2"
-serde = { version = "1.0.218", features = ["derive"] }
-tokio = { version = "1.48.0", features = ["full"] }
-typenum = "1.19.0"
+ron = "*"
+rstar = "0.13.0"
+serde = { version = "*", features = ["derive"] }
+tokio = { version = "*", features = ["full"] }
+# typenum = "*"
+# rstar = "*"
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
-tikv-jemallocator = "0.6.1"
+tikv-jemallocator = "*"
 
 [profile.release]
 debug = true
-
-[[bin]]
-name = "test"
-path = "src/test.rs"
-

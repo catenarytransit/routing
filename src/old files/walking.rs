@@ -1,4 +1,4 @@
-
+// Algorithm written by Benjamin Cates
 use ahash::AHashMap;
 use kd_tree::KdPoint;
 use kd_tree::KdTree;
