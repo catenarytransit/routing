@@ -92,10 +92,25 @@ impl Timetable {
 /// Encodes a path through a public transit network.
 /// Can be decoded into a human-readable format with proper GTFS data.
 /// The total time of the journey is the final arrival time minus the first departure time.
+
 #[derive(Clone, PartialEq, Debug)]
 pub struct Journey {
     /// List of ((departure_station,departure_time), (arrival_station,arrival_time), trip_id, vehicle_id)
-    pub legs: Vec<((StationId, u32), (StationId, u32), RouteId, usize)>,
+    //pub legs: Vec<((StationId, u32), (StationId, u32), RouteId, usize)>,
+    
+    // update: make code use Vec<Legs> instead and have the struct be be broken down from the tuple for
+    pub legs: Vec<Legs>,
+}
+
+//see above: revision for Journey struct
+#[derive(Clone, PartialEq, Debug)]
+pub struct Legs {
+    pub departure_station: StationId,
+    pub departure_time: u32,
+    pub arrival_station: StationId,
+    pub arrival_time: u32,
+    pub trip_id: RouteId,
+    pub vehicle_id: usize,
 }
 
 /// Based on the direct connection dataset, calculate the round-based routing.
@@ -233,7 +248,9 @@ pub fn route_raptor(
             println!("No route in round {final_round}");
             continue;
         }
-        let mut legs: Vec<((StationId, u32), (StationId, u32), RouteId, usize)> = Vec::with_capacity(final_round);
+        //let mut legs: Vec<((StationId, u32), (StationId, u32), RouteId, usize)> = Vec::with_capacity(final_round);
+
+        let     mut legs: Vec<Legs> = Vec::with_capacity(final_round);
 
         // Follow arrival and departure chain
         let mut cur_station = dest_station;
@@ -249,22 +266,35 @@ pub fn route_raptor(
             let departing_time = routes.get(&route_id).unwrap().vehicles[vehicle_id]
                 + routes.get(&route_id).unwrap().stops[departing_stop_id].1;
 
-            legs.push((
+            /* legs.push((
                 (departing_station, departing_time),
                 (cur_station, time),
                 route_id,
                 vehicle_id,
-            ));
+            )); */
+
+            let leg = Legs {
+                departure_station: departing_station,
+                departure_time: departing_time,
+                arrival_station: cur_station,
+                arrival_time: time,
+                trip_id: route_id,
+                vehicle_id,
+            };
+            legs.push(leg);
+
             cur_station = departing_station;
         }
         legs.reverse();
 
-        if legs.is_empty() || legs[0].0.0 != start_station {
+        //if legs.is_empty() || legs[0].0.0 != start_station {
+        if legs.is_empty() || legs[0].departure_station != start_station {
             panic!("Weird issue: {legs:?}");
         }
 
         println!("{legs:?}");
-        let duration = legs.last().unwrap().1.1 - legs.first().unwrap().0.1;
+        //let duration = legs.last().unwrap().1.1 - legs.first().unwrap().0.1;
+        let duration = legs.last().unwrap().arrival_time - legs.first().unwrap().departure_time;
 
         pareto_optimal_paths.insert((duration, legs.len()), Journey { legs });
     }
@@ -275,7 +305,8 @@ pub fn route_raptor(
 mod tests {
     use ahash::AHashMap;
 
-    use crate::raptor::Route;
+    use crate::raptor::Legs;
+use crate::raptor::Route;
     use crate::raptor::RouteId;
     use crate::raptor::StationId;
 
@@ -364,23 +395,64 @@ mod tests {
         );
 
         // Direct but slow route (60 seconds)
-        assert_eq!(
+        /* assert_eq!(
             output.get(&(60, 1)),
             Some(&Journey {
                 legs: vec![((StationId(0), 5), (StationId(10), 65), RouteId(3), 1)]
             })
+        ); */
+        assert_eq!(
+            output.get(&(60, 1)),
+            /* Some(&Journey {
+                legs: vec![((StationId(0), 5), (StationId(10), 65), RouteId(3), 1)]
+            }) */
+            Some(&Journey {
+                legs: vec![Legs {
+                    departure_station: StationId(0),
+                    departure_time: 5,
+                    arrival_station: StationId(10),
+                    arrival_time: 65,
+                    trip_id: RouteId(3),
+                    vehicle_id: 1,
+                }]
+            })
         );
         // Follow route 1 then route 4 in 35 seconds.
-        assert_eq!(
+        /* assert_eq!(
             output.get(&(35, 2)),
             Some(&Journey {
                 legs: vec![
-                    // Go from station 0 to station 2 on route 1 with vehicle 0
+                    // Go from station 0 to station 2 on route 1 with vehicle 1
                     ((StationId(0), 5), (StationId(2), 20), RouteId(1), 1),
                     // Go from station 2 to station 10 on route 4 with vehicle 3. Wait 5 seconds for layover because I set minimum layover time to 3 seconds, missing the train that was at the exact same second.
                     ((StationId(2), 25), (StationId(10), 40), RouteId(4), 5)
                 ]
             }),
+        ); */
+        assert_eq!(
+            output.get(&(35, 2)),
+            Some(&Journey {
+                legs: vec![
+                    // Go from station 0 to station 2 on route 1 with vehicle 1
+                    Legs {
+                        departure_station: StationId(0),
+                        departure_time: 5,
+                        arrival_station: StationId(2),
+                        arrival_time: 20,
+                        trip_id: RouteId(1),
+                        vehicle_id: 1
+                    },
+                    // Go from station 2 to station 10 on route 4 with vehicle 5. Wait 5 seconds for layover because I set minimum layover time to 3 seconds, missing the train that was at the exact same second.
+                    Legs {
+                        departure_station: StationId(2),
+                        departure_time: 25,
+                        arrival_station: StationId(10),
+                        arrival_time: 40,
+                        trip_id: RouteId(4),
+                        vehicle_id: 5,
+                    },
+                ],
+            })
         );
         // Assert there are only two optimum routes.
         assert_eq!(output.len(), 2);
