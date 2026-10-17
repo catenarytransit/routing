@@ -1,8 +1,8 @@
 // Copyright Chelsea Wen
 // Cleaned up somewhat by Kyler Chin
-pub mod road_network;
 pub mod raptor;
 pub mod road_dijkstras;
+pub mod road_network;
 pub mod timetable;
 //pub mod transfers;
 //pub mod transit_dijkstras;

@@ -253,7 +253,7 @@ impl RoadDijkstra {
     }
 
     pub fn reset_all_flags(&mut self, state: bool) {
-        for (_, edgelist) in self.graph.edges.iter_mut() {
+        for edgelist in self.graph.edges.values_mut() {
             for edge in edgelist.iter_mut() {
                 edge.1.1 = state;
             }

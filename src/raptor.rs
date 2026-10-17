@@ -1,5 +1,6 @@
 // Algorithm written by Benjamin Cates
 //integrated with GTFS by C. Wen
+#![allow(clippy::collapsible_if)]
 use std::collections::hash_map::Entry;
 use ahash::AHashMap;
 use ahash::AHashSet;
@@ -64,7 +65,7 @@ impl Timetable {
             .get(&station_id)?
             .iter()
             .find(|(route, _idx)| *route == route_id)
-            .map(|(_, idx)| *idx as usize)
+            .map(|(_, idx)| *idx)
     }
     fn get_next_vehicle_id(
         &self,
@@ -79,7 +80,7 @@ impl Timetable {
             id: _,
         } = self.routes.get(&route_id)?;
 
-        let start_time = departing_time.checked_sub(station_offsets[stop_id as usize].1)?;
+        let start_time = departing_time.checked_sub(station_offsets[stop_id].1)?;
         vehicles
             .iter()
             .enumerate()
@@ -161,7 +162,7 @@ pub fn route_raptor(
                 id: _,
             } = routes.get(&route).unwrap();
             // Iterate through the stops later in the route. Update earliest_trip if there is a faster way to get to this route.
-            for next_stop in route_stops[(departing_idx as usize)..].iter() {
+            for next_stop in route_stops[departing_idx..].iter() {
                 // Earliest arrival of this trip to this station
                 let quickest_time = route_vehicles
                     .get(earliest_trip)
@@ -210,7 +211,7 @@ pub fn route_raptor(
         //TODO: handle footpaths
 
         // Early stopping
-        if marked_stops.len() == 0 {
+        if marked_stops.is_empty() {
             break;
         }
     }
@@ -224,13 +225,15 @@ pub fn route_raptor(
     let mut pareto_optimal_paths: AHashMap<(u32, usize), Journey> =
         AHashMap::with_capacity(pref.max_transfer_limit);
     println!("{earliest_arrival_by_round:?}");
-    for final_round in 0..(pref.max_transfer_limit.min(arrivals_by_round.len())) {
+
+    let limit = pref.max_transfer_limit.min(arrivals_by_round.len());
+    for (final_round, _) in arrivals_by_round.iter().enumerate().take(limit) {
+        //for final_round in 0..(pref.max_transfer_limit.min(arrivals_by_round.len())) {
         if arrivals_by_round[final_round].0 == u32::MAX {
             println!("No route in round {final_round}");
             continue;
         }
-        let mut legs: Vec<((StationId, u32), (StationId, u32), RouteId, usize)> =
-            Vec::with_capacity(final_round);
+        let mut legs: Vec<((StationId, u32), (StationId, u32), RouteId, usize)> = Vec::with_capacity(final_round);
 
         // Follow arrival and departure chain
         let mut cur_station = dest_station;
@@ -244,7 +247,7 @@ pub fn route_raptor(
                 .get_stop_index(departing_station, route_id)
                 .unwrap();
             let departing_time = routes.get(&route_id).unwrap().vehicles[vehicle_id]
-                + routes.get(&route_id).unwrap().stops[departing_stop_id as usize].1;
+                + routes.get(&route_id).unwrap().stops[departing_stop_id].1;
 
             legs.push((
                 (departing_station, departing_time),
@@ -256,7 +259,7 @@ pub fn route_raptor(
         }
         legs.reverse();
 
-        if legs.len() == 0 || legs[0].0.0 != start_station {
+        if legs.is_empty() || legs[0].0.0 != start_station {
             panic!("Weird issue: {legs:?}");
         }
 

@@ -233,7 +233,7 @@ pub mod road_graph_construction {
                 }
             }
             let mut new_node_list = number_times_node_visted.iter().collect::<Vec<_>>();
-            new_node_list.sort_by(|(_, counter1), (_, counter2)| counter1.cmp(counter2));
+            new_node_list.sort_by_key(|(_, counter1)| *counter1);
 
             let connected_components =
                 &mut new_node_list.chunk_by(|(_, counter1), (_, counter2)| counter1 == counter2);

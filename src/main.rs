@@ -3,7 +3,7 @@
 
 use geo::{Point, point};
 use regex::Regex;
-use routing::{road_dijkstras::*, road_network::*, raptor::*};
+use routing::{raptor::*, road_dijkstras::*, road_network::*};
 use std::fs::*;
 use std::io::*;
 use std::time::Instant;
@@ -40,7 +40,6 @@ struct Args {
 
 #[tokio::main]
 async fn main() {
-
     let args = Args::parse();
 
     if !args.debugmode {
@@ -54,13 +53,11 @@ async fn main() {
 
         println!("generating transit network graph");
         //let timetable = read_timetable_file("timetable.bin");
-            
-    } 
+    }
     //else {
-       
+
     //}
 }
-
 
 #[allow(dead_code)]
 fn find_target_section(
